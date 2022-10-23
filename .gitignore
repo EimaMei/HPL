@@ -1,0 +1,13 @@
+# Folders
+.vscode/
+build/
+res/
+source/test
+games/
+
+# Files 
+*.exe
+*.dll
+*.o
+*.ttf
+.DS_Store
