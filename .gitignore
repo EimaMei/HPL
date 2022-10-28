@@ -11,3 +11,4 @@ games/
 *.o
 *.ttf
 .DS_Store
+test.cpp

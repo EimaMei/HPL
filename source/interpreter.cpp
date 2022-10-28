@@ -1,9 +1,32 @@
+/*
+* Copyright (C) 2021-2022 Eima
+*   
+* This software is provided 'as-is', without any express or implied
+* warranty.  In no event will the authors be held liable for any damages
+* arising from the use of this software.
+* 
+* Permission is granted to anyone to use this software for any purpose,
+* including commercial applications, and to alter it and redistribute it
+* freely, subject to the following restrictions:
+*   
+* 1. The origin of this software must not be misrepresented; you must not
+*    claim that you wrote the original software. If you use this software
+*    in a product, an acknowledgment in the product documentation would be
+*    appreciated but is not required. 
+* 2. Altered source versions must be plainly marked as such, and must not be
+*    misrepresented as being the original software.
+* 3. This notice may not be removed or altered from any source distribution.
+*
+*
+*/
 #include <iostream>
+#include <core.hpp>
+#include <helper.hpp>
 #include <interpreter.hpp>
 #include <functions.hpp>
 
 
-std::string HCL::colorText(std::string txt, RETURN_OUTPUT type) {
+std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
 	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 	int clr;
 
@@ -24,11 +47,18 @@ std::string HCL::colorText(std::string txt, RETURN_OUTPUT type) {
 	std::string text;
 
 	switch (type) {
-		case OUTPUT_GREEN: text += "\x1B[32m"; break;
-		case OUTPUT_YELLOW: text += "\x1B[33m"; break;
-		case OUTPUT_RED:   text += "\x1B[31m"; break;
-		case OUTPUT_PURPLE:   text += "\x1B[35m"; break;
-		case OUTPUT_BLUE:    text += "\x1B[1;36m"; break;
+		case OUTPUT_NOTHING:  text = "\x1B[0m";  break;
+		case OUTPUT_BLACK:    text = "\x1B[30m"; break;
+		case OUTPUT_RED:      text = "\x1B[31m"; break;
+		case OUTPUT_GREEN:    text = "\x1B[32m"; break;
+		case OUTPUT_YELLOW:   text = "\x1B[33m"; break;
+		case OUTPUT_BLUE:     text = "\x1B[34m"; break;
+		case OUTPUT_PURPLE:   text = "\x1B[35m"; break;
+		case OUTPUT_CYAN:     text = "\x1B[36m"; break;
+		case OUTPUT_GRAY:     text = "\x1B[37m"; break;
+	}
+	if (light) {
+		std::replace(text.begin(), text.begin() + 2, '3', '9');
 	}
 	text += txt + "\x1B[0m";
 
@@ -54,12 +84,10 @@ void HCL::interpreteFile(std::string file) {
 			line = buf;
 			lineCount++;
 			
-			if (find("//"))
+			if (find(line, "//")) // Ignore comments
 				line = split(line, "//")[0];
 
-			if (checkIncludes() == 1) continue;
-			if (checkStruct() == 1) continue;
-			if (checkVariables() == 1) continue;
+			interpreteLine(line);
 		}
 		std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
 	}
@@ -68,6 +96,17 @@ void HCL::interpreteFile(std::string file) {
 
 	fclose(fp);
 	resetRuntimeInfo();
+}
+
+
+int HCL::interpreteLine(std::string str) {
+	line = str;
+
+	if (checkIncludes() == FOUND_SOMETHING) return FOUND_SOMETHING;
+	if (checkStruct() == FOUND_SOMETHING) return FOUND_SOMETHING;
+	if (checkVariables() == FOUND_SOMETHING) return FOUND_SOMETHING;
+
+	return FOUND_NOTHING;
 }
 
 
@@ -82,9 +121,9 @@ int HCL::checkIncludes() {
 		lineCount = 0; // We reset it so that the lineCount won't be innaccurate when the lines gets interpreted correctly.
 
 
-		if (find("<") && find(">")) // Core library '#include <libpdx.hcl>'
+		if (find(line, "<") && find(line, ">")) // Core library '#include <libpdx.hcl>'
 			interpreteFile("core/" + unstringify(match, true));
-		else if (find("\"")) // Some library '#include "../somelib.hcl"'
+		else if (find(line, "\"")) // Some library '#include "../somelib.hcl"'
 			interpreteFile(getPathFromFilename(oldFile) + "/" + match);
 
 		curFile = oldFile;
@@ -97,41 +136,90 @@ int HCL::checkIncludes() {
 
 int HCL::checkVariables() {
 	// Matches the type, name and value
-	if (useRegex(line, R"(\s*([A-Za-z0-9]+)\s+([A-Za-z0-9]+)\s*=?\s*(\".*\"|true|false|\d+)*)")) {
-		variable var;
+	if (useRegex(line, R"(\s*([A-Za-z0-9]+)\s+([A-Za-z0-9]+)\s*=?\s*(\".*\"|true|false|-?\d+|\{.*\})?)")) {
+		variable var = {matches.str(1), .name = matches.str(2), .value = {unstringify(matches.str(3))}};
+		structure s;
 
-		if (matches.str(1) == "string")
-			var.type = STRING;
-		else if (matches.str(1) == "int" || matches.str(1) == "bool")
-			var.type = INT;
-		else if (matches.str(1) == "scope")
-			var.type = SCOPE;
-		else { // Might be a structure type.
-			for (auto s : structures) {
-				if (matches.str(1) == s.first) { 
-					var.type = CUSTOM;
-					var.strType = matches.str(1);
-					break;
+		if (typeIsValid(var.type, s)) { // The type isn't a core type, it could be a structure?
+			if (!s.name.empty()) { // It's a struct
+				if (var.type == s.name) {
+					var.value.clear(); // Clear everything in the vector so that no memory shenanigans would happen.
+					
+					if (var.value[0].empty()) { // Nothing is set, meaning it's just the struct's default arguments.
+						for (int i = 0; i < s.value.size(); i++) {
+							auto data = s.value[i];
+							var.value.push_back(data.value[0]);
+							var.extra.push_back(data.type);
+						}
+					}
+					else { // Oh god oh fuck it's a custom list.
+						// We don't split the string by the comma if the comma is inside double quotes
+						// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
+						std::vector<std::string> valueList = split(unstringify(var.value[0], true), ",", '\"');
+
+						if (valueList.size() > s.value.size()) {
+							throwError("Too many values are provided when declaring the variable '%s' (you provided '%d' arguments when struct type '%s' has only '%d' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
+						}
+
+						// The first unstringify is used to remove any unneeded spaces.
+						// Then the second removes the double quotes if it's a string.
+						for (int i = 0; i < s.value.size(); i++)
+							if (i < s.value.size() && i < valueList.size()) {
+								var.value.push_back(unstringify(unstringify(valueList[i], false, ' ')));
+								var.extra.push_back(s.value[i].type);
+							}
+							else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
+								std::cout << strict << std::endl;
+								if (!s.value[i].value[0].empty()) {
+									var.value.push_back(s.value[i].value[0]);
+									var.extra.push_back(s.value[i].type);
+								}
+								else if (strict)
+									throwError("Too few values are provided to fully initialize a struct (you provided '%d' arguments when struct type '%s' has '%d' members).", valueList.size(), var.type.c_str(), s.value.size());
+								else
+									break;
+							}
+
+						if (valueList.size() < s.value.size()) { // Perhaps the u
+
+						}
+					}
 				}
 			}
-
-			if (var.type != CUSTOM) { // No type was found.
-				std::string msg = "Error at '" + curFile + ":" + std::to_string(lineCount) + "': type '" + matches.str(1) + "' doesn't exist.";
-				throw std::runtime_error(msg);
-			}
 		}
-		
-		var.name = matches.str(2);
+		else {
+			throwError("Type '%s' doesn't exist.", var.type.c_str());
+		}
 
-		if (matches.size() >= 3) // If a value is declared.
-			var.value = unstringify(matches.str(3));
-		
 		if (mode == SAVE_STRUCT) // Save variables inside a struct.
-			structures.begin()->second.push_back(var);
+			structures.begin()->value.push_back(var);
 		else
 			variables.push_back(var);
 	}
-	return 0;
+	// Edit a pre-existing variable
+	else if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=?\s*(\".*\"|true|false|\d+$)*)")) {
+		std::string name = matches.str(1);
+
+		if (find(name, ".")) { // Editing a struct's member.
+			std::cout << line << std::endl;
+			std::vector<std::string> listOfVars = split(matches.str(1), ".");
+			for (auto v : listOfVars) {
+				std::cout << v << std::endl;
+			}
+			return FOUND_SOMETHING;
+		}
+
+		for (auto& var : variables) { // Iterate through every variable to check if the user is trying to edit it.
+			std::cout << var.name << " " << name << std::endl;
+			if (name == var.name) {
+				var.value[0] = unstringify(matches.str(2));
+				return FOUND_SOMETHING;
+			}
+		}
+		// If nothing is found, throw a runtime error.
+		throw std::runtime_error("Error at '" + curFile + ":" + std::to_string(lineCount) + "': variable '" + name + "' doesn't exist.");
+	}
+	return FOUND_NOTHING;
 }
 
 
@@ -139,9 +227,8 @@ int HCL::checkStruct() {
 	// 'struct <name> {' Only matches the <name>
 	if (useRegex(line, R"(struct\s+([a-zA-Z]+)\s*\{)")) {
 		std::string name = removeSpaces(matches.str(1));
-		std::vector<variable> v;
-		
-		structures.insert(structures.begin(), std::make_pair(name, v));
+
+		structures.insert(structures.begin(), {name});
 		mode = SAVE_STRUCT;
 
 		return FOUND_SOMETHING;
@@ -159,50 +246,55 @@ int HCL::checkStruct() {
 
 void HCL::debugMode() {
 	std::cout << colorText("============ DEBUG INFORMATION ============\n", HCL::OUTPUT_PURPLE);
+	
+	std::cout << colorText("Variables:\n", OUTPUT_CYAN, true);
+	debugPrintVar(variables);
+	std::cout << colorText("Structures:\n", OUTPUT_CYAN, true);
+	debugPrintStruct(structures);
+}
 
-	std::cout << "Variables:\n";
-	for (auto v : variables) { 
-		if (v.type == STRING) {
-			std::cout << "            " << colorText("string ", HCL::OUTPUT_PURPLE) << v.name;
-			if (!v.value.empty()) std::cout << " = " << colorText("\"" + v.value + "\"", HCL::OUTPUT_BLUE);
+
+void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/) {
+	for (auto v : vars) {  // Regular variables
+		RETURN_OUTPUT clr = OUTPUT_PURPLE;
+	
+		if (v.type == "scope")
+			clr = OUTPUT_BLUE;
+		else if (!coreTyped(v.type))
+			clr = OUTPUT_NOTHING;
+			
+		std::cout << tabs << colorText(v.type, clr) << " " << v.name;
+
+		if (!v.value[0].empty()) std::cout << " = ";
+		if (v.value.size() > 1) std::cout << "{";
+
+		std::string vtype = v.type;
+		for (int i = 0; i < v.value.size(); i++) {
+			auto value = v.value[i];
+			if (i < v.extra.size()) vtype = v.extra[i];
+
+			if (vtype == "string" && (!value.empty() || v.value.size() > 1)) 
+				std::cout << colorText("\"" + value + "\"", HCL::OUTPUT_BLUE, true);
+			else if (!value.empty() || v.value.size() > 1)
+				std::cout << colorText(value, HCL::OUTPUT_BLUE, true);
+
+			if (v.value.size() > 1 && ((i + 1) < v.value.size()))
+				std::cout << ", ";
 		}
-		else if (v.type == INT) {
-			std::cout << "            " << colorText("int ", HCL::OUTPUT_PURPLE) << v.name;
-			if (!v.value.empty()) std::cout << " = " << colorText(v.value, HCL::OUTPUT_BLUE);
-		}
-		else if (v.type == SCOPE) {
-			std::cout << "            " << colorText("scope ", HCL::OUTPUT_BLUE) << v.name;
-			if (!v.value.empty()) std::cout << " = " << colorText(v.value, HCL::OUTPUT_BLUE);
-		}
-		else std::cout << "            " << v.strType << " " << v.name;
+
+		if (v.value.size() > 1) std::cout << "}";
+
 		std::cout << std::endl;
-	}
-	std::cout << "Structures:\n";
-	for (auto s : structures) {
-		std::cout << "      " << colorText("struct", HCL::OUTPUT_PURPLE) << " " << colorText(s.first, HCL::OUTPUT_YELLOW) << colorText(" {\n", HCL::OUTPUT_GREEN);
-		for (auto v : s.second) {
-			if (v.type == STRING) {
-				std::cout << "            " << colorText("string ", HCL::OUTPUT_PURPLE) << v.name;
-				if (!v.value.empty()) std::cout << " = " << colorText("\"" + v.value + "\"", HCL::OUTPUT_BLUE);
-			}
-			else if (v.type == INT) {
-				std::cout << "            " << colorText("int ", HCL::OUTPUT_PURPLE) << v.name;
-				if (!v.value.empty()) std::cout << " = " << colorText(v.value, HCL::OUTPUT_BLUE);
-			}
-			else if (v.type == SCOPE) {
-				std::cout << "            " << colorText("scope ", HCL::OUTPUT_BLUE) << v.name;
-				if (!v.value.empty()) std::cout << " = " << colorText(v.value, HCL::OUTPUT_BLUE);
-			}
-			else std::cout << "            " << v.strType << " " << v.name;
-			std::cout << std::endl;
-		}
-		std::cout << colorText("      }\n", HCL::OUTPUT_GREEN);
 	}
 }
 
 
-bool HCL::find(std::string str) {
-	return (line.find(str) != std::string::npos);
+void HCL::debugPrintStruct(std::vector<structure> structList) {
+	for (auto s : structures) {
+		std::cout << "	" << colorText("struct", HCL::OUTPUT_PURPLE) << " " << colorText(s.name, HCL::OUTPUT_YELLOW) << colorText(" {", HCL::OUTPUT_GREEN) << std::endl;
+		debugPrintVar(s.value, "		");
+		std::cout << colorText("	}\n", HCL::OUTPUT_GREEN);
+	}
 }
 
 
@@ -215,9 +307,43 @@ void HCL::resetRuntimeInfo() {
 }
 
 
+void HCL::throwError(std::string text, ...) {
+	va_list valist;
+	va_start(valist, text);
+	std::string msg = "Error at '" + curFile + ":" + std::to_string(lineCount) + "': ";
+
+	for (int i = 0; i < text.size(); i++) {
+		auto x = text[i];
+		int num = 0;
+
+		if (x == '%' && (i + 1) < text.size()) {
+			switch (text[i + 1]) {
+				case 's':
+					msg += va_arg(valist, const char*);
+					break;
+				case 'd':
+					num = va_arg(valist, int);
+					msg += std::to_string(num);
+					break;
+
+				default:
+					break;
+			}
+			i++;
+		}
+		else msg += x;
+	}
+	va_end(valist);
+	
+	if (debug) debugMode();
+	throw std::runtime_error("\x1B[0m" + msg);
+}
+
+
 namespace HCL {
 	// Inteperter configs.
 	bool debug;
+	bool strict;
 
 	// Interpreter rules runtime.
 	std::string curFile;
@@ -228,6 +354,5 @@ namespace HCL {
 
 	// Defnitions that are saved in memory.
 	std::vector<variable> variables;
-	std::vector<std::pair<variable, std::vector<variable>>> functions;
-	std::vector<std::pair<std::string, std::vector<variable>>> structures;
+	std::vector<structure> structures;
 }

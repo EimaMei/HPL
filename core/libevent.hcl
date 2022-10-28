@@ -12,7 +12,7 @@ struct event {
 	string picture
 	bool isTriggeredOnly = true // By default 'isTriggeredOnly' is set to true
 	bool isNewsEvent = false // 'isNewsEvent' is set to false by default
-	option options[]
+	//option options[]
 }
 
 //event newEvent(string namespace, int id, string title, string description, string path = NULL) {

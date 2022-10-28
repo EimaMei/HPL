@@ -1,3 +1,25 @@
+/*
+* Copyright (C) 2021-2022 Eima
+*   
+* This software is provided 'as-is', without any express or implied
+* warranty.  In no event will the authors be held liable for any damages
+* arising from the use of this software.
+* 
+* Permission is granted to anyone to use this software for any purpose,
+* including commercial applications, and to alter it and redistribute it
+* freely, subject to the following restrictions:
+*   
+* 1. The origin of this software must not be misrepresented; you must not
+*    claim that you wrote the original software. If you use this software
+*    in a product, an acknowledgment in the product documentation would be
+*    appreciated but is not required. 
+* 2. Altered source versions must be plainly marked as such, and must not be
+*    misrepresented as being the original software.
+* 3. This notice may not be removed or altered from any source distribution.
+*
+*
+*/
+
 #pragma once
 #include <string>
 #include <regex>
@@ -7,25 +29,33 @@
 #include <windows.h>
 #endif
 
+// Save functions.
 #define SAVE_NOTHING 0
 #define SAVE_STRUCT 1
 #define SAVE_FUNC 2
 
+// Outputs returns.
 #define FOUND_NOTHING 0
 #define FOUND_SOMETHING 1
+#define FOUND_ERRROR -1
 
 namespace HCL {
-	enum RETURN_OUTPUT { OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_RED, OUTPUT_PURPLE, OUTPUT_BLUE };
-	enum varType { STRING, INT, SCOPE, CUSTOM };
+	enum RETURN_OUTPUT { OUTPUT_NOTHING, OUTPUT_BLACK, OUTPUT_RED, OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_BLUE, OUTPUT_PURPLE, OUTPUT_CYAN, OUTPUT_GRAY };
 
 	struct variable {
+		std::string type;
 		std::string name;
-		varType type; std::string strType;
-		std::string value;
+		std::vector<std::string> value;
+		std::vector<std::string> extra;
+	};
+	struct structure {
+		std::string name;
+		std::vector<variable> value;
 	};
 	
 	// Interpreter configs.
 	extern bool debug;
+	extern bool strict;
 	
 	// Interpreter runtime information.
 	extern std::string curFile;
@@ -36,16 +66,21 @@ namespace HCL {
 
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;
-	extern std::vector<std::pair<variable, std::vector<variable>>> functions;
-	extern std::vector<std::pair<std::string, std::vector<variable>>> structures;
+	extern std::vector<structure> structures;
 
 	// Sets the color for the text that'll get printed.
-	std::string colorText(std::string txt, RETURN_OUTPUT type);
+	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);
 
 	// Opens a file and interpretes each line.
 	void interpreteFile(std::string file);
+	// Interpretes a single line.
+	int interpreteLine(std::string line);
 	// Enables debug mode (At the end it'll print everything that the interpreter remembers).
 	void debugMode();
+	// Prints out information about a vector of variables.
+	void debugPrintVar(std::vector<variable> vars, std::string indent = "\t");
+	//Prints out information about a vector of structures.
+	void debugPrintStruct(std::vector<structure> structList);
 	// Resets the interpreter's runtime information.
 	void resetRuntimeInfo();
 
@@ -58,6 +93,6 @@ namespace HCL {
 	// Checks if it's a structure (if so, configure the runtime information).
 	int checkStruct();
 
-	// Checks if 'str' is in HC4::line
-	bool find(std::string str);
+	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%d' are supported.
+	void throwError(std::string text, ...);
 }
