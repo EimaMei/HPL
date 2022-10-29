@@ -16,9 +16,10 @@ Currently the language is barely done and it'll take awhile before any random mo
 
 - [X] Save variables in memory.
 - [X] Being able to edit variables at runtime.
-- [X] (Mostly) finish structures.
-- [ ] Access the struct's member and also edit it.
-- [ ] Save the function (and its arguments) in memory, while also retaining the code.
+- [X] Finish basic structures.
+- [X] Access a struct's member and also edit it.
+- [ ] Save a function (and its arguments) in memory, while also retaining its code.
+- [ ] Delete variables when they're out of scope.
 - [ ] Execute functions when they're used.
 - [ ] Finalize how scopes work in general.
 - [ ] Many, many other things that I currently can't think of.

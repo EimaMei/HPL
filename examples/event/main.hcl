@@ -11,10 +11,11 @@
 	//     "german" : "insert funny german jokes here"
 	// }
 
-	info var = {"Wait a minute, I've seen this one before!"}
-	string anotherdescriptionyayayayay = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest."
-	bool cring = false
-	anotherdescriptionyayayayay = "test"
+	event var = {"germany", "fd", 30}
+	string test
+	test = "wow!"
+	var.title = "no way"
+	string cring = var.title
 	//var.desc = "A different description, huh?"
 
 	//event anschluss = newEvent("germany", 2, "Anschluss", var.desc, "res/image.png") { // The Main scope (event).

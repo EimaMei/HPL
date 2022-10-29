@@ -5,7 +5,7 @@ EXE = build/hcl
 SRC = $(basename $(wildcard source/*.cpp))
 OBJ = $(addprefix $(OUTPUT)/,$(addsuffix .o,$(notdir $(SRC))))
 
-FLAGS = -std=c++17 -O2
+FLAGS = -std=c++17 -g -frtti -fexceptions
 LIBS = -L"$(OUTPUT)"
 INCLUDE = -I"include"
 
@@ -23,3 +23,6 @@ run: $(EXE)
 
 clean:
 	rm -rf build/**
+
+debug: $(EXE)
+	lldb ./$(EXE)

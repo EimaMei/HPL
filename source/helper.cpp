@@ -24,14 +24,13 @@
 #include <core.hpp>
 #include <helper.hpp>
 
-
-bool typeIsValid(std::string type, HCL::structure& info) {
+bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	if (coreTyped(type)) return true;
 
 	// Didn't find a core type, maybe it'll find a struct instead.
 	for (auto s : HCL::structures) {
 		if (type == s.name) {
-			info = s;
+			info = &s;
 			return true;
 		}
 	}
@@ -46,4 +45,28 @@ bool coreTyped(std::string type) {
 	}
 	
 	return false;
+}
+
+
+HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/) {
+	HCL::structure s;
+	for (auto& v : HCL::variables) {
+		if (v.name == varName) {
+			return &v;
+		}
+
+		if (typeIsValid(v.type, &s) && !coreTyped(v.type)) { // A custom type
+			for (int i = 0; i < s.value.size(); i++) {
+				auto member = s.value[i];
+				if (varName == (v.name + "." + member.name)) {
+					var->type = v.extra[i];
+					var->name = varName;
+					var->value = v.value;
+					var->extra = {std::to_string(i)};
+					return &v;
+				}
+			}
+		}
+	}
+	return {};
 }

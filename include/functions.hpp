@@ -38,3 +38,5 @@ std::string unstringify(std::string str, bool noChecks = false, char character =
 std::string getPathFromFilename(std::string filename);
 // Checks if something is in the line.
 bool find(std::string line, std::string str);
+// Checks if string is an int.
+bool isInt(std::string str);

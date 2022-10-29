@@ -135,15 +135,40 @@ int HCL::checkIncludes() {
 
 
 int HCL::checkVariables() {
+	// Matches the name and value
+	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
+		variable info = {.name = matches.str(1), .value = {unstringify(matches.str(2))}}; variable structInfo;
+		variable* existingVar = getVarFromName(info.name, &structInfo);
+
+
+		if (existingVar != NULL) {
+			if (structInfo.value.empty()) // Edit a regular variable
+				existingVar->value = info.value;
+			else {// Edit a struct member
+				int index = std::stoi(structInfo.extra[0]);
+				existingVar->value[index] = info.value[0];
+			}
+		}
+	}
 	// Matches the type, name and value
-	if (useRegex(line, R"(\s*([A-Za-z0-9]+)\s+([A-Za-z0-9]+)\s*=?\s*(\".*\"|true|false|-?\d+|\{.*\})?)")) {
-		variable var = {matches.str(1), .name = matches.str(2), .value = {unstringify(matches.str(3))}};
+	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(\".*\"|\{.*\}|[^\s*]*)\s*)")) { // Declaring a new variable.
+		std::string ogValue = matches.str(3);
+		variable var = {.type = matches.str(1), .name = matches.str(2), .value = {unstringify(ogValue)}};
 		structure s;
 
-		if (typeIsValid(var.type, s)) { // The type isn't a core type, it could be a structure?
-			if (!s.name.empty()) { // It's a struct
+		if (typeIsValid(var.type, &s)) { // Is type cored or a structure.
+			variable structVar;
+			variable* newVar = getVarFromName(var.value[0], &structVar);
+
+			if (newVar != NULL) { // Copying over an existing variable.
+				// If 'getVarFromName' finds a variable from a struct, `structVar.extra` becomes the index of where the member is in the struct.
+				// However, due to `structVar.value` being a std::string, we have to convert it to an integer.
+				int index = std::stoi(structVar.extra[0]);
+				var.value = {structVar.value[index]}; 
+			}
+			else if (!s.name.empty()) {
 				if (var.type == s.name) {
-					var.value.clear(); // Clear everything in the vector so that no memory shenanigans would happen.
+					var.value.clear(); // Clear everything in the vector so that no vector shenanigans would happen.
 					
 					if (var.value[0].empty()) { // Nothing is set, meaning it's just the struct's default arguments.
 						for (int i = 0; i < s.value.size(); i++) {
@@ -163,13 +188,12 @@ int HCL::checkVariables() {
 
 						// The first unstringify is used to remove any unneeded spaces.
 						// Then the second removes the double quotes if it's a string.
-						for (int i = 0; i < s.value.size(); i++)
+						for (int i = 0; i < s.value.size(); i++) {
 							if (i < s.value.size() && i < valueList.size()) {
 								var.value.push_back(unstringify(unstringify(valueList[i], false, ' ')));
 								var.extra.push_back(s.value[i].type);
 							}
 							else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
-								std::cout << strict << std::endl;
 								if (!s.value[i].value[0].empty()) {
 									var.value.push_back(s.value[i].value[0]);
 									var.extra.push_back(s.value[i].type);
@@ -179,12 +203,13 @@ int HCL::checkVariables() {
 								else
 									break;
 							}
-
-						if (valueList.size() < s.value.size()) { // Perhaps the u
-
 						}
 					}
 				}
+			}
+			else if (!var.value[0].empty() && newVar == NULL && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
+				// This checks for if the user is trying to copy over a variable that doesn't exist. All of these checks check if it isn't just some core type so that it wouldn't output a false-negative.
+				throwError("You cannot copy over a variable that doesn't exist (variable '%s' does not exist).", var.value[0].c_str());
 			}
 		}
 		else {
@@ -195,29 +220,6 @@ int HCL::checkVariables() {
 			structures.begin()->value.push_back(var);
 		else
 			variables.push_back(var);
-	}
-	// Edit a pre-existing variable
-	else if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=?\s*(\".*\"|true|false|\d+$)*)")) {
-		std::string name = matches.str(1);
-
-		if (find(name, ".")) { // Editing a struct's member.
-			std::cout << line << std::endl;
-			std::vector<std::string> listOfVars = split(matches.str(1), ".");
-			for (auto v : listOfVars) {
-				std::cout << v << std::endl;
-			}
-			return FOUND_SOMETHING;
-		}
-
-		for (auto& var : variables) { // Iterate through every variable to check if the user is trying to edit it.
-			std::cout << var.name << " " << name << std::endl;
-			if (name == var.name) {
-				var.value[0] = unstringify(matches.str(2));
-				return FOUND_SOMETHING;
-			}
-		}
-		// If nothing is found, throw a runtime error.
-		throw std::runtime_error("Error at '" + curFile + ":" + std::to_string(lineCount) + "': variable '" + name + "' doesn't exist.");
 	}
 	return FOUND_NOTHING;
 }

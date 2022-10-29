@@ -77,3 +77,7 @@ std::string getPathFromFilename(std::string filename) {
 bool find(std::string line, std::string str) {
 	return (line.find(str) != std::string::npos);
 }
+
+bool isInt(std::string str) {
+  return str.find_first_not_of("0123456789+-") == std::string::npos;
+}
