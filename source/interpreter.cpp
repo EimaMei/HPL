@@ -103,6 +103,7 @@ int HCL::interpreteLine(std::string str) {
 	line = str;
 
 	if (checkIncludes() == FOUND_SOMETHING) return FOUND_SOMETHING;
+	if (checkFunctions() == FOUND_SOMETHING) return FOUND_SOMETHING;
 	if (checkStruct() == FOUND_SOMETHING) return FOUND_SOMETHING;
 	if (checkVariables() == FOUND_SOMETHING) return FOUND_SOMETHING;
 
@@ -130,6 +131,12 @@ int HCL::checkIncludes() {
 		lineCount = oldLineCount;
 
 	}
+	return FOUND_NOTHING;
+}
+
+
+int HCL::checkFunctions() {
+	if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)\((.*)\)\s*\{$)")) return FOUND_SOMETHING;
 	return FOUND_NOTHING;
 }
 

@@ -30,7 +30,8 @@ bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	// Didn't find a core type, maybe it'll find a struct instead.
 	for (auto s : HCL::structures) {
 		if (type == s.name) {
-			info = &s;
+			info->name = s.name;
+			info->value = s.value;
 			return true;
 		}
 	}

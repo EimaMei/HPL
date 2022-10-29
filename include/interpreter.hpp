@@ -86,12 +86,12 @@ namespace HCL {
 
 	// Checks for any includes.
 	int checkIncludes();
-	// Check for any variables (structs, functions, global etc).
-	int checkVariables();
-	// Checks if it's a function.
-	int checkFunctions();
 	// Checks if it's a structure (if so, configure the runtime information).
 	int checkStruct();
+	// Checks for any functions.
+	int checkFunctions();
+	// Check for any variables.
+	int checkVariables();
 
 	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%d' are supported.
 	void throwError(std::string text, ...);
