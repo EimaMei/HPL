@@ -1,7 +1,5 @@
 #include <iostream>
-#include <algorithm>
 #include <interpreter.hpp>
-#include <functions.hpp>
 
 int main(int argc, char** argv) {
 	std::string filename;

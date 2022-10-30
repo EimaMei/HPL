@@ -19,11 +19,10 @@
 *
 *
 */
-#include <iostream>
+#include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
-#include <interpreter.hpp>
-#include <functions.hpp>
+#include <iostream>
 
 
 std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
@@ -83,9 +82,6 @@ void HCL::interpreteFile(std::string file) {
 			buf[strcspn(buf, "\n")] = 0;
 			line = buf;
 			lineCount++;
-			
-			if (find(line, "//")) // Ignore comments
-				line = split(line, "//")[0];
 
 			interpreteLine(line);
 		}
@@ -100,6 +96,9 @@ void HCL::interpreteFile(std::string file) {
 
 
 int HCL::interpreteLine(std::string str) {
+	if (find(str, "//")) // Ignore comments
+		str = split(str, "//")[0];
+
 	line = str;
 
 	if (checkIncludes() == FOUND_SOMETHING) return FOUND_SOMETHING;
@@ -136,7 +135,39 @@ int HCL::checkIncludes() {
 
 
 int HCL::checkFunctions() {
-	if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)\((.*)\)\s*\{$)")) return FOUND_SOMETHING;
+	// Match <return type> <name>(<params>) {
+	if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)\((.*)\)\s*\{$)")) {
+		std::string param = matches.str(3);
+		function func = {matches.str(1), matches.str(2)};
+		std::vector<std::string> params = split(param, ",", '\"');
+
+		for (auto v : params) {
+			if (useRegex(v, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(\".*\"|\{.*\}|[^\s*]*)\s*)")) {
+				variable var = {.type = matches.str(1), .name = matches.str(2), .value = {unstringify(matches.str(3))}};
+				func.params.push_back(var);
+				if (var.value[0].empty()) func.minParamCount++;
+			}
+		}
+
+		functions.push_back(func);
+		mode = SAVE_FUNC;
+
+		return FOUND_SOMETHING;
+	}
+	else if (useRegex(line, R"(\s*(\})\s*)") && mode == SAVE_FUNC) {
+		mode = SAVE_NOTHING;
+
+		return FOUND_SOMETHING;
+	}
+	else if (mode == SAVE_FUNC) {
+		functions[functions.size() - 1].code.push_back(line);
+
+		return FOUND_SOMETHING;
+	}
+	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\)\s*$)")) {
+		return coreFunctionCheck(matches.str(1), matches.str(2));
+	}
+
 	return FOUND_NOTHING;
 }
 
@@ -190,7 +221,7 @@ int HCL::checkVariables() {
 						std::vector<std::string> valueList = split(unstringify(var.value[0], true), ",", '\"');
 
 						if (valueList.size() > s.value.size()) {
-							throwError("Too many values are provided when declaring the variable '%s' (you provided '%d' arguments when struct type '%s' has only '%d' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
+							throwError("Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
 						}
 
 						// The first unstringify is used to remove any unneeded spaces.
@@ -206,7 +237,7 @@ int HCL::checkVariables() {
 									var.extra.push_back(s.value[i].type);
 								}
 								else if (strict)
-									throwError("Too few values are provided to fully initialize a struct (you provided '%d' arguments when struct type '%s' has '%d' members).", valueList.size(), var.type.c_str(), s.value.size());
+									throwError("Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
 								else
 									break;
 							}
@@ -258,13 +289,17 @@ void HCL::debugMode() {
 	
 	std::cout << colorText("Variables:\n", OUTPUT_CYAN, true);
 	debugPrintVar(variables);
-	std::cout << colorText("Structures:\n", OUTPUT_CYAN, true);
+	std::cout << colorText("\nStructures:\n", OUTPUT_CYAN, true);
 	debugPrintStruct(structures);
+	std::cout << colorText("Functions:\n", OUTPUT_CYAN, true);
+	debugPrintFunc(functions);
 }
 
 
-void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/) {
-	for (auto v : vars) {  // Regular variables
+void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, std::string end/* = "\n"*/) {
+	for (int index = 0; index < vars.size(); index++) {  // Regular variables
+		auto v = vars[index];
+
 		RETURN_OUTPUT clr = OUTPUT_PURPLE;
 	
 		if (v.type == "scope")
@@ -293,16 +328,35 @@ void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/) 
 
 		if (v.value.size() > 1) std::cout << "}";
 
-		std::cout << std::endl;
+		if (index + 1 < vars.size()) std::cout << end;
 	}
 }
 
 
-void HCL::debugPrintStruct(std::vector<structure> structList) {
+void HCL::debugPrintStruct(std::vector<structure> structList, std::string indent/* = "\t"*/) {
 	for (auto s : structures) {
-		std::cout << "	" << colorText("struct", HCL::OUTPUT_PURPLE) << " " << colorText(s.name, HCL::OUTPUT_YELLOW) << colorText(" {", HCL::OUTPUT_GREEN) << std::endl;
-		debugPrintVar(s.value, "		");
-		std::cout << colorText("	}\n", HCL::OUTPUT_GREEN);
+		std::cout << indent << colorText("struct", HCL::OUTPUT_PURPLE) << " " << colorText(s.name, HCL::OUTPUT_YELLOW) << colorText(" {", HCL::OUTPUT_GREEN) << std::endl;
+		debugPrintVar(s.value, indent + indent);
+		std::cout << colorText("\n" + indent + "}\n", HCL::OUTPUT_GREEN);
+	}
+}
+
+
+void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"*/) {
+	for (auto f : functions) {
+		RETURN_OUTPUT clr = OUTPUT_PURPLE;
+	
+		if (f.type == "scope")
+			clr = OUTPUT_BLUE;
+		else if (!coreTyped(f.type))
+			clr = OUTPUT_RED;
+
+		std::cout << indent << colorText(f.type, clr) << " " << f.name << "(";
+		debugPrintVar(f.params, "", ", ");
+		std::cout << ") {\n";
+		for (auto c : f.code)
+			std::cout << c << std::endl;
+		std::cout << "}";
 	}
 }
 
@@ -330,7 +384,7 @@ void HCL::throwError(std::string text, ...) {
 				case 's':
 					msg += va_arg(valist, const char*);
 					break;
-				case 'd':
+				case 'i':
 					num = va_arg(valist, int);
 					msg += std::to_string(num);
 					break;
@@ -364,4 +418,5 @@ namespace HCL {
 	// Defnitions that are saved in memory.
 	std::vector<variable> variables;
 	std::vector<structure> structures;
+	std::vector<function> functions;
 }

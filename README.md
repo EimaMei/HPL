@@ -18,11 +18,11 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Being able to edit variables at runtime.
 - [X] Finish basic structures.
 - [X] Access a struct's member and also edit it.
-- [ ] Save a function (and its arguments) in memory, while also retaining its code.
-- [ ] Delete variables when they're out of scope.
-- [ ] Execute functions when they're used.
+- [X] Save a function (and its arguments) in memory, while also retaining its code.
+- [X] Delete variables when they're out of scope.
+- [X] Execute functions when they're used.
+- [X] Add returns to functions.
 - [ ] Finalize how scopes work in general.
-- [ ] Many, many other things that I currently can't think of.
 
 ## Step 2: Core functions implementation
 When the base code for the intepreter is done, it'll allow us to finally implement the core functions of the language to build HOI4 code. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
@@ -32,7 +32,7 @@ When the base code for the intepreter is done, it'll allow us to finally impleme
 - [ ] Write a file as UTF-8 or UTF-8-bom easily.
 - [ ] Get and set the current scope.
 - [ ] Return error types.
-- [ ] Print in the terminal.
+- [X] Print in the terminal.
 - [ ] Convert images to `.dds` automatically.
 - [ ] Resize images.
 
@@ -63,10 +63,10 @@ The syntax and feature-set of HCL is almost identical to C's, features like stru
 ## Variables
 To declare a variable, you must provide the type, name and optionally the value (`<type> <name> = [value]`). You can also do `name := <value>`, which'll automatically get the type, or just declare a generic type `var num = 3`. Editing a variable is the same like everywhere else.
 ## Structures
-Structures are defined and work like in C. You can define a structure with default options and that will carry on to variable that you'll define.
+Structures are defined and work like in C. You can define a structure with default options and that will carry on to the variable that you'll define.
 ```c
 struct info {
-    string desc = "Something mildly interesting here"
+	string desc = "Something mildly interesting here"
 	int value = 50
 }
 

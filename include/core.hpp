@@ -21,9 +21,20 @@
 */
 #include <string>
 #include <vector>
+#include <interpreter.hpp>
 
 // The core types of the language.
 extern std::vector<std::string> coreTypes;
+extern std::vector<HCL::function> coreFunctions;
 
-// This is where the core function of HCL are gonna be in.
-// Since there are no core functions in the language itself, it's currently mostly empty.
+// Reformats the params to be turned into variables.
+// Afterwards, check what function the user specified
+// and execute it.
+int checkForFunctions(std::string name, std::string params);
+// Checks for any shenanigans with functions.
+bool useFunction(std::string name, int minParamCount, int maxParamCount);
+
+/* CORE FUNCTIONS OF HCL*/
+
+// Prints something out in the terminal.
+void print(HCL::variable msg, std::string end = "\n");

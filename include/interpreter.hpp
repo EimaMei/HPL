@@ -52,6 +52,13 @@ namespace HCL {
 		std::string name;
 		std::vector<variable> value;
 	};
+	struct function {
+		std::string type;
+		std::string name;
+		std::vector<variable> params;
+		std::vector<std::string> code;
+		int minParamCount;
+	};
 	
 	// Interpreter configs.
 	extern bool debug;
@@ -67,6 +74,7 @@ namespace HCL {
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;
 	extern std::vector<structure> structures;
+	extern std::vector<function> functions;
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);
@@ -78,9 +86,11 @@ namespace HCL {
 	// Enables debug mode (At the end it'll print everything that the interpreter remembers).
 	void debugMode();
 	// Prints out information about a vector of variables.
-	void debugPrintVar(std::vector<variable> vars, std::string indent = "\t");
+	void debugPrintVar(std::vector<variable> vars, std::string indent = "\t", std::string end = "\n");
 	//Prints out information about a vector of structures.
-	void debugPrintStruct(std::vector<structure> structList);
+	void debugPrintStruct(std::vector<structure> structList, std::string indent = "\t");
+	// Prints out information about a vector of variables.
+	void debugPrintFunc(std::vector<function> func, std::string indent = "\t");
 	// Resets the interpreter's runtime information.
 	void resetRuntimeInfo();
 
