@@ -50,7 +50,22 @@ std::vector<std::string> split(std::string str, std::string value, char charScop
 
 
 bool useRegex(std::string str, std::string regexText) {
-	return std::regex_search(str, HCL::matches, std::regex(regexText));
+	std::smatch match;
+	bool b = std::regex_search(str, match, std::regex(regexText));
+	
+	// For some reason after 'useRegex' and the matches it out
+	// of the function scope, the data gets corrupted and spews
+	// out random memory in place of actual strings. Why?
+	// No clue. Apple Clang15 doesn't seem to have this issue,
+	// but the version seems to have this bug, so I am forced
+	// to use a vector instead of std::smatch. Doesn't change
+	// much, however it forces me to be more careful with certain
+	// matches that aren't 100% guaranteed to appear.
+	HCL::matches.value.clear();
+	for (int i = 1; i < match.size(); i++)
+		HCL::matches.value.push_back(match.str(i));
+
+	return b;
 }
 
 

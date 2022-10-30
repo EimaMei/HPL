@@ -19,22 +19,28 @@
 *
 *
 */
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
 #include <iostream>
-
 
 std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
 	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 	int clr;
 
 	switch (type) {
+		case OUTPUT_NOTHING: clr = 7; break;
+		case OUTPUT_BLACK: clr = 16; break;
+		case OUTPUT_RED: clr = FOREGROUND_RED; break;
 		case OUTPUT_GREEN: clr = FOREGROUND_GREEN; break;
 		case OUTPUT_YELLOW: clr = FOREGROUND_RED | FOREGROUND_GREEN; break;
-		case OUTPUT_RED: clr = FOREGROUND_RED | FOREGROUND_INTENSITY; break;
+		case OUTPUT_BLUE: clr = FOREGROUND_BLUE; break;
 		case OUTPUT_PURPLE: clr = FOREGROUND_INTENSITY | FOREGROUND_RED | FOREGROUND_BLUE; break;
-		case OUTPUT_BLUE: clr = FOREGROUND_INTENSITY | FOREGROUND_BLUE; break;
+		case OUTPUT_CYAN: clr = FOREGROUND_BLUE | FOREGROUND_INTENSITY; break;
+		case OUTPUT_GRAY: clr = 8; break;
 		default: clr = type; break;
 	}
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -143,7 +149,7 @@ int HCL::checkFunctions() {
 
 		for (auto v : params) {
 			if (useRegex(v, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(\".*\"|\{.*\}|[^\s*]*)\s*)")) {
-				variable var = {.type = matches.str(1), .name = matches.str(2), .value = {unstringify(matches.str(3))}};
+				variable var = {matches.str(1), matches.str(2), {unstringify(matches.str(3))}};
 				func.params.push_back(var);
 				if (var.value[0].empty()) func.minParamCount++;
 			}
@@ -165,7 +171,7 @@ int HCL::checkFunctions() {
 		return FOUND_SOMETHING;
 	}
 	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\)\s*$)")) {
-		return coreFunctionCheck(matches.str(1), matches.str(2));
+		return checkForFunctions(matches.str(1), matches.str(2));
 	}
 
 	return FOUND_NOTHING;
@@ -175,7 +181,7 @@ int HCL::checkFunctions() {
 int HCL::checkVariables() {
 	// Matches the name and value
 	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
-		variable info = {.name = matches.str(1), .value = {unstringify(matches.str(2))}}; variable structInfo;
+		variable info = {matches.str(1), {unstringify(matches.str(2))}}; variable structInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
 
 
@@ -191,7 +197,7 @@ int HCL::checkVariables() {
 	// Matches the type, name and value
 	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(\".*\"|\{.*\}|[^\s*]*)\s*)")) { // Declaring a new variable.
 		std::string ogValue = matches.str(3);
-		variable var = {.type = matches.str(1), .name = matches.str(2), .value = {unstringify(ogValue)}};
+		variable var = {matches.str(1), matches.str(2), {unstringify(ogValue)}};
 		structure s;
 
 		if (typeIsValid(var.type, &s)) { // Is type cored or a structure.
@@ -413,7 +419,7 @@ namespace HCL {
 	std::string line;
 	int lineCount = 0;
 	int mode = 0;
-	std::smatch matches;
+	hclVector matches;
 
 	// Defnitions that are saved in memory.
 	std::vector<variable> variables;

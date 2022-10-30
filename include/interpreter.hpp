@@ -39,6 +39,16 @@
 #define FOUND_SOMETHING 1
 #define FOUND_ERRROR -1
 
+struct hclVector {
+	std::vector<std::string> value;
+
+	std::string str(int index) {
+		if (index > value.size()) return "";
+
+		return value[index - 1];
+	}
+};
+
 namespace HCL {
 	enum RETURN_OUTPUT { OUTPUT_NOTHING, OUTPUT_BLACK, OUTPUT_RED, OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_BLUE, OUTPUT_PURPLE, OUTPUT_CYAN, OUTPUT_GRAY };
 
@@ -69,7 +79,7 @@ namespace HCL {
 	extern std::string line;
 	extern int lineCount;
 	extern int mode;
-	extern std::smatch matches;
+	extern hclVector matches;
 
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;

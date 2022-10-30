@@ -150,10 +150,7 @@ void print(HCL::variable msg, std::string end/* = \n*/) {
 		auto value = msg.value[i];
 		if (i < msg.extra.size()) vtype = msg.extra[i];
 
-		if (vtype == "string" && (!value.empty() || msg.value.size() > 1)) 
-			output += "\"" + value + "\"";
-		else if (!value.empty() || msg.value.size() > 1)
-			output += value;
+		output += value;
 
 		if (msg.value.size() > 1 && ((i + 1) < msg.value.size()))
 			output += ", ";
