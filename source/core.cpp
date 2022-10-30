@@ -24,7 +24,10 @@
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
+
 #include <iostream>
+#include <sys/stat.h>
+#include <dirent.h>
 
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string/const char*.
@@ -50,7 +53,7 @@ int checkForFunctions(std::string name, std::string info) {
 		HCL::variable* existingVar = getVarFromName(p, &structInfo);
 
 		if (existingVar == NULL) { // If parameter isn't a variable.
-			if (find(p, "\""))
+			if (find(HCL::matches.str(1), "\""))
 				var.type = "string";
 			else if (isInt(p))
 				var.type = "int";
@@ -83,14 +86,7 @@ int checkForFunctions(std::string name, std::string info) {
 	globalName = name;
 	userSentParamCount = params.size();
 
-	// Functions go here.
-	if (useFunction("print", 1, 2)) {
-		std::string end = "\n";
-		if (params.size() == 2) end = params[1].value[0];
-
-		print(params[0], end);
-	}
-
+	coreFunctions(params);
 
 	// Non-core functions
 	for (auto func : HCL::functions) {
@@ -138,6 +134,24 @@ bool useFunction(std::string name, int minParamCount, int maxParamCount) {
 =================================================
 */
 
+void coreFunctions(std::vector<HCL::variable> params) {
+	if (useFunction("print", 1, 2)) {
+		std::string end = "\n";
+		if (params.size() == 2) end = params[1].value[0];
+
+		print(params[0], end);
+	}
+	else if (useFunction("createFolder", 1, 2)) {
+		int mode = 0777;
+		if (params.size() == 2) mode = std::stoi(params[1].value[0]);
+
+		createFolder(params[0], mode);
+	}
+	else if (useFunction("removeFolder", 1, 1)) {
+		removeFolder(params[0]);
+	}
+}
+
 
 void print(HCL::variable msg, std::string end/* = \n*/) {
 	std::string output;
@@ -159,4 +173,33 @@ void print(HCL::variable msg, std::string end/* = \n*/) {
 	if (msg.value.size() > 1) output += "}";
 
 	printf("%s%s", output.c_str(), end.c_str());
+}
+
+
+int createFolder(HCL::variable path, int mode/* = 0777*/) {
+	if (path.type != "string")
+		HCL::throwError("Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", path.type.c_str());
+
+	int check;
+	std::string fullPath;
+	std::vector<std::string> folders = split(replace(path.value[0], '\\', '/'), "/");
+
+	for (auto folder : folders) {
+		fullPath += folder;
+		check = mkdir(fullPath.c_str(), mode);
+		fullPath += "/";
+	}
+  
+    return check;
+    
+}
+
+
+int removeFolder(HCL::variable path) {
+	if (path.type != "string")
+		HCL::throwError("Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", path.type.c_str());
+
+	int check = remove(replace(path.value[0], '\\', '/').c_str());
+  
+    return check;
 }

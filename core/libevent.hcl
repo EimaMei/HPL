@@ -16,9 +16,8 @@ struct event {
 }
 
 event newEvent(string namespace, int id, string title, string description, string path = "something") {
-	print(namespace)
-	print(id)
-	print(title)
-	print(description)
-	print(path)
+	createFolder("build/output/events")
+	createFolder("build/output/localisation")
+	createFolder("build/output/event_pictures")
+	createFolder("build/output/interface")
 }

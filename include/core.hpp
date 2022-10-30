@@ -25,7 +25,6 @@
 
 // The core types of the language.
 extern std::vector<std::string> coreTypes;
-extern std::vector<HCL::function> coreFunctions;
 
 // Reformats the params to be turned into variables.
 // Afterwards, check what function the user specified
@@ -33,8 +32,28 @@ extern std::vector<HCL::function> coreFunctions;
 int checkForFunctions(std::string name, std::string params);
 // Checks for any shenanigans with functions.
 bool useFunction(std::string name, int minParamCount, int maxParamCount);
+// The defines of the core functions.
+void coreFunctions(std::vector<HCL::variable> params);
 
-/* CORE FUNCTIONS OF HCL*/
+/* ======================== CORE FUNCTIONS OF HCL ======================== */
+// Each function define here must follow this format:
+//      <Description of the function>
+//      <Function implementation in HCL>
+//      <The actual function defnition in C++>
+//
+// It's also pretty good to space out functions depending
+// on which group they're categorized as for readability
+// (for example, instead of having no space between 'print', 
+// 'createFolder' and 'removeFolder', it would be best to
+// put a space between 'print' and 'createFolder').
 
 // Prints something out in the terminal.
+// void print(var msg, string end = "\n")
 void print(HCL::variable msg, std::string end = "\n");
+
+// Creates a folder.
+// int createFolder(string path, int mode = 0777)
+int createFolder(HCL::variable path, int mode = 0777);
+// Removes a folder.
+// int removeFolder(string path)
+int removeFolder(HCL::variable path); 

@@ -21,14 +21,14 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Save a function (and its arguments) in memory, while also retaining its code.
 - [X] Delete variables when they're out of scope.
 - [X] Execute functions when they're used.
-- [X] Add returns to functions.
+- [ ] Add returns to functions.
 - [ ] Finalize how scopes work in general.
 
 ## Step 2: Core functions implementation
 When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language to build HOI4 code. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
 
-- [ ] Read and write a file.
-- [ ] Create folders.
+- [ ] Read, write and remove a file.
+- [X] Create/remove folders.
 - [ ] Write a file as UTF-8 or UTF-8-bom easily.
 - [ ] Get and set the current scope.
 - [ ] Return error types.
@@ -85,3 +85,21 @@ Due to this, it'll be required for me to think about how to implement scopes in 
 2. Not ruin/overcomplicate the syntax.
 
 I have a few ideas on how I would implement such a type. One of them being that the user will be able to set if a function should set inside a scope or not. An example of it would be the [event example](examples/event/main.hcl), where inside the commented lines you can see `newEvent` have curly brackets and inside of it pseudo HOI4 code is being used. However for now it isn't required for me to implement scopes, as I still need to create the base language so as is right now, scopes won't be implemented for awhile.
+# Final notes
+## Building HCL
+If you're planning to build HCL, please note that my main programming environment isn't Windows, so expect possible errors and/or unsual behaviours on that platform, as from my experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being whack and causing issues in code that works in one platform but doesn't in the other). Here is my developer environment that'll be using for most of the HCL work:
+```
+OS: macOS 12.6
+Compiler: Apple clang version 14.0.0 (clang-1400.0.29.102)
+Architecture: x86_64
+C++ standard: c++17
+```
+In case I use Windows:
+```
+OS: Windows 10
+Compiler: Clang 15.0.3
+Architecture: x86_64
+C++ standard: c++17
+```
+## Cross-platform status
+HCL should work perfectly on MacOS after each commit, as that is my main host system. Compatibility on Windows should also be usually good, however it might not be 100% the case. As for Linux, I have no clue. It probably works on Linux too, but I don't know as I haven't tested it out myself yet and I don't plan to add official support to it until HCL will be more completed.

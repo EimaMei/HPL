@@ -170,7 +170,7 @@ int HCL::checkFunctions() {
 
 		return FOUND_SOMETHING;
 	}
-	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\)\s*$)")) {
+	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\((.*)\))")) {
 		return checkForFunctions(matches.str(1), matches.str(2));
 	}
 

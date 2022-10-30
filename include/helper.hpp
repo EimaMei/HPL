@@ -41,6 +41,8 @@ std::string getPathFromFilename(std::string filename);
 bool find(std::string line, std::string str);
 // Checks if string is an int.
 bool isInt(std::string str);
+// Replaces a string's character with another character.
+std::string replace(std::string str, char oldValue, char newValue);
 
 /* HCl specific helper functions. */
 

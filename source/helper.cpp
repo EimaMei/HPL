@@ -100,6 +100,13 @@ bool isInt(std::string str) {
 }
 
 
+std::string replace(std::string str, char oldValue, char newValue) {
+    std::replace(str.begin(), str.end(), oldValue, newValue);
+
+    return str;
+}
+
+
 bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	if (coreTyped(type)) return true;
 
