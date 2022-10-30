@@ -25,7 +25,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Finalize how scopes work in general.
 
 ## Step 2: Core functions implementation
-When the base code for the intepreter is done, it'll allow us to finally implement the core functions of the language to build HOI4 code. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
+When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language to build HOI4 code. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
 
 - [ ] Read and write a file.
 - [ ] Create folders.
@@ -37,7 +37,7 @@ When the base code for the intepreter is done, it'll allow us to finally impleme
 - [ ] Resize images.
 
 ## Step 3: Basic HOI4 functions implementation
-This gets tricky. If step 2 is completed, then by that point the base language is done, however the implementation of HOI4 functions won't be. Thus, the implementations will be stored at `libpdx.hcl`. You'll be able to import seperate libraries like `libevent.hcl` if need be (like how you can with Win32). The reason why this can get tricky is that this might require the language's syntax to be changed. Each change can either be subtle and won't cause issues, or may require extensive rewrites of the code. Anyhow, for this step these are the functions that I strive to be implemented:
+This gets tricky. If step 2 is completed, then by that point the base language is done, however the implementation of HOI4 functions won't be. Thus, the implementations will be stored at `libpdx.hcl`. You'll be able to import separate libraries like `libevent.hcl` if need be (like how you can with Win32). The reason why this can get tricky is that this might require the language's syntax to be changed. Each change can either be subtle and won't cause issues, or may require extensive rewrites of the code. Anyhow, for this step these are the functions that I strive to be implemented:
 - [ ] Mod creation.
 - [ ] Nation creation.
 - [ ] Event creation.
@@ -51,7 +51,7 @@ Now that the language can build some basic hoi4 code, we now have a development 
 - [ ] Loops (`for (<variable> in <variable2>)`), (`for (<variable>, <condition>, <step>)`).
 
 # Documentation
-Since the language is still pretty expiremntal, all of the documention for HCL are in source files and/or examples. The notes are there for anyone wanting to know why I do certain things like that for the sake of convenience, and it acts as a reminder for me sometimes.
+Since the language is still pretty expiremntal, all of the documentation for HCL are in source files and/or examples. The notes are there for anyone wanting to know why I do certain things like that for the sake of convenience, and it acts as a reminder for me sometimes.
 
 # Syntax
 The syntax and feature-set of HCL is almost identical to C's, features like structures, static types, declarations etc. are mostly the same. However there are some additions/removals from C to make the language more approachable for HOI4 coders and tailored to HOI4modding. The main changes are:
