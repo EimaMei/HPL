@@ -21,17 +21,23 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Save a function (and its arguments) in memory, while also retaining its code.
 - [X] Delete variables when they're out of scope.
 - [X] Execute functions when they're used.
-- [ ] Add returns to functions.
+- [X] Add returns to core typed functions.
+- [ ] Add returns to non-core typed functions.
+- [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
+- [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
+- [ ] Add f-string.
 - [ ] Finalize how scopes work in general.
 
 ## Step 2: Core functions implementation
-When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language to build HOI4 code. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
+When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
 
-- [ ] Read, write and remove a file.
+- [ ] Read, write and remove a file (add an overwrite param too).
 - [X] Create/remove folders.
 - [ ] Write a file as UTF-8 or UTF-8-bom easily.
+- [ ] Move/copy a path to another place.
+- [ ] Check if a path already exists. 
 - [ ] Get and set the current scope.
-- [ ] Return error types.
+- [X] Return error types.
 - [X] Print in the terminal.
 - [ ] Convert images to `.dds` automatically.
 - [ ] Resize images.

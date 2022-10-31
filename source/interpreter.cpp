@@ -25,6 +25,7 @@
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
+
 #include <iostream>
 
 std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
@@ -170,8 +171,9 @@ int HCL::checkFunctions() {
 
 		return FOUND_SOMETHING;
 	}
-	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\((.*)\))")) {
-		return checkForFunctions(matches.str(1), matches.str(2));
+	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\)\s*$)")) {
+		function f; void* n; // Unneeded variables, really.
+		return checkForFunctions(matches.str(1), matches.str(2), f, n);
 	}
 
 	return FOUND_NOTHING;
@@ -181,12 +183,18 @@ int HCL::checkFunctions() {
 int HCL::checkVariables() {
 	// Matches the name and value
 	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
-		variable info = {matches.str(1), {unstringify(matches.str(2))}}; variable structInfo;
+		variable info = {.name = matches.str(1), .value = {unstringify(matches.str(2))}}; variable structInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
 
 
 		if (existingVar != NULL) {
-			if (structInfo.value.empty()) // Edit a regular variable
+			// Check if the value is a function. If so, execute the
+			// function and get its return, so that it gets assigned
+			// to the variable.
+			if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\((.*)\))")) {
+				assignFuncReturnToVar(existingVar, matches.str(1), matches.str(2));
+			}
+			else if (structInfo.value.empty()) // Edit a regular variable
 				existingVar->value = info.value;
 			else {// Edit a struct member
 				int index = std::stoi(structInfo.extra[0]);
@@ -202,13 +210,20 @@ int HCL::checkVariables() {
 
 		if (typeIsValid(var.type, &s)) { // Is type cored or a structure.
 			variable structVar;
-			variable* newVar = getVarFromName(var.value[0], &structVar);
+			variable* existingVar = getVarFromName(var.value[0], &structVar);
 
-			if (newVar != NULL) { // Copying over an existing variable.
+			// Copy over an existing variable to this new one.
+			if (existingVar != nullptr) {
 				// If 'getVarFromName' finds a variable from a struct, `structVar.extra` becomes the index of where the member is in the struct.
 				// However, due to `structVar.value` being a std::string, we have to convert it to an integer.
 				int index = std::stoi(structVar.extra[0]);
 				var.value = {structVar.value[index]}; 
+			}
+			// Check if the value is a function. If so, execute the
+			// function and get its return, so that it gets assigned
+			// to the variable.
+			else if (useRegex(line, R"(\s*[A-Za-z0-9\.]+\s+[A-Za-z0-9]+?\s*=\s*([A-Za-z0-9\.]+)\((.*)\))")) {
+				assignFuncReturnToVar(&var, matches.str(1), matches.str(2));
 			}
 			else if (!s.name.empty()) {
 				if (var.type == s.name) {
@@ -251,7 +266,7 @@ int HCL::checkVariables() {
 					}
 				}
 			}
-			else if (!var.value[0].empty() && newVar == NULL && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
+			else if (!var.value[0].empty() && existingVar == NULL && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
 				// This checks for if the user is trying to copy over a variable that doesn't exist. All of these checks check if it isn't just some core type so that it wouldn't output a false-negative.
 				throwError("You cannot copy over a variable that doesn't exist (variable '%s' does not exist).", var.value[0].c_str());
 			}

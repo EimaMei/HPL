@@ -37,7 +37,16 @@
 // Outputs returns.
 #define FOUND_NOTHING 0
 #define FOUND_SOMETHING 1
-#define FOUND_ERRROR -1
+#define FOUND_ERROR -1
+
+// Convert core type to void.
+#define intToVoid(interger) (void*)(uintptr_t)interger
+#define stringToVoid(str) static_cast<void*>(new std::string(str))
+
+// Convert void back to the specified core type.
+#define voidToInt(pointer) (int)(uintptr_t)pointer
+#define voidToString(pointer) *static_cast<std::string*>(pointer)
+
 
 struct hclVector {
 	std::vector<std::string> value;

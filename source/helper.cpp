@@ -43,7 +43,7 @@ std::vector<std::string> split(std::string str, std::string value, char charScop
 			}
 		}
 	}
-	list.insert(list.end(), buf);
+	if (buf.size() != 0) list.insert(list.end(), buf);
 	
 	return list;
 }
@@ -53,14 +53,21 @@ bool useRegex(std::string str, std::string regexText) {
 	std::smatch match;
 	bool b = std::regex_search(str, match, std::regex(regexText));
 	
-	// For some reason after 'useRegex' and the matches it out
+	// For some reason after 'useRegex' and 'HCL::matches' is out
 	// of the function scope, the data gets corrupted and spews
 	// out random memory in place of actual strings. Why?
-	// No clue. Apple Clang15 doesn't seem to have this issue,
-	// but the version seems to have this bug, so I am forced
-	// to use a vector instead of std::smatch. Doesn't change
-	// much, however it forces me to be more careful with certain
-	// matches that aren't 100% guaranteed to appear.
+	// No clue. This issue only appeared on the Windows version
+	// of Clange (15.0.3, 15.0.2 and 14.0.0 has the same issue).
+	// Strangely enough, Apple Clang 14 has 0 issues with
+	// std::smatch so... win for Apple?
+	//
+	// Anyhow, instead of using std::smatch as the output,
+	// I've decided to create a struct wrapper around std::vector
+	// and add in a .str() function. With this approach all
+	// code works as indeed without me changing the code much.
+	// This also means we'll be using vectors for regex outputs,
+	// which I don't particulary mind as std::vector seems to be
+	// much more reliable than std::smatch.
 	HCL::matches.value.clear();
 	for (int i = 1; i < match.size(); i++)
 		HCL::matches.value.push_back(match.str(i));

@@ -29,11 +29,13 @@ extern std::vector<std::string> coreTypes;
 // Reformats the params to be turned into variables.
 // Afterwards, check what function the user specified
 // and execute it.
-int checkForFunctions(std::string name, std::string params);
-// Checks for any shenanigans with functions.
-bool useFunction(std::string name, int minParamCount, int maxParamCount);
-// The defines of the core functions.
-void coreFunctions(std::vector<HCL::variable> params);
+int checkForFunctions(std::string name, std::string params, HCL::function& func, void*& output);
+// Sorts out any shenanigans with functions.
+bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount);
+// Defines the core functions and returns the function's return if successful.
+void* coreFunctions(std::vector<HCL::variable> params);
+// Sets the variable's value to the return of specified function.
+void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam);
 
 /* ======================== CORE FUNCTIONS OF HCL ======================== */
 // Each function define here must follow this format:
@@ -56,4 +58,8 @@ void print(HCL::variable msg, std::string end = "\n");
 int createFolder(HCL::variable path, int mode = 0777);
 // Removes a folder.
 // int removeFolder(string path)
-int removeFolder(HCL::variable path); 
+int removeFolder(HCL::variable path);
+
+// Creates a file.
+// int createFile(string path, string content = "", bool useUtf8BOM = false)
+int createFile(std::string path, std::string content = "", bool useUtf8BOM = false);

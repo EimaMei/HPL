@@ -19,8 +19,6 @@
 *
 *
 */
-
-// Core functions and types.
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
@@ -29,6 +27,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string/const char*.
 	"int",    // Regular int.
@@ -36,12 +35,13 @@ std::vector<std::string> coreTypes = {
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"var"     // Generic type.
 };
-bool found = false;
-std::string globalName;
+bool foundFunction = false;
+std::string globalFunctionName;
 int userSentParamCount;
+HCL::function functionPointer;
+std::string functionType;
 
-
-int checkForFunctions(std::string name, std::string info) {
+int checkForFunctions(std::string name, std::string info, HCL::function& function, void*& output) {
 	std::vector<std::string> values = split(info, ",", '\"'); // Split info into paramaters.
 	std::vector<HCL::variable> params;
 
@@ -82,15 +82,16 @@ int checkForFunctions(std::string name, std::string info) {
 		}
 		params.push_back(var);
 	}
-	found = false;
-	globalName = name;
+	foundFunction = false;
+	globalFunctionName = name;
 	userSentParamCount = params.size();
+	functionType = "";
 
-	coreFunctions(params);
-
+	output = coreFunctions(params);
+	
 	// Non-core functions
 	for (auto func : HCL::functions) {
-		if (useFunction(func.name, func.minParamCount, func.params.size())) {
+		if (useFunction(func.type, func.name, func.minParamCount, func.params.size())) {
 			std::string oldCurFile = HCL::curFile;
 			int oldLineCount = HCL::lineCount;
 			HCL::resetRuntimeInfo();
@@ -110,23 +111,62 @@ int checkForFunctions(std::string name, std::string info) {
 			HCL::variables = oldVars;
 			HCL::curFile = oldCurFile;
 			HCL::lineCount = oldLineCount;
+			functionType = func.type;
+			function = func;
+			break;
 		}
 	}
 
-	if (found) return FOUND_SOMETHING;
+	if (foundFunction) {
+		functionPointer.params = params;
+		function = functionPointer;
+		functionPointer = {};
+
+		return FOUND_SOMETHING;
+	}
 	return FOUND_NOTHING;
 }
 
 
-bool useFunction(std::string name, int minParamCount, int maxParamCount) {
-	if (name == globalName && maxParamCount < userSentParamCount)
+bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount) {
+	if (name == globalFunctionName && maxParamCount < userSentParamCount)
 		HCL::throwError("Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), maxParamCount);
-	if (name == globalName && minParamCount > userSentParamCount)
+	if (name == globalFunctionName && minParamCount > userSentParamCount)
 		HCL::throwError("Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), minParamCount);
-	found = true;
 	
-	return name == globalName;
+
+	if (name == globalFunctionName) {
+		foundFunction = true;
+		functionType = type;
+
+		functionPointer.type = type;
+		functionPointer.name = name;
+		functionPointer.minParamCount = minParamCount;
+	}
+	
+	return name == globalFunctionName;
 }
+
+
+void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam) {
+	HCL::function func;
+	void* output;
+	checkForFunctions(funcName, funcParam, func, output);
+
+	if (output != nullptr) {
+		if (func.type == "int" || func.type == "bool")
+			existingVar->value[0] = std::to_string(voidToInt(output));
+		else if (func.type == "string")
+			existingVar->value[0] = voidToString(output);
+	}
+	else if (output == nullptr && func.type == "int") { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
+		existingVar->value[0] = std::to_string(voidToInt(output));
+	}
+	else {
+		existingVar->value[0] = "";
+	}
+}
+
 
 /*
 =================================================
@@ -134,22 +174,32 @@ bool useFunction(std::string name, int minParamCount, int maxParamCount) {
 =================================================
 */
 
-void coreFunctions(std::vector<HCL::variable> params) {
-	if (useFunction("print", 1, 2)) {
+
+void* coreFunctions(std::vector<HCL::variable> params) {
+	if (useFunction("void", "print", 1, 2)) {
 		std::string end = "\n";
 		if (params.size() == 2) end = params[1].value[0];
 
 		print(params[0], end);
+
+		// Since our function doesn't return anything, we return nothing.
 	}
-	else if (useFunction("createFolder", 1, 2)) {
+	
+	else if (useFunction("int", "createFolder", 1, 2)) {
 		int mode = 0777;
 		if (params.size() == 2) mode = std::stoi(params[1].value[0]);
 
-		createFolder(params[0], mode);
+		int result = createFolder(params[0], mode);
+		return intToVoid(result);  // Returns the result as int.
 	}
-	else if (useFunction("removeFolder", 1, 1)) {
-		removeFolder(params[0]);
+
+	else if (useFunction("int", "removeFolder", 1, 1)) {
+		int result = removeFolder(params[0]);
+
+		return intToVoid(result); // Returns the result as int.
 	}
+
+	return nullptr;
 }
 
 
@@ -191,7 +241,6 @@ int createFolder(HCL::variable path, int mode/* = 0777*/) {
 	}
   
     return check;
-    
 }
 
 

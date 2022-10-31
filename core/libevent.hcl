@@ -6,8 +6,8 @@ struct option {
 struct event {
 	string namespace
 
-	string title
 	int id
+	string title
 	string description
 	string picture
 	bool isTriggeredOnly = true // By default 'isTriggeredOnly' is set to true
@@ -20,4 +20,6 @@ event newEvent(string namespace, int id, string title, string description, strin
 	createFolder("build/output/localisation")
 	createFolder("build/output/event_pictures")
 	createFolder("build/output/interface")
+
+	return {names, id, title, description, path}
 }
