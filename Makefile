@@ -1,12 +1,19 @@
 CC = clang++
 OUTPUT = build
 EXE = build/hcl
+PLATFORM = nothing
 
 SRC = $(basename $(wildcard source/*.cpp))
 OBJ = $(addprefix $(OUTPUT)/,$(addsuffix .o,$(notdir $(SRC))))
 
+ifeq ($(OS),Windows_NT)
+    PLATFORM = windows
+else
+    PLATFORM := $(shell uname -s)
+endif
+
 FLAGS = -std=c++17 -O2 -Wall -Wpedantic
-LIBS = -L"$(OUTPUT)"
+LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
 
 $(OUTPUT)/%.o: source/%.cpp

@@ -39,7 +39,7 @@ When the base code for the interpreter is done, it'll allow us to finally implem
 - [ ] Get and set the current scope.
 - [X] Return error types.
 - [X] Print in the terminal.
-- [ ] Convert images to `.dds` automatically.
+- [X] Convert images to `.dds` automatically. (Mac only for now)
 - [ ] Resize images.
 
 ## Step 3: Basic HOI4 functions implementation
@@ -109,3 +109,7 @@ C++ standard: c++17
 ```
 ## Cross-platform status
 HCL should work perfectly on MacOS after each commit, as that is my main host system. Compatibility on Windows should also be usually good, however it might not be 100% the case. As for Linux, I have no clue. It probably works on Linux too, but I don't know as I haven't tested it out myself yet and I don't plan to add official support to it until HCL will be more completed.
+## Dependencies
+I usually do not like including pre-compiled dependencies in projects, as then it becomes a hassle to keep things cross-platform. So for the majority of HCL, using dependecies is stricly forbidden and should be used as a final resort. However, using dependencies in core functions is acceptable and won't cause any fuss (though again, must be a final resort if there aren't any header-only solutions/self-implementations the function). The dependency can only be statically-compiled/header-only and must be cross-platform between all platforms that you can use HOI4 on (Windows, Mac and Linux).
+## Credits
+[SOIL2 (forked version)](https://github.com/EimaMei/SIL2]) - for the `convertToDds` core function, HCL uses a modified version of SOIL2 to remove unneeded OpenGL requirements.

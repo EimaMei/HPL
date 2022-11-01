@@ -248,5 +248,16 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 		return intToVoid(result); // Returns the result as int.
 	}
 
+	else if (useFunction("int", "convertToDds", 2, 2)) {
+		if (params[0].type != "string") 
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'input' is string-only)", true, params[0].type.c_str());
+		if (params[1].type != "string") 
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'output' is string-only)", true, params[0].type.c_str());
+
+		int result = convertToDds(params[0].value[0], params[1].value[0]);
+
+		return intToVoid(result); // Returns the result
+	}
+
 	return nullptr;
 }

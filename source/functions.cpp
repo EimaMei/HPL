@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+#include <deps/SOIL2.h>
+
 void print(HCL::variable msg, std::string end/* = \n*/) {
 	std::string output;
 	std::string vtype = msg.type;
@@ -112,4 +114,12 @@ int writeToFile(std::string path, std::string content, std::string mode/* = "w"*
     fclose(f);
   
     return 0;
+}
+
+
+int convertToDds(std::string input, std::string output) {
+	int w, h, channels;
+	
+	unsigned char* png = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
+	return SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, png);
 }

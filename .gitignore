@@ -1,6 +1,6 @@
 # Folders
 .vscode/
-build/
+build/**
 res/
 source/test
 games/
