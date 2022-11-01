@@ -31,9 +31,9 @@ Currently the language is barely done and it'll take awhile before any random mo
 ## Step 2: Core functions implementation
 When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
 
-- [ ] Read, write and remove a file (add an overwrite param too).
+- [X] Read, write and remove a file.
 - [X] Create/remove folders.
-- [ ] Write a file as UTF-8 or UTF-8-bom easily.
+- [X] Write a file as UTF-8 or UTF-8-bom easily.
 - [ ] Move/copy a path to another place.
 - [ ] Check if a path already exists. 
 - [ ] Get and set the current scope.

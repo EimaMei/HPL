@@ -26,9 +26,10 @@
 
 /* General functions. */
 
-// Splits the sentence each time it encounters the 'value'. If 'charLimit' isn't null, then what happens is that the array doesn't get split if 'value' is between two 'charLimit'.
-// For example, string "1,2,3,'4,5,6,7,8',9" would output "4,5,6,7,8" if 'value' is "," and charLimit is "'" 
-std::vector<std::string> split(std::string str, std::string value, char charLimit = '\0');
+// Splits the sentence each time it encounters the 'value'. If 'charLimit' isn't null, then the array doesn't get split if 'value' is between two 'charLimit'.
+// However, if 'charLimit2' is set then the sentence gets split between 'charLimit' and 'charLimit2'.
+// For example, string "1,2,3,'4,5,6,7,8',9" would output "4,5,6,7,8" if 'value' is "," and 'charLimit2' is "'" 
+std::vector<std::string> split(std::string str, std::string value, char charLimit = '\0', char charLimit2 = '\0');
 // Checks if the line matches the regex.
 bool useRegex(std::string str, std::string regexText);
 // Removes any whitespace in a sentence.
@@ -43,6 +44,8 @@ bool find(std::string line, std::string str);
 bool isInt(std::string str);
 // Replaces a string's character with another character.
 std::string replace(std::string str, char oldValue, char newValue);
+// Converts a string to a C++ bool.
+bool stringToBool(std::string str);
 
 /* HCl specific helper functions. */
 

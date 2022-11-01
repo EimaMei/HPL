@@ -242,7 +242,7 @@ int HCL::checkVariables() {
 						std::vector<std::string> valueList = split(unstringify(var.value[0], true), ",", '\"');
 
 						if (valueList.size() > s.value.size()) {
-							throwError("Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
+							throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
 						}
 
 						// The first unstringify is used to remove any unneeded spaces.
@@ -258,7 +258,7 @@ int HCL::checkVariables() {
 									var.extra.push_back(s.value[i].type);
 								}
 								else if (strict)
-									throwError("Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
+									throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
 								else
 									break;
 							}
@@ -268,11 +268,11 @@ int HCL::checkVariables() {
 			}
 			else if (!var.value[0].empty() && existingVar == NULL && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
 				// This checks for if the user is trying to copy over a variable that doesn't exist. All of these checks check if it isn't just some core type so that it wouldn't output a false-negative.
-				throwError("You cannot copy over a variable that doesn't exist (variable '%s' does not exist).", var.value[0].c_str());
+				throwError(true, "You cannot copy over a variable that doesn't exist (variable '%s' does not exist).", var.value[0].c_str());
 			}
 		}
 		else {
-			throwError("Type '%s' doesn't exist.", var.type.c_str());
+			throwError(true, "Type '%s' doesn't exist.", var.type.c_str());
 		}
 
 		if (mode == SAVE_STRUCT) // Save variables inside a struct.
@@ -391,10 +391,10 @@ void HCL::resetRuntimeInfo() {
 }
 
 
-void HCL::throwError(std::string text, ...) {
+void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 	va_list valist;
 	va_start(valist, text);
-	std::string msg = "Error at '" + curFile + ":" + std::to_string(lineCount) + "': ";
+	std::string msg = colorText("Error at ", OUTPUT_RED) + "'" + colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) + "'" + colorText(": ", OUTPUT_RED);
 
 	for (int i = 0; i < text.size(); i++) {
 		auto x = text[i];
@@ -403,11 +403,11 @@ void HCL::throwError(std::string text, ...) {
 		if (x == '%' && (i + 1) < text.size()) {
 			switch (text[i + 1]) {
 				case 's':
-					msg += va_arg(valist, const char*);
+					msg += colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
 					break;
 				case 'i':
 					num = va_arg(valist, int);
-					msg += std::to_string(num);
+					msg += colorText(std::to_string(num), OUTPUT_YELLOW);
 					break;
 
 				default:
@@ -419,8 +419,13 @@ void HCL::throwError(std::string text, ...) {
 	}
 	va_end(valist);
 	
-	if (debug) debugMode();
-	throw std::runtime_error("\x1B[0m" + msg);
+	if (debug && sendRuntimeError) 
+		debugMode();
+	
+	if (sendRuntimeError)
+		throw std::runtime_error("\x1B[0m" + msg);
+	else 
+		printf("\x1B[0m%s\n", msg.c_str());
 }
 
 

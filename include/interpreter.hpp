@@ -40,7 +40,7 @@
 #define FOUND_ERROR -1
 
 // Convert core type to void.
-#define intToVoid(interger) (void*)(uintptr_t)interger
+#define intToVoid(integer) (void*)(uintptr_t)integer
 #define stringToVoid(str) static_cast<void*>(new std::string(str))
 
 // Convert void back to the specified core type.
@@ -122,6 +122,6 @@ namespace HCL {
 	// Check for any variables.
 	int checkVariables();
 
-	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%d' are supported.
-	void throwError(std::string text, ...);
+	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%i' are supported.
+	void throwError(bool sendRuntimeError, std::string text, ...);
 }

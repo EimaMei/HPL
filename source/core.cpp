@@ -23,10 +23,6 @@
 #include <core.hpp>
 #include <helper.hpp>
 
-#include <iostream>
-#include <sys/stat.h>
-#include <dirent.h>
-
 
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string/const char*.
@@ -42,18 +38,29 @@ HCL::function functionPointer;
 std::string functionType;
 
 int checkForFunctions(std::string name, std::string info, HCL::function& function, void*& output) {
-	std::vector<std::string> values = split(info, ",", '\"'); // Split info into paramaters.
+	std::vector<std::string> values;
+	if (useRegex(info, R"(\s*([A-Za-z0-9\.]+)\((.*)\)\s*)"))
+		values = split(info, ",", '(', ')');
+	else 
+		values = split(info, ",", '\"');
 	std::vector<HCL::variable> params;
 
 	for (auto& p : values) {
 		HCL::variable var = {"?", "?", {"?"}}; HCL::variable structInfo;
 		useRegex(p, R"(\s*(\".*\"|\{.*\}|[^\s*]*)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
 		p = unstringify(HCL::matches.str(1));
+		std::string oldMatch = HCL::matches.str(1);
 
 		HCL::variable* existingVar = getVarFromName(p, &structInfo);
 
-		if (existingVar == NULL) { // If parameter isn't a variable.
-			if (find(HCL::matches.str(1), "\""))
+		// Checks if the parameter is just a function.
+		if (useRegex(p, R"(\s*([A-Za-z0-9\.]+)\((.*)\)?)")) {
+			// If so, get the name and params of said parameter.
+			useRegex(info, R"(\s*([A-Za-z0-9\.]+)\((.*)\))");
+			assignFuncReturnToVar(&var, HCL::matches.str(1), HCL::matches.str(2));
+		}
+		else if (existingVar == NULL) { // If parameter isn't a variable.
+			if (find(oldMatch, "\""))
 				var.type = "string";
 			else if (isInt(p))
 				var.type = "int";
@@ -130,9 +137,9 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 
 bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount) {
 	if (name == globalFunctionName && maxParamCount < userSentParamCount)
-		HCL::throwError("Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), maxParamCount);
+		HCL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), maxParamCount);
 	if (name == globalFunctionName && minParamCount > userSentParamCount)
-		HCL::throwError("Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), minParamCount);
+		HCL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), minParamCount);
 	
 
 	if (name == globalFunctionName) {
@@ -152,27 +159,22 @@ void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std
 	HCL::function func;
 	void* output;
 	checkForFunctions(funcName, funcParam, func, output);
-
+	
 	if (output != nullptr) {
+		existingVar->type = func.type;
 		if (func.type == "int" || func.type == "bool")
 			existingVar->value[0] = std::to_string(voidToInt(output));
 		else if (func.type == "string")
 			existingVar->value[0] = voidToString(output);
 	}
 	else if (output == nullptr && func.type == "int") { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
+		existingVar->type = func.type;
 		existingVar->value[0] = std::to_string(voidToInt(output));
 	}
 	else {
 		existingVar->value[0] = "";
 	}
 }
-
-
-/*
-=================================================
-|             CORE FUNCTIONS OF HCL             |
-=================================================
-*/
 
 
 void* coreFunctions(std::vector<HCL::variable> params) {
@@ -187,68 +189,64 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 	
 	else if (useFunction("int", "createFolder", 1, 2)) {
 		int mode = 0777;
+
+		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
 		if (params.size() == 2) mode = std::stoi(params[1].value[0]);
 
-		int result = createFolder(params[0], mode);
+		int result = createFolder(params[0].value[0], mode);
 		return intToVoid(result);  // Returns the result as int.
 	}
 
 	else if (useFunction("int", "removeFolder", 1, 1)) {
-		int result = removeFolder(params[0]);
+		if (params[0].type != "string") 
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
+
+		int result = removeFolder(params[0].value[0]);
+
+		return intToVoid(result); // Returns the result as int.
+	}
+
+	else if (useFunction("int", "createFile", 1, 3)) {
+		std::string content = "";
+		bool useUtf8BOM = false;
+
+		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
+		if (params.size() > 1) content = params[1].value[0];
+		if (params.size() > 2) useUtf8BOM = stringToBool(params[2].value[0]);
+
+		int result = createFile(params[0].value[0], content, useUtf8BOM);
+
+		return intToVoid(result);
+	}
+	
+	else if (useFunction("string", "readFile", 1, 1)) {
+		if (params[0].type != "string") 
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
+
+		std::string result = readFile(params[0].value[0]);
+
+		return stringToVoid(result); // Returns the result as int.
+	}
+
+	else if (useFunction("int", "writeFile", 2, 3)) {
+		std::string mode = "w";
+
+		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
+		if (params.size() == 3) mode = params[2].value[0];
+
+		int result = writeToFile(params[0].value[0], params[1].value[0], mode);
+
+		return intToVoid(result); // Returns the result as int.
+	}
+
+	else if (useFunction("int", "removeFile", 1, 1)) {
+		if (params[0].type != "string") 
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
+
+		int result = removeFolder(params[0].value[0]);
 
 		return intToVoid(result); // Returns the result as int.
 	}
 
 	return nullptr;
-}
-
-
-void print(HCL::variable msg, std::string end/* = \n*/) {
-	std::string output;
-	std::string vtype = msg.type;
-
-	if (msg.value.size() > 1)
-		output += "{";
-
-	for (int i = 0; i < msg.value.size(); i++) {
-		auto value = msg.value[i];
-		if (i < msg.extra.size()) vtype = msg.extra[i];
-
-		output += value;
-
-		if (msg.value.size() > 1 && ((i + 1) < msg.value.size()))
-			output += ", ";
-	}
-
-	if (msg.value.size() > 1) output += "}";
-
-	printf("%s%s", output.c_str(), end.c_str());
-}
-
-
-int createFolder(HCL::variable path, int mode/* = 0777*/) {
-	if (path.type != "string")
-		HCL::throwError("Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", path.type.c_str());
-
-	int check;
-	std::string fullPath;
-	std::vector<std::string> folders = split(replace(path.value[0], '\\', '/'), "/");
-
-	for (auto folder : folders) {
-		fullPath += folder;
-		check = mkdir(fullPath.c_str(), mode);
-		fullPath += "/";
-	}
-  
-    return check;
-}
-
-
-int removeFolder(HCL::variable path) {
-	if (path.type != "string")
-		HCL::throwError("Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", path.type.c_str());
-
-	int check = remove(replace(path.value[0], '\\', '/').c_str());
-  
-    return check;
 }

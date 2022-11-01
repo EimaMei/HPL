@@ -25,14 +25,14 @@
 #include <helper.hpp>
 
 
-std::vector<std::string> split(std::string str, std::string value, char charScope/* = NULL*/) {
+std::vector<std::string> split(std::string str, std::string value, char charScope/* = NULL*/, char charScope2/* = NULL*/) {
 	std::vector<std::string> list;
 	std::string buf;
 	int counter = 0;
 
 	for (auto x : str) {
 		buf += x;
-		if (charScope != '\0' && x == charScope) {
+		if ((charScope != '\0' && x == charScope) || (charScope2 != '\0' && x == charScope2 && counter == 1)) {
 			counter = !counter;
 		}
 		else if (buf.find(value) != std::string::npos) {
@@ -113,6 +113,21 @@ std::string replace(std::string str, char oldValue, char newValue) {
     return str;
 }
 
+
+bool stringToBool(std::string str) {
+    if (str == "true")
+        return true;
+    else if (str == "1")
+        return true;
+    else if (str == "0")
+        return false;
+    else if (str == "false")
+        return false;
+    else
+		HCL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
+
+	return false;
+}
 
 bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	if (coreTyped(type)) return true;

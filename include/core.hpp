@@ -55,11 +55,20 @@ void print(HCL::variable msg, std::string end = "\n");
 
 // Creates a folder.
 // int createFolder(string path, int mode = 0777)
-int createFolder(HCL::variable path, int mode = 0777);
+int createFolder(std::string path, int mode = 0777);
 // Removes a folder.
 // int removeFolder(string path)
-int removeFolder(HCL::variable path);
+int removeFolder(std::string path);
 
 // Creates a file.
 // int createFile(string path, string content = "", bool useUtf8BOM = false)
-int createFile(std::string path, std::string content = "", bool useUtf8BOM = false);
+int createFile(std::string, std::string content = "", bool useUtf8BOM = false);
+// Reads a file.
+// string readFile(string path)
+std::string readFile(std::string path);
+// Writes into a file.
+// int writeFile(string path, string content, string mode = "w")
+int writeToFile(std::string path, std::string content, std::string mode = "w");
+// Removes a file.
+// int delete(string path)
+int removeFile(std::string path);

@@ -19,7 +19,7 @@ $(EXE): $(OBJ) main.cpp
 	$(CC) $(FLAGS) $(INCLUDE) $(OBJ) main.cpp $(LIBS) -o $@
 
 run: $(EXE)
-	./$(EXE) -g examples/event/main.hcl
+	./$(EXE) examples/general/main.hcl
 
 clean:
 	rm -rf build/**
