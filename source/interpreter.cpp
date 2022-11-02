@@ -27,6 +27,7 @@
 #include <helper.hpp>
 
 #include <iostream>
+#include <string.h>
 
 std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
 	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)

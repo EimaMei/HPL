@@ -9,14 +9,14 @@ OBJ = $(addprefix $(OUTPUT)/,$(addsuffix .o,$(notdir $(SRC))))
 ifeq ($(OS),Windows_NT)
     PLATFORM = windows
 else
-    PLATFORM := $(shell uname -s)
+    PLATFORM := $(shell uname -s | tr [:upper:] [:lower:])
 endif
 
 FLAGS = -std=c++17 -O2 -Wall -Wpedantic
 LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
 
-all: $(EXE) run
+all: $(OUTPUT) $(EXE) run
 %.hpp: $(EXE)
 
 $(OUTPUT):
