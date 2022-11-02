@@ -50,8 +50,8 @@ std::vector<std::string> split(std::string str, std::string value, char charScop
 
 
 bool useRegex(std::string str, std::string regexText) {
-	std::smatch match;
-	bool b = std::regex_search(str, match, std::regex(regexText));
+	std::smatch matches;
+	bool b = std::regex_search(str, matches, std::regex(regexText));
 	
 	// For some reason after 'useRegex' and 'HCL::matches' is out
 	// of the function scope, the data gets corrupted and spews
@@ -68,11 +68,26 @@ bool useRegex(std::string str, std::string regexText) {
 	// This also means we'll be using vectors for regex outputs,
 	// which I don't particulary mind as std::vector seems to be
 	// much more reliable than std::smatch.
-	HCL::matches.value.clear();
-	for (int i = 1; i < match.size(); i++)
-		HCL::matches.value.push_back(match.str(i));
+	HCL::matches.clear();
+	for (int i = 1; i < matches.size(); i++)
+		HCL::matches.push_back(matches.str(i));
 
 	return b;
+}
+
+
+bool useIterativeRegex(std::string str, std::string regexText) {
+	std::regex s = std::regex(regexText);
+    auto words_begin = std::sregex_iterator(str.begin(), str.end(), s);
+    auto words_end = std::sregex_iterator();
+
+	HCL::matches.clear();
+    for (std::sregex_iterator i = words_begin; i != words_end; i++) {
+        std::smatch match = *i;
+		HCL::matches.push_back(match.str());
+    }
+
+	return (HCL::matches.size() != 0);
 }
 
 
@@ -107,8 +122,18 @@ bool isInt(std::string str) {
 }
 
 
-std::string replace(std::string str, char oldValue, char newValue) {
-    std::replace(str.begin(), str.end(), oldValue, newValue);
+std::string replace(std::string str, std::string oldString, std::string newString) {
+    size_t pos;
+    while ((pos = str.find(oldString, pos)) != std::string::npos) {
+        str.replace(pos, oldString.length(), newString);
+        pos += newString.length();
+    }
+	return str;
+}
+
+
+std::string replaceOnce(std::string str, std::string oldString, std::string newString) {
+    str.replace(str.find(oldString), oldString.size(), newString);
 
     return str;
 }
@@ -128,6 +153,7 @@ bool stringToBool(std::string str) {
 
 	return false;
 }
+
 
 bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	if (coreTyped(type)) return true;
@@ -175,4 +201,38 @@ HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/
 		}
 	}
 	return {};
+}
+
+
+int getValueFromFstring(std::string ogValue, std::string& output) {
+	// Checks if the string is even an f-string
+	if (ogValue.front() == 'f' && ogValue[1] == '\"' && ogValue.back() == '\"') {
+		// Get every match of {words inside curly brackets}
+		useIterativeRegex(ogValue, R"(\{[\w\.]+\})");
+		ogValue.erase(0, 1); // Remove the F letter.
+		for (auto value : HCL::matches.value) {
+			value = unstringify(value, true); // Remove the curly brackets.
+			HCL::variable structVar;
+			HCL::variable* var = getVarFromName(value, &structVar);
+
+			if (var == NULL) { // Can't use f-string without providing a variable obviously...
+				HCL::throwError(true, "Variable '%s' doesn't exist.", value.c_str());
+			}
+			else {
+				value = "{" + value + "}";
+				size_t pos = ogValue.find(value);
+
+				if (!structVar.name.empty()) { // Is a struct member.
+					int index = std::stoi(structVar.extra[0]);
+					ogValue = replaceOnce(ogValue, value, structVar.value[index]);
+				}
+				else // Regular variable.
+					ogValue = replaceOnce(ogValue, value, var->value[0]);
+			}
+		}
+		output = unstringify(ogValue);
+
+		return 0;
+	}
+	return -1;
 }

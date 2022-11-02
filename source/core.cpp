@@ -1,18 +1,18 @@
 /*
 * Copyright (C) 2021-2022 Eima
-*   
+*
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
 * arising from the use of this software.
-* 
+*
 * Permission is granted to anyone to use this software for any purpose,
 * including commercial applications, and to alter it and redistribute it
 * freely, subject to the following restrictions:
-*   
+*
 * 1. The origin of this software must not be misrepresented; you must not
 *    claim that you wrote the original software. If you use this software
 *    in a product, an acknowledgment in the product documentation would be
-*    appreciated but is not required. 
+*    appreciated but is not required.
 * 2. Altered source versions must be plainly marked as such, and must not be
 *    misrepresented as being the original software.
 * 3. This notice may not be removed or altered from any source distribution.
@@ -31,23 +31,26 @@ std::vector<std::string> coreTypes = {
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"var"     // Generic type.
 };
+
 bool foundFunction = false;
 std::string globalFunctionName;
 int userSentParamCount;
 HCL::function functionPointer;
 std::string functionType;
 
+#include <iostream>
+
 int checkForFunctions(std::string name, std::string info, HCL::function& function, void*& output) {
 	std::vector<std::string> values;
 	if (useRegex(info, R"(\s*([A-Za-z0-9\.]+)\((.*)\)\s*)"))
 		values = split(info, ",", '(', ')');
-	else 
+	else
 		values = split(info, ",", '\"');
 	std::vector<HCL::variable> params;
 
 	for (auto& p : values) {
 		HCL::variable var = {"?", "?", {"?"}}; HCL::variable structInfo;
-		useRegex(p, R"(\s*(\".*\"|\{.*\}|[^\s*]*)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
+		useRegex(p, R"(\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
 		p = unstringify(HCL::matches.str(1));
 		std::string oldMatch = HCL::matches.str(1);
 
@@ -64,12 +67,17 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 				var.type = "string";
 			else if (isInt(p))
 				var.type = "int";
-			else if (p == "true" || p == "false")
+			else if (p == "true" || p == "false") {
 				var.type = "bool";
+				p = std::to_string(stringToBool(p));
+			}
 			else
-				var.type = "var";
+				HCL::throwError(true, "Variable '%s' doesn't exist", p.c_str());
 
-			var.value[0] = p;
+			if (getValueFromFstring(oldMatch, var.value[0]) == 0) // Is an f-string.
+				var.value[0] = replaceAll(var.value[0], "\\\"", "\"");
+			else
+				var.value[0] = p;
 		}
 		else { // If parameter IS a variable.
 			var.name = p;
@@ -87,6 +95,7 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 				var.value[0] = existingVar->value[index];
 			}
 		}
+
 		params.push_back(var);
 	}
 	foundFunction = false;
@@ -95,7 +104,7 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 	functionType = "";
 
 	output = coreFunctions(params);
-	
+
 	// Non-core functions
 	for (auto func : HCL::functions) {
 		if (useFunction(func.type, func.name, func.minParamCount, func.params.size())) {
@@ -140,7 +149,7 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 		HCL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), maxParamCount);
 	if (name == globalFunctionName && minParamCount > userSentParamCount)
 		HCL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), minParamCount);
-	
+
 
 	if (name == globalFunctionName) {
 		foundFunction = true;
@@ -150,7 +159,7 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 		functionPointer.name = name;
 		functionPointer.minParamCount = minParamCount;
 	}
-	
+
 	return name == globalFunctionName;
 }
 
@@ -167,7 +176,7 @@ void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std
 		else if (func.type == "string")
 			existingVar->value[0] = voidToString(output);
 	}
-	else if (output == nullptr && func.type == "int") { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
+	else if (output == nullptr && (func.type == "int" || func.type == "bool")) { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
 		existingVar->type = func.type;
 		existingVar->value[0] = std::to_string(voidToInt(output));
 	}
@@ -186,7 +195,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		// Since our function doesn't return anything, we return nothing.
 	}
-	
+
 	else if (useFunction("int", "createFolder", 1, 2)) {
 		int mode = 0777;
 
@@ -198,7 +207,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 	}
 
 	else if (useFunction("int", "removeFolder", 1, 1)) {
-		if (params[0].type != "string") 
+		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
 
 		int result = removeFolder(params[0].value[0]);
@@ -218,9 +227,9 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result);
 	}
-	
+
 	else if (useFunction("string", "readFile", 1, 1)) {
-		if (params[0].type != "string") 
+		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
 
 		std::string result = readFile(params[0].value[0]);
@@ -240,21 +249,52 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 	}
 
 	else if (useFunction("int", "removeFile", 1, 1)) {
-		if (params[0].type != "string") 
+		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
 
-		int result = removeFolder(params[0].value[0]);
+		int result = removeFile(params[0].value[0]);
 
 		return intToVoid(result); // Returns the result as int.
 	}
 
+	else if (useFunction("int", "copyFile", 2, 2)) {
+		if (params[0].type != "string")
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'source' is string-only)", true, params[0].type.c_str());
+		if (params[1].type != "string")
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'output' is string-only)", true, params[0].type.c_str());
+
+		int result = copyFile(params[0].value[0], params[1].value[0]);
+
+		return intToVoid(result); // Returns the result
+	}
+
+	else if (useFunction("int", "moveFile", 2, 2)) {
+		if (params[0].type != "string")
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'source' is string-only)", true, params[0].type.c_str());
+		if (params[1].type != "string")
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'output' is string-only)", true, params[0].type.c_str());
+
+		int result = moveFile(params[0].value[0], params[1].value[0]);
+
+		return intToVoid(result); // Returns the result
+	}
+
 	else if (useFunction("int", "convertToDds", 2, 2)) {
-		if (params[0].type != "string") 
+		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'input' is string-only)", true, params[0].type.c_str());
-		if (params[1].type != "string") 
+		if (params[1].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'output' is string-only)", true, params[0].type.c_str());
 
 		int result = convertToDds(params[0].value[0], params[1].value[0]);
+
+		return intToVoid(result); // Returns the result
+	}
+
+	else if (useFunction("bool", "pathExists", 1, 1)) {
+		if (params[0].type != "string")
+			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
+
+		bool result = pathExists(params[0].value[0]);
 
 		return intToVoid(result); // Returns the result
 	}

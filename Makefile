@@ -31,6 +31,9 @@ $(EXE): $(OBJ) main.cpp
 run: $(EXE)
 	./$(EXE) examples/general/main.hcl
 
+runDebugMode: $(EXE)
+	./$(EXE) -g examples/general/main.hcl
+
 clean:
 	rm -rf build/**
 

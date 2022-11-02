@@ -48,16 +48,6 @@
 #define voidToString(pointer) *static_cast<std::string*>(pointer)
 
 
-struct hclVector {
-	std::vector<std::string> value;
-
-	std::string str(int index) {
-		if (index > value.size()) return "";
-
-		return value[index - 1];
-	}
-};
-
 namespace HCL {
 	enum RETURN_OUTPUT { OUTPUT_NOTHING, OUTPUT_BLACK, OUTPUT_RED, OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_BLUE, OUTPUT_PURPLE, OUTPUT_CYAN, OUTPUT_GRAY };
 
@@ -78,6 +68,19 @@ namespace HCL {
 		std::vector<std::string> code;
 		int minParamCount;
 	};
+	struct vector { // A very small implementation of std::smatches.
+		std::vector<std::string> value;
+
+		std::string str(int index) {
+			if (index > value.size()) return "";
+
+			return value[index - 1];
+		}
+		void clear() { value.clear(); }
+		size_t size() { return value.size(); }
+		bool empty() { return value.empty(); }
+		void push_back(std::string x) { value.push_back(x); }
+	};
 	
 	// Interpreter configs.
 	extern bool debug;
@@ -88,12 +91,13 @@ namespace HCL {
 	extern std::string line;
 	extern int lineCount;
 	extern int mode;
-	extern hclVector matches;
+	extern HCL::vector matches;
 
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;
 	extern std::vector<structure> structures;
 	extern std::vector<function> functions;
+	extern std::vector<std::string> scope;
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);

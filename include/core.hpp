@@ -72,7 +72,17 @@ int writeToFile(std::string path, std::string content, std::string mode = "w");
 // Removes a file.
 // int delete(string path)
 int removeFile(std::string path);
+// Copies a file to a new path.
+// int copyFile(string source, string output)
+int copyFile(std::string source, std::string output);
+// Moves a file to a new path.
+// int moveFile(string source, string output)
+int moveFile(std::string source, std::string output);
 
 // Converts an image to .dds and copies said converted image to "output"
 // int convertToDds(string input, string output)
 int convertToDds(std::string input, std::string output);
+
+// Checks if a path already exists.
+// int pathExists(string path)
+bool pathExists(std::string path);

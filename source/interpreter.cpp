@@ -1,18 +1,18 @@
 /*
 * Copyright (C) 2021-2022 Eima
-*   
+*
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
 * arising from the use of this software.
-* 
+*
 * Permission is granted to anyone to use this software for any purpose,
 * including commercial applications, and to alter it and redistribute it
 * freely, subject to the following restrictions:
-*   
+*
 * 1. The origin of this software must not be misrepresented; you must not
 *    claim that you wrote the original software. If you use this software
 *    in a product, an acknowledgment in the product documentation would be
-*    appreciated but is not required. 
+*    appreciated but is not required.
 * 2. Altered source versions must be plainly marked as such, and must not be
 *    misrepresented as being the original software.
 * 3. This notice may not be removed or altered from any source distribution.
@@ -150,7 +150,7 @@ int HCL::checkFunctions() {
 		std::vector<std::string> params = split(param, ",", '\"');
 
 		for (auto v : params) {
-			if (useRegex(v, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(\".*\"|\{.*\}|[^\s*]*)\s*)")) {
+			if (useRegex(v, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
 				variable var = {matches.str(1), matches.str(2), {unstringify(matches.str(3))}};
 				func.params.push_back(var);
 				if (var.value[0].empty()) func.minParamCount++;
@@ -183,7 +183,8 @@ int HCL::checkFunctions() {
 
 int HCL::checkVariables() {
 	// Matches the name and value
-	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
+	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
+		std::string ogValue = matches.str(2);
 		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
 
@@ -201,10 +202,12 @@ int HCL::checkVariables() {
 				int index = std::stoi(structInfo.extra[0]);
 				existingVar->value[index] = info.value[0];
 			}
+
+			getValueFromFstring(ogValue, existingVar->value[0]);
 		}
 	}
 	// Matches the type, name and value
-	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(\".*\"|\{.*\}|[^\s*]*)\s*)")) { // Declaring a new variable.
+	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) { // Declaring a new variable.
 		std::string ogValue = matches.str(3);
 		variable var = {matches.str(1), matches.str(2), {unstringify(ogValue)}};
 		structure s;
@@ -216,9 +219,9 @@ int HCL::checkVariables() {
 			// Copy over an existing variable to this new one.
 			if (existingVar != nullptr) {
 				// If 'getVarFromName' finds a variable from a struct, `structVar.extra` becomes the index of where the member is in the struct.
-				// However, due to `structVar.value` being a std::string, we have to convert it to an integer.
+				// However, due to `structVar.extra` being a std::string, we have to convert it to an integer.
 				int index = std::stoi(structVar.extra[0]);
-				var.value = {structVar.value[index]}; 
+				var.value = {structVar.value[index]};
 			}
 			// Check if the value is a function. If so, execute the
 			// function and get its return, so that it gets assigned
@@ -226,10 +229,11 @@ int HCL::checkVariables() {
 			else if (useRegex(line, R"(\s*[A-Za-z0-9\.]+\s+[A-Za-z0-9]+?\s*=\s*([A-Za-z0-9\.]+)\((.*)\))")) {
 				assignFuncReturnToVar(&var, matches.str(1), matches.str(2));
 			}
+			// The type is a struct.
 			else if (!s.name.empty()) {
 				if (var.type == s.name) {
 					var.value.clear(); // Clear everything in the vector so that no vector shenanigans would happen.
-					
+
 					if (var.value[0].empty()) { // Nothing is set, meaning it's just the struct's default arguments.
 						for (int i = 0; i < s.value.size(); i++) {
 							auto data = s.value[i];
@@ -275,6 +279,8 @@ int HCL::checkVariables() {
 		else {
 			throwError(true, "Type '%s' doesn't exist.", var.type.c_str());
 		}
+		getValueFromFstring(ogValue, var.value[0]);
+		var.value[0] = replaceAll(var.value[0], "\\\"", "\"");
 
 		if (mode == SAVE_STRUCT) // Save variables inside a struct.
 			structures.begin()->value.push_back(var);
@@ -308,7 +314,7 @@ int HCL::checkStruct() {
 
 void HCL::debugMode() {
 	std::cout << colorText("============ DEBUG INFORMATION ============\n", HCL::OUTPUT_PURPLE);
-	
+
 	std::cout << colorText("Variables:\n", OUTPUT_CYAN, true);
 	debugPrintVar(variables);
 	std::cout << colorText("\nStructures:\n", OUTPUT_CYAN, true);
@@ -323,12 +329,12 @@ void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, 
 		auto v = vars[index];
 
 		RETURN_OUTPUT clr = OUTPUT_PURPLE;
-	
+
 		if (v.type == "scope")
 			clr = OUTPUT_BLUE;
 		else if (!coreTyped(v.type))
 			clr = OUTPUT_NOTHING;
-			
+
 		std::cout << tabs << colorText(v.type, clr) << " " << v.name;
 
 		if (!v.value[0].empty()) std::cout << " = ";
@@ -339,7 +345,7 @@ void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, 
 			auto value = v.value[i];
 			if (i < v.extra.size()) vtype = v.extra[i];
 
-			if (vtype == "string" && (!value.empty() || v.value.size() > 1)) 
+			if (vtype == "string" && (!value.empty() || v.value.size() > 1))
 				std::cout << colorText("\"" + value + "\"", HCL::OUTPUT_BLUE, true);
 			else if (!value.empty() || v.value.size() > 1)
 				std::cout << colorText(value, HCL::OUTPUT_BLUE, true);
@@ -367,7 +373,7 @@ void HCL::debugPrintStruct(std::vector<structure> structList, std::string indent
 void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"*/) {
 	for (auto f : functions) {
 		RETURN_OUTPUT clr = OUTPUT_PURPLE;
-	
+
 		if (f.type == "scope")
 			clr = OUTPUT_BLUE;
 		else if (!coreTyped(f.type))
@@ -419,13 +425,13 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 		else msg += x;
 	}
 	va_end(valist);
-	
-	if (debug && sendRuntimeError) 
+
+	if (debug && sendRuntimeError)
 		debugMode();
-	
+
 	if (sendRuntimeError)
 		throw std::runtime_error("\x1B[0m" + msg);
-	else 
+	else
 		printf("\x1B[0m%s\n", msg.c_str());
 }
 
@@ -440,10 +446,11 @@ namespace HCL {
 	std::string line;
 	int lineCount = 0;
 	int mode = 0;
-	hclVector matches;
+	HCL::vector matches;
 
 	// Defnitions that are saved in memory.
 	std::vector<variable> variables;
 	std::vector<structure> structures;
 	std::vector<function> functions;
+	std::vector<std::string> scope;
 }

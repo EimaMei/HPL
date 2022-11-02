@@ -25,7 +25,8 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Add returns to non-core typed functions.
 - [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
 - [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
-- [ ] Add f-string.
+- [X] Add f-string.
+- [ ] Add more runtime errors (defining variables that already exist, too many curly brackets)
 - [ ] Finalize how scopes work in general.
 
 ## Step 2: Core functions implementation
@@ -34,8 +35,8 @@ When the base code for the interpreter is done, it'll allow us to finally implem
 - [X] Read, write and remove a file.
 - [X] Create/remove folders.
 - [X] Write a file as UTF-8 or UTF-8-bom easily.
-- [ ] Move/copy a path to another place.
-- [ ] Check if a path already exists. 
+- [X] Move/copy a file to another place.
+- [X] Check if a path already exists.
 - [ ] Get and set the current scope.
 - [X] Return error types.
 - [X] Print in the terminal.

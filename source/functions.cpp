@@ -11,13 +11,16 @@
 #include <helper.hpp>
 
 #include <sys/stat.h>
-
 #ifdef _WIN32
 #include <direct.h>
+#include <io.h>
 
 #define mkdir(dir, mode) _mkdir(dir)
+#define F_OK 0
+#define access _access
 #else
 #include <dirent.h>
+#include <unistd.h>
 #endif
 
 #include <deps/SOIL2.h>
@@ -32,6 +35,8 @@ void print(HCL::variable msg, std::string end/* = \n*/) {
 	for (int i = 0; i < msg.value.size(); i++) {
 		auto value = msg.value[i];
 		if (i < msg.extra.size()) vtype = msg.extra[i];
+		if (vtype == "bool")
+			value = (value == "1" ? "true" : "false");
 
 		output += value;
 
@@ -69,14 +74,15 @@ int removeFolder(std::string path) {
 
 int createFile(std::string path, std::string content/* = ""*/, bool useUtf8BOM/* = false*/) {
 	int output = 0;
-	
+
 	FILE* f = fopen(path.c_str(), "r");
 	if (f == NULL) {
 		f = fopen(path.c_str(), "w");
-		if (!content.empty()) {
+		if (!content.empty() && f != NULL) {
 			if (useUtf8BOM) fprintf(f, "\xEF\xBB\xBF");
 			fprintf(f, "%s", content.c_str());
 		}
+		else if (f == NULL) { output = -1; }
 	}
 	else {
 		output = -1;
@@ -128,6 +134,32 @@ int writeToFile(std::string path, std::string content, std::string mode/* = "w"*
 }
 
 
+int removeFile(std::string path) {
+	return removeFolder(path);
+}
+
+
+int copyFile(std::string source, std::string output) {
+	std::string txt = readFile(source);
+	int res = -1;
+	if (!txt.empty()) {
+		res = writeToFile(output, txt);
+	}
+
+	return res;
+}
+
+
+int moveFile(std::string source, std::string output) {
+	int res = copyFile(source, output);
+	if (res == 0) {
+		res = removeFile(source);
+	}
+
+	return res;
+}
+
+
 int convertToDds(std::string input, std::string output) {
 	int w, h, channels;
 	
@@ -137,4 +169,9 @@ int convertToDds(std::string input, std::string output) {
 		return SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, png);
 	else
 		return -1;
+}
+
+
+bool pathExists(std::string path) {
+	return (access(path.c_str(), F_OK) == 0);
 }

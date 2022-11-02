@@ -32,6 +32,8 @@
 std::vector<std::string> split(std::string str, std::string value, char charLimit = '\0', char charLimit2 = '\0');
 // Checks if the line matches the regex.
 bool useRegex(std::string str, std::string regexText);
+// Checks if there are multiple matches from the regex.
+bool useIterativeRegex(std::string str, std::string regexText);
 // Removes any whitespace in a sentence.
 std::string removeSpaces(std::string str);
 // Removes the double quotes from strings. If 'noChecks' is enabled then it doesn't check if the string has double quotes in the front and back, which just essentially removes both the front and back char for any string.
@@ -42,10 +44,14 @@ std::string getPathFromFilename(std::string filename);
 bool find(std::string line, std::string str);
 // Checks if string is an int.
 bool isInt(std::string str);
-// Replaces a string's character with another character.
-std::string replace(std::string str, char oldValue, char newValue);
+// Replaces all instances of 'oldString' with 'newString' in 'str'
+std::string replaceAll(std::string str, std::string oldString, std::string newString);
+// Replaces the FIRST instance of 'oldString' with 'newString' in 'str'
+std::string replaceOnce(std::string, std::string oldString, std::string newString);
 // Converts a string to a C++ bool.
 bool stringToBool(std::string str);
+// Fixes the sentence from being f-string to a normal string.
+int getValueFromFstring(std::string ogValue, std::string& output);
 
 /* HCl specific helper functions. */
 
