@@ -4,12 +4,21 @@
 =================================================
 */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
 
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+
+#define mkdir(dir, mode) _mkdir(dir)
+#else
 #include <dirent.h>
+#endif
 
 #include <deps/SOIL2.h>
 
@@ -63,7 +72,6 @@ int createFile(std::string path, std::string content/* = ""*/, bool useUtf8BOM/*
 	
 	FILE* f = fopen(path.c_str(), "r");
 	if (f == NULL) {
-		fclose(f);
 		f = fopen(path.c_str(), "w");
 		if (!content.empty()) {
 			if (useUtf8BOM) fprintf(f, "\xEF\xBB\xBF");
@@ -93,6 +101,9 @@ std::string readFile(std::string path) {
         size_t size = fread(buffer, 1, fsize, f);
 		buffer[size] = 0;
 		text = buffer;
+
+		if (text[0] == '\xEF' && text[1] == '\xBB' && text[2] == '\xBF') // Utf-8 bom text, remove the 3 first bytes just in case.
+			text.erase(0, 3);
     }
 	fclose(f);
 	free(buffer);
@@ -121,5 +132,9 @@ int convertToDds(std::string input, std::string output) {
 	int w, h, channels;
 	
 	unsigned char* png = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
-	return SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, png);
+
+	if (png != NULL) // If loading the image failed.
+		return SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, png);
+	else
+		return -1;
 }

@@ -15,4 +15,4 @@ print("Contents of the second file: ", "")
 print(readFile("build/output/cringe2.txt"))
 
 print("Converting a jpg -> dds output: ", "")
-print(convertToDds("res/remtard.jpg", "res/remtard.dds"))
+print(convertToDds("examples/general/res/literal_evil.png", "build/output/literal_evil.dds"))

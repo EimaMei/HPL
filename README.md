@@ -112,4 +112,4 @@ HCL should work perfectly on MacOS after each commit, as that is my main host sy
 ## Dependencies
 I usually do not like including pre-compiled dependencies in projects, as then it becomes a hassle to keep things cross-platform. So for the majority of HCL, using dependecies is stricly forbidden and should be used as a final resort. However, using dependencies in core functions is acceptable and won't cause any fuss (though again, must be a final resort if there aren't any header-only solutions/self-implementations the function). The dependency can only be statically-compiled/header-only and must be cross-platform between all platforms that you can use HOI4 on (Windows, Mac and Linux).
 ## Credits
-[SOIL2 (forked version)](https://github.com/EimaMei/SIL2]) - for the `convertToDds` core function, HCL uses a modified version of SOIL2 to remove unneeded OpenGL requirements.
+[SOIL2 (forked version)](https://github.com/EimaMei/SIL2) - for the `convertToDds` core function, HCL uses a modified version of SOIL2 to remove unneeded OpenGL requirements.

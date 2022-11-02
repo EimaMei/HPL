@@ -183,7 +183,7 @@ int HCL::checkFunctions() {
 int HCL::checkVariables() {
 	// Matches the name and value
 	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
-		variable info = {.name = matches.str(1), .value = {unstringify(matches.str(2))}}; variable structInfo;
+		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
 
 

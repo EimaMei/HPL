@@ -16,11 +16,14 @@ FLAGS = -std=c++17 -O2 -Wall -Wpedantic
 LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
 
-$(OUTPUT)/%.o: source/%.cpp
-	$(CC) $(FLAGS) $(INCLUDE) $^ -c -o $@
-
 all: $(EXE) run
 %.hpp: $(EXE)
+
+$(OUTPUT):
+	@mkdir $@
+
+$(OUTPUT)/%.o: source/%.cpp
+	$(CC) $(FLAGS) $(INCLUDE) $^ -c -o $@
 
 $(EXE): $(OBJ) main.cpp
 	$(CC) $(FLAGS) $(INCLUDE) $(OBJ) main.cpp $(LIBS) -o $@
