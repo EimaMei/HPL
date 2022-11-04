@@ -1,5 +1,6 @@
 # What is HCL?
 The HOI4 Coding Language (HCL) is a high-level interpreter programming language for HOI4 that is set to make HOI4 scripting much better, while also adding a bunch of new features to make HOI4 programming enjoyable.
+
 # Why HCL?
 Because the current HOI4 scripting "language" lacks very basic programming features (which makes the code more ugly and longer), overcomplicates things for the sake of simplicity, always breaks when a new DLC launches and is just generally not fun to program in. This is why I always refer to the current HOI4 coding as "scripting", as its very basic and lacks the many features that programmer like myself take for granted.
 
@@ -10,6 +11,8 @@ The solution to this? Create an actual programming language designed for HOI4 co
 - Have proper error checking when building code so that mods don't have thousands of errors/crash at startup.
 - Enforcing stability so that code doesn't break each time a new DLC releases.
 
+# Current status of HCL
+Currently HCL is ***very*** expiremental, as such bugs should be expected and reported. However it now already has quite a few basic language features to toy around with, as well as the ability to use `libpdx.hcl` to ouput a few pieces of HOI4 code. With enough time (months, maybe a year or two?) it'll be stable enough for normal use cases for mods (hell, maybe even for full-scale productions but I don't expect that anytime soon, if at all).
 # Current roadmap
 ## Step 1: Building the base code
 Currently the language is barely done and it'll take awhile before any random modder will be able to use it without encountering some bug/unimplemented HOI4 functions. As such, these basic features must be implemented:
@@ -27,6 +30,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
 - [X] Add f-string.
 - [ ] Add more runtime errors (defining variables that already exist, too many curly brackets)
+- [ ] Make error/warnings reports more pretty (more aline with how GCC does it).
 - [ ] Multiline variables
 - [ ] Finalize how scopes work in general.
 
@@ -41,7 +45,7 @@ When the base code for the interpreter is done, it'll allow us to finally implem
 - [ ] Get and set the current scope.
 - [X] Return error types.
 - [X] Print in the terminal.
-- [X] Convert images to `.dds` automatically. (Mac only for now)
+- [X] Convert images to `.dds` automatically.
 - [ ] Resize images.
 
 ## Step 3: Basic HOI4 functions implementation
@@ -51,8 +55,8 @@ This gets tricky. If step 2 is completed, then by that point the base language i
 - [ ] Event creation.
 - [ ] Proper localisation.
 
-## Step 4: Adding in basic programming features into HCL
-Now that the language can build some basic hoi4 code, we now have a development environment. So now we can build-upon HCL and add new coding features. These features are, but not limited to:
+## Step 4: Adding in additional basic programming features into HCL
+Now that the language can build quite some HOI4 code, by now we should have a stable development environment. So now we can build-upon HCL and add new coding features. These features are, but not limited to:
 - [ ] Arrays.
 - [ ] Implement basic math (+, -, /, *).
 - [ ] Implement basic operators (&&, ||, ==, !=, >=, <=).
@@ -86,13 +90,42 @@ info var = {"Something new here"} // While this would be saved as {"Something ne
 ```
 However, as of now, you *cannot* init variables with out of order arguments (eg. `{.value = 25, .desc = "Out of order shenanigans!"}`)
 ## Scope
-Scopes aren't implemented at all. However, it is a **very** important type in HCL as it dictates when you can use HOI4-implemented functions in the code. This is due to how Paradox modding files work in general, where the results of a certain action are declared in a scope (for example, an option in an event would be a scope).
+Scopes aren't implemented at all. However, it is a **very** important type in HCL as it dictates when you can use quite a lot of the HOI4-implemented functions in the code. This is due to how Paradox modding files work in general, where the results of a certain action are declared in a scope to make sense (for example, an option in an event would be a scope). As such, you cannot just declare `addStability("SOV", 20)` randomly as neither HCL nor HOI4 would understand where, why or when that action happens in runtime.
 
 Due to this, it'll be required for me to think about how to implement scopes in HCL that'll:
 1. Make it obvious when you can use HOI4 code without getting errors or just no output.
 2. Not ruin/overcomplicate the syntax.
+3. Fit in nicely with the C-ish syntax.
 
-I have a few ideas on how I would implement such a type. One of them being that the user will be able to set if a function should set inside a scope or not. An example of it would be the [event example](examples/event/main.hcl), where inside the commented lines you can see `newEvent` have curly brackets and inside of it pseudo HOI4 code is being used. However for now it isn't required for me to implement scopes, as I still need to create the base language so as is right now, scopes won't be implemented for awhile.
+I have a few ideas on how I would implement such a type. One of them being that a scope variable would be declared in curly brackets, and inside those brackets you can save HOI4 code (possible even having cross-compatibility with old HOI4 code).
+
+### **Examples of how it could look**
+1. **Funcion form**
+```c
+newOption(someEventVar, "da title", "description whatever") = {
+	addStability("ROOT", 50) // If the AI/player picks this option, it gains 50% stability
+}
+```
+2. **Variable form**
+```c
+scope savedCode = {
+	addWarSupport("USA", -10) // Now I can use this scope variable anywhere.
+}
+```
+3. **Using both examples as one**
+```c
+scope savedCode = {
+	addStability("ROOT", 50)
+	addWarSupport("USA", -10)
+} // Now I can use this scope variable in any scope I want.
+
+newOption(someEventVar, "da title 2", "another description whatever") = {
+	savedCode // This gets transformed into actual code when the interpreter reads and transforms it back to HCL and then finally HOI4 code.
+}
+
+```
+
+However for now it isn't required for me to implement scopes, as I still need to create the base language so as is right now, scopes won't be implemented for awhile.
 # Final notes
 ## Building HCL
 If you're planning to build HCL, please note that my main programming environment isn't Windows, so expect possible errors and/or unsual behaviours on that platform, as from my experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being whack and causing issues in code that works in one platform but doesn't in the other). Here is my developer environment that'll be using for most of the HCL work:
