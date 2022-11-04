@@ -27,6 +27,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
 - [X] Add f-string.
 - [ ] Add more runtime errors (defining variables that already exist, too many curly brackets)
+- [ ] Multiline variables
 - [ ] Finalize how scopes work in general.
 
 ## Step 2: Core functions implementation

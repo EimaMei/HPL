@@ -7,7 +7,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <interpreter.hpp>
-#include <core.hpp>
+#include <functions.hpp>
 #include <helper.hpp>
 
 #include <sys/stat.h>
@@ -66,7 +66,7 @@ int createFolder(std::string path, int mode/* = 0777*/) {
 
 
 int removeFolder(std::string path) {
-	int check = remove(path.c_str());
+	int check = system(std::string("rm -rf " + path).c_str()); // Fuck windows gidjsflkjdalfksjdafiowolfif
   
     return check;
 }
@@ -118,7 +118,7 @@ std::string readFile(std::string path) {
 }
 
 
-int writeToFile(std::string path, std::string content, std::string mode/* = "w"*/) {
+int writeFile(std::string path, std::string content, std::string mode/* = "w"*/) {
 	FILE* f = fopen(path.c_str(), mode.c_str());
  
     if (f != NULL) {
@@ -143,7 +143,7 @@ int copyFile(std::string source, std::string output) {
 	std::string txt = readFile(source);
 	int res = -1;
 	if (!txt.empty()) {
-		res = writeToFile(output, txt);
+		res = writeFile(output, txt);
 	}
 
 	return res;
@@ -157,6 +157,11 @@ int moveFile(std::string source, std::string output) {
 	}
 
 	return res;
+}
+
+
+int writeLocalisation(std::string file, std::string name, std::string description) {
+	return writeFile(file, "\n\t" + name + ":0 \"" + description + "\"", "a");
 }
 
 
@@ -174,4 +179,9 @@ int convertToDds(std::string input, std::string output) {
 
 bool pathExists(std::string path) {
 	return (access(path.c_str(), F_OK) == 0);
+}
+
+
+std::string getFilenameFromPath(std::string path) {
+	return path.substr(path.find_last_of("/\\") + 1);
 }

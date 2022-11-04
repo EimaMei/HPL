@@ -26,10 +26,8 @@
 
 /* General functions. */
 
-// Splits the sentence each time it encounters the 'value'. If 'charLimit' isn't null, then the array doesn't get split if 'value' is between two 'charLimit'.
-// However, if 'charLimit2' is set then the sentence gets split between 'charLimit' and 'charLimit2'.
-// For example, string "1,2,3,'4,5,6,7,8',9" would output "4,5,6,7,8" if 'value' is "," and 'charLimit2' is "'" 
-std::vector<std::string> split(std::string str, std::string value, char charLimit = '\0', char charLimit2 = '\0');
+// Splits the sentence each time it encounters the 'value'. If 'charScope' isn't null, then the array doesn't get split if 'value' is between 'charScope[0]' and 'charScope[1]'.
+std::vector<std::string> split(std::string str, std::string value, std::string charScope = "\0\0");
 // Checks if the line matches the regex.
 bool useRegex(std::string str, std::string regexText);
 // Checks if there are multiple matches from the regex.
@@ -50,8 +48,8 @@ std::string replaceAll(std::string str, std::string oldString, std::string newSt
 std::string replaceOnce(std::string, std::string oldString, std::string newString);
 // Converts a string to a C++ bool.
 bool stringToBool(std::string str);
-// Fixes the sentence from being f-string to a normal string.
-int getValueFromFstring(std::string ogValue, std::string& output);
+// Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
+std::string convertBackslashes(std::string str);
 
 /* HCl specific helper functions. */
 
@@ -66,3 +64,5 @@ bool coreTyped(std::string type);
 // of the member, however `var.extra[0]` becomes the index of where the
 // member was in the struct. 
 HCL::variable* getVarFromName(std::string varName, HCL::variable* var = NULL);
+// Fixes the sentence from being f-string to a normal string.
+int getValueFromFstring(std::string ogValue, std::string& output);

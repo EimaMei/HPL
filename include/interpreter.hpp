@@ -67,6 +67,9 @@ namespace HCL {
 		std::vector<variable> params;
 		std::vector<std::string> code;
 		int minParamCount;
+
+		std::string file; // Used for the error message.
+		int startingLine;
 	};
 	struct vector { // A very small implementation of std::smatches.
 		std::vector<std::string> value;
@@ -80,6 +83,7 @@ namespace HCL {
 		size_t size() { return value.size(); }
 		bool empty() { return value.empty(); }
 		void push_back(std::string x) { value.push_back(x); }
+		std::string operator[](int index) { return value[index]; }
 	};
 	
 	// Interpreter configs.

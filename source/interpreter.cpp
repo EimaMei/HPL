@@ -105,8 +105,7 @@ void HCL::interpreteFile(std::string file) {
 
 int HCL::interpreteLine(std::string str) {
 	if (find(str, "//")) // Ignore comments
-		str = split(str, "//")[0];
-
+		str = split(str, "//", "\"\"")[0];
 	line = str;
 
 	if (checkIncludes() == FOUND_SOMETHING) return FOUND_SOMETHING;
@@ -147,7 +146,7 @@ int HCL::checkFunctions() {
 	if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)\((.*)\)\s*\{$)")) {
 		std::string param = matches.str(3);
 		function func = {matches.str(1), matches.str(2)};
-		std::vector<std::string> params = split(param, ",", '\"');
+		std::vector<std::string> params = split(param, ",", "\"\"");
 
 		for (auto v : params) {
 			if (useRegex(v, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
@@ -156,23 +155,25 @@ int HCL::checkFunctions() {
 				if (var.value[0].empty()) func.minParamCount++;
 			}
 		}
+		func.file = HCL::curFile;
+		func.startingLine = HCL::lineCount;
 
 		functions.push_back(func);
 		mode = SAVE_FUNC;
 
 		return FOUND_SOMETHING;
 	}
-	else if (useRegex(line, R"(\s*(\})\s*)") && mode == SAVE_FUNC) {
+	else if (useRegex(line, R"(^\s*(\})\s*$)") && mode == SAVE_FUNC) {
 		mode = SAVE_NOTHING;
 
 		return FOUND_SOMETHING;
 	}
 	else if (mode == SAVE_FUNC) {
-		functions[functions.size() - 1].code.push_back(line);
+		functions.back().code.push_back(line);
 
 		return FOUND_SOMETHING;
 	}
-	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\)\s*$)")) {
+	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\);?\s*$)")) {
 		function f; void* n; // Unneeded variables, really.
 		return checkForFunctions(matches.str(1), matches.str(2), f, n);
 	}
@@ -183,7 +184,7 @@ int HCL::checkFunctions() {
 
 int HCL::checkVariables() {
 	// Matches the name and value
-	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*$)")) { // Edit a pre-existing variable
+	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(f?\".*\"|\{.*\}|[^\s*]|[A-Za-z0-9\.]+\(.*\)*)\s*$)")) { // Edit a pre-existing variable
 		std::string ogValue = matches.str(2);
 		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
@@ -244,7 +245,7 @@ int HCL::checkVariables() {
 					else { // Oh god oh fuck it's a custom list.
 						// We don't split the string by the comma if the comma is inside double quotes
 						// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
-						std::vector<std::string> valueList = split(unstringify(var.value[0], true), ",", '\"');
+						std::vector<std::string> valueList = split(unstringify(var.value[0], true), ",", "\"\"");
 
 						if (valueList.size() > s.value.size()) {
 							throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
@@ -280,7 +281,7 @@ int HCL::checkVariables() {
 			throwError(true, "Type '%s' doesn't exist.", var.type.c_str());
 		}
 		getValueFromFstring(ogValue, var.value[0]);
-		var.value[0] = replaceAll(var.value[0], "\\\"", "\"");
+		var.value[0] = convertBackslashes(var.value[0]);
 
 		if (mode == SAVE_STRUCT) // Save variables inside a struct.
 			structures.begin()->value.push_back(var);
@@ -383,8 +384,8 @@ void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"
 		debugPrintVar(f.params, "", ", ");
 		std::cout << ") {\n";
 		for (auto c : f.code)
-			std::cout << c << std::endl;
-		std::cout << "}";
+			std::cout << indent << c << std::endl;
+		std::cout << indent << "}" << std::endl;
 	}
 }
 

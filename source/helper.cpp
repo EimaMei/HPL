@@ -24,23 +24,42 @@
 #include <core.hpp>
 #include <helper.hpp>
 
-
-std::vector<std::string> split(std::string str, std::string value, char charScope/* = NULL*/, char charScope2/* = NULL*/) {
+// Each commit split just keeps getting more and more complex...
+std::vector<std::string> split(std::string str, std::string value, std::string charScope/* = "\0\0"*/) {
 	std::vector<std::string> list;
-	std::string buf;
+	std::string buf, buf2;
 	int counter = 0;
+	bool found;
 
 	for (auto x : str) {
+		found = false;
 		buf += x;
-		if ((charScope != '\0' && x == charScope) || (charScope2 != '\0' && x == charScope2 && counter == 1)) {
-			counter = !counter;
-		}
-		else if (buf.find(value) != std::string::npos) {
-			if (counter == 0) {
-				std::string msg = buf.substr(0, buf.find_first_of(value));
-				list.insert(list.end(), msg);
-				buf.clear();
+
+		if (counter == 0)
+			buf2 += x;
+		else
+			buf2 += '\0';
+
+		for (int i = 0; i < charScope.size() / 2; i += 2) {
+			if (charScope[i] != '\0' && x == charScope[i]) {
+				counter--;
+				found = true;
 			}
+			else if (charScope[i + 1] != '\0' && x == charScope[i + 1]) {
+				counter++;
+				found = true;
+			}
+
+			if (charScope[i] == charScope[i + 1] && charScope[i + 1] == x) {
+				counter++;
+			}
+		}
+
+		if (buf2.find(value) != std::string::npos && counter == 0 && !found) {
+			std::string msg = buf.substr(0, buf2.find(value));
+			list.insert(list.end(), msg);
+			buf.clear();
+			buf2.clear();
 		}
 	}
 	if (buf.size() != 0) list.insert(list.end(), buf);
@@ -51,7 +70,7 @@ std::vector<std::string> split(std::string str, std::string value, char charScop
 
 bool useRegex(std::string str, std::string regexText) {
 	std::smatch matches;
-	bool b = std::regex_search(str, matches, std::regex(regexText));
+	bool res = std::regex_search(str, matches, std::regex(regexText));
 	
 	// For some reason after 'useRegex' and 'HCL::matches' is out
 	// of the function scope, the data gets corrupted and spews
@@ -72,22 +91,20 @@ bool useRegex(std::string str, std::string regexText) {
 	for (int i = 1; i < matches.size(); i++)
 		HCL::matches.push_back(matches.str(i));
 
-	return b;
+	return res;
 }
 
 
 bool useIterativeRegex(std::string str, std::string regexText) {
-	std::regex s = std::regex(regexText);
-    auto words_begin = std::sregex_iterator(str.begin(), str.end(), s);
-    auto words_end = std::sregex_iterator();
-
+	std::smatch match;
 	HCL::matches.clear();
-    for (std::sregex_iterator i = words_begin; i != words_end; i++) {
-        std::smatch match = *i;
-		HCL::matches.push_back(match.str());
+	bool res;
+    while ((res = std::regex_search(str, match, std::regex(regexText)))) {
+		HCL::matches.push_back(match.str(1));
+        str = match.suffix();
     }
 
-	return (HCL::matches.size() != 0);
+	return res;
 }
 
 
@@ -122,33 +139,76 @@ bool isInt(std::string str) {
 }
 
 
-std::string replace(std::string str, std::string oldString, std::string newString) {
-    size_t pos;
-    while ((pos = str.find(oldString, pos)) != std::string::npos) {
-        str.replace(pos, oldString.length(), newString);
-        pos += newString.length();
-    }
+std::string replaceAll(std::string str, std::string oldString, std::string newString) {
+	size_t pos = 0;
+	while ((pos = str.find(oldString, pos)) != std::string::npos) {
+		str.replace(pos, oldString.length(), newString);
+		pos += newString.length();
+	}
 	return str;
 }
 
 
 std::string replaceOnce(std::string str, std::string oldString, std::string newString) {
-    str.replace(str.find(oldString), oldString.size(), newString);
+	if (find(str, oldString))
+		str.replace(str.find(oldString), oldString.size(), newString);
 
-    return str;
+	return str;
+}
+
+
+std::string convertBackslashes(std::string str) {
+	char* here = (char*)str.c_str();
+	size_t len = str.size();
+	int num;
+	int numlen;
+
+	while (NULL != (here = strchr(here, '\\'))) {
+		numlen = 1;
+		switch (here[1]) {
+			case '\\': break;
+			case '\"': *here = '\"'; break;
+			case 'r': *here = '\r'; break;
+			case 'n': *here = '\n'; break;
+			case 't': *here = '\t'; break;
+			case 'v': *here = '\v'; break;
+			case 'a': *here = '\a'; break;
+
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+				numlen = sscanf(here, "%o", &num);
+				*here = (char)num;
+				break;
+
+			case 'x':
+				numlen = sscanf(here, "%x", &num);
+				*here = (char)num;
+				break;
+		}
+		num = here - str.c_str() + numlen;
+		here++;
+		memmove(here, here + numlen, len - num);
+	}
+	return str;
 }
 
 
 bool stringToBool(std::string str) {
-    if (str == "true")
-        return true;
-    else if (str == "1")
-        return true;
-    else if (str == "0")
-        return false;
-    else if (str == "false")
-        return false;
-    else
+	if (str == "true")
+		return true;
+	else if (str == "1")
+		return true;
+	else if (str == "0")
+		return false;
+	else if (str == "false")
+		return false;
+	else
 		HCL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
 
 	return false;
@@ -208,10 +268,9 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 	// Checks if the string is even an f-string
 	if (ogValue.front() == 'f' && ogValue[1] == '\"' && ogValue.back() == '\"') {
 		// Get every match of {words inside curly brackets}
-		useIterativeRegex(ogValue, R"(\{[\w\.]+\})");
+		useIterativeRegex(ogValue, R"(\{([\w\.]+)\})");
 		ogValue.erase(0, 1); // Remove the F letter.
 		for (auto value : HCL::matches.value) {
-			value = unstringify(value, true); // Remove the curly brackets.
 			HCL::variable structVar;
 			HCL::variable* var = getVarFromName(value, &structVar);
 
