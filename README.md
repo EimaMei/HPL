@@ -90,7 +90,7 @@ info var = {"Something new here"} // While this would be saved as {"Something ne
 ```
 However, as of now, you *cannot* init variables with out of order arguments (eg. `{.value = 25, .desc = "Out of order shenanigans!"}`)
 ## Scope
-Scopes aren't implemented at all. However, it is a **very** important type in HCL as it dictates when you can use quite a lot of the HOI4-implemented functions in the code. This is due to how Paradox modding files work in general, where the results of a certain action are declared in a scope to make sense (for example, an option in an event would be a scope). As such, you cannot just declare `addStability("SOV", 20)` randomly as neither HCL nor HOI4 would understand where, why or when that action happens in runtime.
+Scopes aren't implemented at all. However, it is a **very** important type in HCL as it dictates when you can use quite a lot of the HOI4-implemented functions in the code. This is due to how Paradox modding files work in general, where the results of a certain action are declared in a scope to make sense (for example, an option in an event would be a scope). As such, you cannot just declare `addStability("SOV", 20)` randomly in the code as neither HCL nor HOI4 would understand where, why or when that action would happen in runtime.
 
 Due to this, it'll be required for me to think about how to implement scopes in HCL that'll:
 1. Make it obvious when you can use HOI4 code without getting errors or just no output.
