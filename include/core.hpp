@@ -29,10 +29,10 @@ extern std::vector<std::string> coreTypes;
 // Reformats the params to be turned into variables.
 // Afterwards, check what function the user specified
 // and execute it.
-int checkForFunctions(std::string name, std::string params, HCL::function& func, void*& output);
+int checkForFunctions(std::string name, std::string params, HCL::function& func, void*& output, bool dontCheck = false);
 // Sorts out any shenanigans with functions.
 bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount);
 // Defines the core functions and returns the function's return if successful.
 void* coreFunctions(std::vector<HCL::variable> params);
 // Sets the variable's value to the return of specified function.
-void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam);
+void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck = false);

@@ -53,6 +53,9 @@ int convertToDds(std::string input, std::string output);
 // Checks if a path already exists.
 // int pathExists(string path)
 bool pathExists(std::string path);
+// Gets the filename from the path (eg. /usr/bin/somefile.img would turn to somefile.img).
+// string getFilenameFromPath(string path)
+std::string getFilenameFromPath(std::string path);
 
 // Checks if a string is in 'line'
 // bool find(string line, string str)
@@ -61,7 +64,3 @@ bool pathExists(std::string path);
 // Replaces all instances of 'oldString' with 'newString' in 'str'
 // string replaceAll(string str, string oldString, string newString);
 // (Check helper.hpp for the C++ definition)
-
-// Gets the filename from the path (eg. /usr/bin/somefile.img would turn to somefile.img).
-// string getFilenameFromPath(string path)
-std::string getFilenameFromPath(std::string path);

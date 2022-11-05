@@ -32,6 +32,29 @@ std::vector<std::string> coreTypes = {
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"var"     // Generic type.
 };
+std::vector<std::string> coreFunctionList = {
+	// Misc.
+	"print",
+	// Folders.
+	"createFolder",
+	"removeFolder",
+	// Files.
+	"createFile",
+	"readFile",
+	"writeFile",
+	"removeFile"
+	"copyFile",
+	// Localisation.
+	"writeLocalisation",
+	// Image related.
+	"convertToDds",
+	// Path related.
+	"pathExists",
+	"getFilenameFromPath",
+	// General string functions
+	"find",
+	"replaceAll"
+};
 
 bool foundFunction = false;
 std::string globalFunctionName;
@@ -39,27 +62,49 @@ int userSentParamCount;
 HCL::function functionPointer;
 std::string functionType;
 
-int checkForFunctions(std::string name, std::string info, HCL::function& function, void*& output) {
-	std::vector<std::string> values = split(info, ",", "()\"\"");
 
+int checkForFunctions(std::string name, std::string info, HCL::function& function, void*& output, bool dontCheck/* = false*/) {
+	std::vector<std::string> values = split(info, ",", "()\"\"");
 	std::vector<HCL::variable> params;
+	bool pass = (false != dontCheck);
+
+	if (!pass) { // If the error checking isn't disabled.
+		for (auto func : HCL::functions) {
+			if (func.name == name) { // It's an already defined function, it's fine.
+				pass = true;
+				break;
+			}
+		}
+
+		if (!pass) {
+			for (auto func : coreFunctionList) {
+				if (func == name) { // It's a core function, it's fine.
+					pass = true;
+					break;
+				}
+			}
+
+			if (!pass) // No function was found.
+				HCL::throwError(true, "Function '%s' doesn't exist (Either the function is defined nowhere or it's a typo)", name.c_str());
+		}
+	}
 
 	for (auto& p : values) {
 		HCL::variable var = {"?", "?", {"?"}}; HCL::variable structInfo;
-		useRegex(p, R"(\s*([A-Za-z0-9\.]+\(.*\)|f?\".*\"|\w*)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
+		useRegex(p, R"(\s*([^\s]+\(.*\)|f?\".*\"|\w*)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
 		p = unstringify(HCL::matches.str(1));
 		std::string oldMatch = HCL::matches.str(1);
 
 		HCL::variable* existingVar = getVarFromName(oldMatch, &structInfo);
 
 		// Checks if the parameter is just a function.
-		if (useRegex(p, R"(^\s*([A-Za-z0-9\.]+)\((.*)\)\s*$)")) {
+		if (useRegex(p, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
 			// If so, get the name and params of said parameter.
 			std::vector<HCL::vector> funcValues, oldFuncValues;
 			std::string str = p;
 			while (true) {
 				// Check if the param isn't just a function.
-				useRegex(str, R"(\s*([A-Za-z0-9\.]+)\((.*)\))");
+				useRegex(str, R"(\s*([^\s\(]+)\((.*)\)\s*)");
 				if (!HCL::matches.str(2).empty()) {
 					funcValues.insert(funcValues.begin(), HCL::matches);
 					str = HCL::matches.str(2);
@@ -71,7 +116,7 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			for (int i = 0; i < funcValues.size(); i++) {
 				// Since the param DOES have functions inside, we have to get that functions' output.
 				std::vector<std::string> list = split(funcValues[i].str(2), ",", "()\"\"");
-				assignFuncReturnToVar(&var, funcValues[i].str(1), funcValues[i].str(2));
+				assignFuncReturnToVar(&var, funcValues[i].str(1), funcValues[i].str(2), true);
 
 				if ((i + 1) < funcValues.size()) { // If there are more functions inside the param.
 					auto& noodles = funcValues[i + 1].value[1]; // Get the next function.
@@ -140,8 +185,8 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			std::string oldCurFile = HCL::curFile;
 			int oldLineCount = HCL::lineCount;
 			std::vector<HCL::variable> oldVars = HCL::variables;
-			H
-			CL::resetRuntimeInfo();
+
+			HCL::resetRuntimeInfo();
 			HCL::curFile = func.file;
 			HCL::lineCount = func.startingLine;
 
@@ -157,6 +202,13 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 				HCL::interpreteLine(line);
 			}
 
+			// If a global variable was edited in the function, save the changes.
+			for (auto& oldV : oldVars) {
+				for (auto newV : HCL::variables) {
+					if (oldV.name == newV.name)
+						oldV.value = newV.value;
+				}
+			}
 			// Reset everything back to normal.
 			HCL::variables = oldVars;
 			HCL::curFile = oldCurFile;
@@ -199,10 +251,10 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 }
 
 
-void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam) {
+void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck/* = false*/) {
 	HCL::function func;
 	void* output;
-	checkForFunctions(funcName, funcParam, func, output);
+	checkForFunctions(funcName, funcParam, func, output, dontCheck);
 
 	if (output != nullptr) {
 		existingVar->type = func.type;

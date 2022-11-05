@@ -29,6 +29,8 @@
 #include <iostream>
 #include <string.h>
 
+std::vector<std::string> alreadyReadFiles;
+
 std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
 	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 	int clr;
@@ -79,6 +81,13 @@ std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = f
 void HCL::interpreteFile(std::string file) {
 	curFile = file;
 	FILE* fp = fopen(curFile.c_str(), "r");
+	bool alreadyRead = false;
+	for (auto readFile : alreadyReadFiles) {
+		if (readFile == file) {
+			alreadyRead = true;
+			break;
+		}
+	}
 
 	if (fp != NULL) {
 		fseek(fp, 0, SEEK_END);
@@ -91,21 +100,28 @@ void HCL::interpreteFile(std::string file) {
 			line = buf;
 			lineCount++;
 
+			if (find(line, "#read once") && alreadyRead)
+				break; // Since we already read the file, just don't do it.
+			else if (find(line, "#read once"))
+				continue; // Ignore this line, otherwise an error will appear.
+
 			interpreteLine(line);
 		}
-		std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
+		if (!alreadyRead) std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
 	}
 	else
 		std::cout << HCL::colorText("Error: ", HCL::OUTPUT_RED) << HCL::colorText(curFile, HCL::OUTPUT_RED) << ": No such file or directory" << std::endl;
 
 	fclose(fp);
 	resetRuntimeInfo();
+	alreadyReadFiles.push_back(file);
 }
 
 
 int HCL::interpreteLine(std::string str) {
 	if (find(str, "//")) // Ignore comments
 		str = split(str, "//", "\"\"")[0];
+
 	line = str;
 
 	if (checkIncludes() == FOUND_SOMETHING) return FOUND_SOMETHING;
@@ -143,13 +159,13 @@ int HCL::checkIncludes() {
 
 int HCL::checkFunctions() {
 	// Match <return type> <name>(<params>) {
-	if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)\((.*)\)\s*\{$)")) {
+	if (useRegex(line, R"(\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{)")) {
 		std::string param = matches.str(3);
 		function func = {matches.str(1), matches.str(2)};
 		std::vector<std::string> params = split(param, ",", "\"\"");
 
 		for (auto v : params) {
-			if (useRegex(v, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
+			if (useRegex(v, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
 				variable var = {matches.str(1), matches.str(2), {unstringify(matches.str(3))}};
 				func.params.push_back(var);
 				if (var.value[0].empty()) func.minParamCount++;
@@ -173,7 +189,7 @@ int HCL::checkFunctions() {
 
 		return FOUND_SOMETHING;
 	}
-	else if (useRegex(line, R"(^\s*([A-Za-z0-9\.]+)\((.*)\);?\s*$)")) {
+	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
 		function f; void* n; // Unneeded variables, really.
 		return checkForFunctions(matches.str(1), matches.str(2), f, n);
 	}
@@ -183,21 +199,32 @@ int HCL::checkFunctions() {
 
 
 int HCL::checkVariables() {
-	// Matches the name and value
-	if (useRegex(line, R"(^\s*([A-Za-z0-9^.]+)\s*=\s*(f?\".*\"|\{.*\}|[^\s*]|[A-Za-z0-9\.]+\(.*\)*)\s*$)")) { // Edit a pre-existing variable
+	// Matches the name and value of an existing variable.
+	if (useRegex(line, R"(^\s*([^\s]+)\s*=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[^\s]*)\s*.*$)")) { // Edit a pre-existing variable
 		std::string ogValue = matches.str(2);
-		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo;
+		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo, possibleStructInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
+		variable* possibleVar = getVarFromName(info.value[0], &possibleStructInfo);
 
 
 		if (existingVar != NULL) {
 			// Check if the value is a function. If so, execute the
 			// function and get its return, so that it gets assigned
 			// to the variable.
-			if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\((.*)\))")) {
+			if (useRegex(line, R"(\s*([^\s]+)\((.*)\))")) {
 				assignFuncReturnToVar(existingVar, matches.str(1), matches.str(2));
+				return FOUND_SOMETHING;
 			}
-			else if (structInfo.value.empty()) // Edit a regular variable
+			else if (possibleVar != nullptr) { // Value might be just a variable, if so just copy it over.
+				if (possibleStructInfo.value.empty()) // Edit a regular variable
+					info.value = possibleVar->value;
+				else {// Edit a struct member
+					int index = std::stoi(possibleStructInfo.extra[0]);
+					info.value[0] = existingVar->value[index];
+				}
+			}
+
+			if (structInfo.value.empty()) // Edit a regular variable
 				existingVar->value = info.value;
 			else {// Edit a struct member
 				int index = std::stoi(structInfo.extra[0]);
@@ -206,9 +233,11 @@ int HCL::checkVariables() {
 
 			getValueFromFstring(ogValue, existingVar->value[0]);
 		}
+		else
+			HCL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
 	}
 	// Matches the type, name and value
-	else if (useRegex(line, R"(\s*([A-Za-z0-9\.]+)\s+([A-Za-z0-9]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) { // Declaring a new variable.
+	else if (useRegex(line, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) { // Declaring a new variable.
 		std::string ogValue = matches.str(3);
 		variable var = {matches.str(1), matches.str(2), {unstringify(ogValue)}};
 		structure s;
@@ -227,7 +256,7 @@ int HCL::checkVariables() {
 			// Check if the value is a function. If so, execute the
 			// function and get its return, so that it gets assigned
 			// to the variable.
-			else if (useRegex(line, R"(\s*[A-Za-z0-9\.]+\s+[A-Za-z0-9]+?\s*=\s*([A-Za-z0-9\.]+)\((.*)\))")) {
+			else if (useRegex(var.value[0], R"(\s*([^\s\(]+)\((.*)\)\s*)")) {
 				assignFuncReturnToVar(&var, matches.str(1), matches.str(2));
 			}
 			// The type is a struct.
@@ -278,7 +307,7 @@ int HCL::checkVariables() {
 			}
 		}
 		else {
-			throwError(true, "Type '%s' doesn't exist.", var.type.c_str());
+			throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
 		}
 		getValueFromFstring(ogValue, var.value[0]);
 		var.value[0] = convertBackslashes(var.value[0]);

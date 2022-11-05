@@ -17,6 +17,7 @@ Currently HCL is ***very*** expiremental, as such bugs should be expected and re
 ## Step 1: Building the base code
 Currently the language is barely done and it'll take awhile before any random modder will be able to use it without encountering some bug/unimplemented HOI4 functions. As such, these basic features must be implemented:
 
+### Important features to add:
 - [X] Save variables in memory.
 - [X] Being able to edit variables at runtime.
 - [X] Finish basic structures.
@@ -25,11 +26,14 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Delete variables when they're out of scope.
 - [X] Execute functions when they're used.
 - [X] Add returns to core typed functions.
-- [ ] Add returns to non-core typed functions.
-- [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
-- [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
 - [X] Add f-string.
-- [ ] Add more runtime errors (defining variables that already exist, too many curly brackets)
+- [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
+- [ ] Add returns to non-core typed functions.
+- [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
+- [ ] `if`, `else` statements.
+
+### Not as important features to add:
+- [ ] Add more runtime errors (defining variables/functions that already exist, too many curly brackets etc.)
 - [ ] Make error/warnings reports more pretty (more aline with how GCC does it).
 - [ ] Multiline variables
 - [ ] Finalize how scopes work in general.
@@ -42,7 +46,6 @@ When the base code for the interpreter is done, it'll allow us to finally implem
 - [X] Write a file as UTF-8 or UTF-8-bom easily.
 - [X] Move/copy a file to another place.
 - [X] Check if a path already exists.
-- [ ] Get and set the current scope.
 - [X] Return error types.
 - [X] Print in the terminal.
 - [X] Convert images to `.dds` automatically.
@@ -50,10 +53,10 @@ When the base code for the interpreter is done, it'll allow us to finally implem
 
 ## Step 3: Basic HOI4 functions implementation
 This gets tricky. If step 2 is completed, then by that point the base language is done, however the implementation of HOI4 functions won't be. Thus, the implementations will be stored at `libpdx.hcl`. You'll be able to import separate libraries like `libevent.hcl` if need be (like how you can with Win32). The reason why this can get tricky is that this might require the language's syntax to be changed. Each change can either be subtle and won't cause issues, or may require extensive rewrites of the code. Anyhow, for this step these are the functions that I strive to be implemented:
-- [ ] Mod creation.
-- [ ] Nation creation.
+- [ ] Mod creation. (Note: Sort of done, however full functionality like tags aren't fully implemented and need more fine-tuning)
 - [ ] Event creation.
-- [ ] Proper localisation.
+- [ ] Nation creation.
+- [ ] Proper localisation support for other languages.
 
 ## Step 4: Adding in additional basic programming features into HCL
 Now that the language can build quite some HOI4 code, by now we should have a stable development environment. So now we can build-upon HCL and add new coding features. These features are, but not limited to:

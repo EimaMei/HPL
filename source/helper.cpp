@@ -20,6 +20,8 @@
 *
 */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
