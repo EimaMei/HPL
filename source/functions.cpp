@@ -134,6 +134,63 @@ int writeFile(std::string path, std::string content, std::string mode/* = "w"*/)
 }
 
 
+int writeToLine(std::string path, int line, std::string content, std::string mode/* = "w"*/) {
+	std::string buffer = "";
+	int lineCount = 0;
+	FILE* f = fopen(path.c_str(), "r");
+	FILE* fw = fopen("replace.tmp", "w");
+
+	if (f != NULL) {
+		fseek(f, 0, SEEK_END);
+		long size = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		char* buf = new char[size];
+
+		if (line < 0) { // Since the provided line count is negative, we gotta count backwards now.
+			int entireCount = 0;
+
+			char* tempBuf = (char*)malloc(size + 1);
+			size_t res = fread(tempBuf, 1, size, f);
+			tempBuf[size] = 0;
+
+			for(int i = 0; i < res; i++) {
+				if (tempBuf[i] == '\n')
+					entireCount++;
+			}
+
+			line += entireCount + 2;
+			free(tempBuf);
+			fseek(f, 0, SEEK_SET);
+		}
+
+		while (fgets(buf, size + 1, f)) {
+			std::string str = content;
+			lineCount++;
+
+			if (line == lineCount) {
+				if (!find(mode, "w"))
+					str = buf + content;
+
+				fputs(str.c_str(), fw);
+			}
+			else
+				fputs(buf, fw);
+		}
+		fclose(f);
+		fclose(fw);
+
+		remove(path.c_str());
+		rename("replace.tmp", path.c_str());
+	}
+	else {
+		fclose(f);
+		return -1;
+	}
+
+	return 0;
+}
+
+
 int removeFile(std::string path) {
 	return removeFolder(path);
 }

@@ -237,7 +237,7 @@ int HCL::checkVariables() {
 			HCL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
 	}
 	// Matches the type, name and value
-	else if (useRegex(line, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) { // Declaring a new variable.
+	else if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) { // Declaring a new variable.
 		std::string ogValue = matches.str(3);
 		variable var = {matches.str(1), matches.str(2), {unstringify(ogValue)}};
 		structure s;

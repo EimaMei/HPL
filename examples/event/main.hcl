@@ -14,4 +14,10 @@ removeFolder("build/output")
 createFolder("build/output")
 
 newMod("Test mod", "1.12.*")
-newEvent("bro", 2, "nah broooo", "This ain't fr!!!!!!!!!!!!!!!", "res/remtard.jpg")
+
+event v = {"bro", 2, "nah broooo", "This ain't fr!!!!!!!!!!!!!!!", "res/remtard.jpg"}
+newEvent(v.namespace, v.id, v.title, v.description, v.picture)
+//newEventOption({"name"}, "nice")
+//print(v.namespace)
+newEventOption(v, "nice")
+// no param

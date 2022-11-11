@@ -33,8 +33,11 @@ std::string readFile(std::string path);
 // Writes into a file.
 // int writeFile(string path, string content, string mode = "w")
 int writeFile(std::string path, std::string content, std::string mode = "w");
+// Writes to a specific file. If mode is 'w', then the line gets overwritten. If 'a', then the line gets appended with 'content'.
+// int writeToLine(string path, int line, string content, string mode = "w")
+int writeToLine(std::string path, int line, std::string content, std::string mode = "w");
 // Removes a file.
-// int delete(string path)
+// int removeFile(string path)
 int removeFile(std::string path);
 // Copies a file to a new path.
 // int copyFile(string source, string output)
@@ -46,7 +49,7 @@ int moveFile(std::string source, std::string output);
 // int writeLocalisation(string file, string name, string description)
 int writeLocalisation(std::string file, std::string name, std::string description);
 
-// Converts an image to .dds and copies said converted image to "output"
+// Converts 'input' to .dds and copies the converted image to 'output'
 // int convertToDds(string input, string output)
 int convertToDds(std::string input, std::string output);
 
@@ -57,7 +60,7 @@ bool pathExists(std::string path);
 // string getFilenameFromPath(string path)
 std::string getFilenameFromPath(std::string path);
 
-// Checks if a string is in 'line'
+// Checks if a string is in 'line'.
 // bool find(string line, string str)
 // (Check helper.hpp for the C++ definition)
 

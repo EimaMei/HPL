@@ -42,6 +42,7 @@ std::vector<std::string> coreFunctionList = {
 	"createFile",
 	"readFile",
 	"writeFile",
+	"writeToLine",
 	"removeFile"
 	"copyFile",
 	// Localisation.
@@ -51,7 +52,7 @@ std::vector<std::string> coreFunctionList = {
 	// Path related.
 	"pathExists",
 	"getFilenameFromPath",
-	// General string functions
+	// General string functions.
 	"find",
 	"replaceAll"
 };
@@ -91,7 +92,7 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 
 	for (auto& p : values) {
 		HCL::variable var = {"?", "?", {"?"}}; HCL::variable structInfo;
-		useRegex(p, R"(\s*([^\s]+\(.*\)|f?\".*\"|\w*)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
+		useRegex(p, R"(\s*(-?\d+|[^\s]+\(.*\)|f?\".*\"|[^\s]+)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
 		p = unstringify(HCL::matches.str(1));
 		std::string oldMatch = HCL::matches.str(1);
 
@@ -274,25 +275,30 @@ void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std
 
 
 void* coreFunctions(std::vector<HCL::variable> params) {
+	// void print(var msg, string end = "\n")
 	if (useFunction("void", "print", 1, 2)) {
 		std::string end = "\n";
 		if (params.size() == 2) end = params[1].value[0];
 
-		print(params[0], end);
-
-		// Since our function doesn't return anything, we return nothing.
+		print(params[0], end); // Since our function doesn't return anything, we return nothing.
 	}
-
+	// int createFolder(string path, int mode = 0777)
 	else if (useFunction("int", "createFolder", 1, 2)) {
 		int mode = 0777;
 
 		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
-		if (params.size() == 2) mode = std::stoi(params[1].value[0]);
+		if (params.size() == 2) {
+			if (params[0].type == "int")
+				mode = std::stoi(params[1].value[0]);
+			else
+				HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", true, params[1].type.c_str(), "mode");
+		}
+
 
 		int result = createFolder(params[0].value[0], mode);
 		return intToVoid(result);  // Returns the result as int.
 	}
-
+	// int removeFolder(string path)
 	else if (useFunction("int", "removeFolder", 1, 1)) {
 		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", true, params[0].type.c_str(), "path");
@@ -301,7 +307,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result); // Returns the result as int.
 	}
-
+	// int createFile(string path, string content = "", bool useUtf8BOM = false)
 	else if (useFunction("int", "createFile", 1, 3)) {
 		std::string content = "";
 		bool useUtf8BOM = false;
@@ -319,7 +325,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result);
 	}
-
+	// string readFile(string path)
 	else if (useFunction("string", "readFile", 1, 1)) {
 		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
@@ -328,21 +334,38 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return stringToVoid(result); // Returns the result as int.
 	}
-
+	// int writeFile(string path, string content, string mode = "w")
 	else if (useFunction("int", "writeFile", 2, 3)) {
 		std::string mode = "w";
 
 		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
 		if (params.size() == 3) {
 			mode = params[2].value[0];
-			if (params[2].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "mode");
+			if (params[2].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[2].type.c_str(), "mode");
 		}
 
 		int result = writeFile(params[0].value[0], params[1].value[0], mode);
 
 		return intToVoid(result); // Returns the result as int.
 	}
+	// int writeToLine(string path, int line, string content, string mode = "w")
+	else if (useFunction("int", "writeToLine", 3, 4)) {
+		std::string mode = "w";
+		printf("'%i'\n", params.size());
 
+		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
+		if (params[1].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "line");
+		if (params.size() == 4) {
+			if (params[3].type != "string")
+				HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[3].type.c_str(), "mode");
+			else
+				mode = params[3].value[0];
+		}
+		int result = writeToLine(params[0].value[0], std::stoul(params[1].value[0]), params[2].value[0], mode);
+
+		return intToVoid(result); // Returns the result as int.
+	}
+	// int removeFile(string path)
 	else if (useFunction("int", "removeFile", 1, 1)) {
 		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
@@ -351,7 +374,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result); // Returns the result as int.
 	}
-
+	// int copyFile(string source, string output)
 	else if (useFunction("int", "copyFile", 2, 2)) {
 		std::vector<std::string> parNames = {"source", "input"};
 		for (int i = 0; i < parNames.size(); i++) {
@@ -363,7 +386,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result); // Returns the result
 	}
-
+	// int moveFile(string source, string output)
 	else if (useFunction("int", "moveFile", 2, 2)) {
 		std::vector<std::string> parNames = {"source", "input"};
 		for (int i = 0; i < parNames.size(); i++) {
@@ -375,7 +398,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result); // Returns the result
 	}
-
+	// int convertToDds(string input, string output)
 	else if (useFunction("int", "convertToDds", 2, 2)) {
 		std::vector<std::string> parNames = {"input", "output"};
 		for (int i = 0; i < parNames.size(); i++) {
@@ -387,7 +410,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result); // Returns the result
 	}
-
+	// int pathExists(string path)
 	else if (useFunction("bool", "pathExists", 1, 1)) {
 		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
@@ -396,7 +419,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(result); // Returns the result
 	}
-
+	// bool find(string line, string str)
 	else if (useFunction("bool", "find", 2, 2)) {
 		std::vector<std::string> parNames = {"line, str"};
 		for (int i = 0; i < parNames.size(); i++) {
@@ -408,7 +431,7 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(res);
 	}
-
+	// int writeLocalisation(string file, string name, string description)
 	else if (useFunction("int", "writeLocalisation", 3, 3)) {
 		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", true, params[0].type.c_str(), "file");
@@ -417,18 +440,13 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 
 		return intToVoid(res);
 	}
-
+	// string replaceAll(string str, string oldString, string newString);
 	else if (useFunction("string", "replaceAll", 3, 3)) {
-		std::vector<std::string> parNames = {"str, oldString", "newString"};
-		for (int i = 0; i < parNames.size(); i++) {
-			if (!coreTyped(params[i].type))
-				HCL::throwError(true, "Cannot input a '%s' type to a core-type only parameter (param '%s' is core-type only)", true, params[i].type.c_str(), parNames[i].c_str());
-		}
 		std::string res = replaceAll(params[0].value[0], params[1].value[0], params[2].value[0]);
 
 		return stringToVoid(res);
 	}
-	//std::string getFilenameFromPath(std::string path)
+	// string getFilenameFromPath(string path)
 	else if (useFunction("string", "getFilenameFromPath", 1, 1)) {
 		if (params[0].type != "string")
 			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", true, params[0].type.c_str(), "path");

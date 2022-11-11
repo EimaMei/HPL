@@ -253,9 +253,9 @@ HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/
 			for (int i = 0; i < s.value.size(); i++) {
 				auto member = s.value[i];
 				if (varName == (v.name + "." + member.name)) {
-					var->type = v.extra[i];
+					var->type = member.type;
 					var->name = varName;
-					var->value = v.value;
+					var->value = member.value;
 					var->extra = {std::to_string(i)};
 					return &v;
 				}
@@ -277,7 +277,7 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 			HCL::variable* var = getVarFromName(value, &structVar);
 
 			if (var == NULL) { // Can't use f-string without providing a variable obviously...
-				HCL::throwError(true, "Variable '%s' doesn't exist.", value.c_str());
+				HCL::throwError(true, "Variable '%s' doesn't exist (Can't get the value from a variable that doesn't exist)", value.c_str());
 			}
 			else {
 				value = "{" + value + "}";
@@ -285,13 +285,14 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 
 				if (!structVar.name.empty()) { // Is a struct member.
 					int index = std::stoi(structVar.extra[0]);
-					ogValue = replaceOnce(ogValue, value, structVar.value[index]);
+					ogValue = replaceOnce(ogValue, value, var->value[index]);
 				}
 				else // Regular variable.
 					ogValue = replaceOnce(ogValue, value, var->value[0]);
 			}
 		}
 		output = unstringify(ogValue);
+
 
 		return 0;
 	}

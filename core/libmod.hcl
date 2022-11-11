@@ -8,8 +8,9 @@ struct modTags {
 string HCL_currentModName
 
 int newMod(string name, string supportedVersion) {
-    createFile(f"build/output/{name}.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {")
     createFolder(f"build/output/{name}")
-    writeFile(f"build/output/{name}.mod", f"\n\t\"Gameplay\"\n\t\"Historical\"\n}\npath = \"mod/{name}\"", "a")
+
+    createFile(f"build/output/{name}.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}\npath = \"mod/{name}\"")
+    createFile(f"build/output/{name}/descriptor.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}")
     HCL_currentModName = name
 }
