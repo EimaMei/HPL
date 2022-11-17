@@ -18,8 +18,8 @@
 void print(HCL::variable msg, std::string end = "\n");
 
 // Creates a folder.
-// int createFolder(string path, int mode = 0777)
-int createFolder(std::string path, int mode = 0777);
+// int createFolder(string path)
+int createFolder(std::string path);
 // Removes a folder.
 // int removeFolder(string path)
 int removeFolder(std::string path);
@@ -31,11 +31,11 @@ int createFile(std::string, std::string content = "", bool useUtf8BOM = false);
 // string readFile(string path)
 std::string readFile(std::string path);
 // Writes into a file.
-// int writeFile(string path, string content, string mode = "w")
-int writeFile(std::string path, std::string content, std::string mode = "w");
+// int writeFile(string path, string content)
+int writeFile(std::string path, std::string content);
 // Writes to a specific file. If mode is 'w', then the line gets overwritten. If 'a', then the line gets appended with 'content'.
-// int writeToLine(string path, int line, string content, string mode = "w")
-int writeToLine(std::string path, int line, std::string content, std::string mode = "w");
+// int writeToLine(string path, int line, string content)
+int writeToLine(std::string path, int line, std::string content);
 // Removes a file.
 // int removeFile(string path)
 int removeFile(std::string path);

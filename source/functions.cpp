@@ -6,6 +6,11 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <cstdio>
+
 #include <interpreter.hpp>
 #include <functions.hpp>
 #include <helper.hpp>
@@ -46,146 +51,69 @@ void print(HCL::variable msg, std::string end/* = \n*/) {
 
 	if (msg.value.size() > 1) output += "}";
 
-	printf("%s%s", output.c_str(), end.c_str());
+	std::printf("%s%s", output.c_str(), end.c_str());
 }
 
 
-int createFolder(std::string path, int mode/* = 0777*/) {
-	int check;
-	std::string fullPath;
-	std::vector<std::string> folders = split(path, "/");
-
-	for (auto folder : folders) {
-		fullPath += folder;
-		check = mkdir(fullPath.c_str(), mode);
-		fullPath += "/";
-	}
-  
-    return check;
+int createFolder(std::string path) {
+    return std::filesystem::create_directories(path);
 }
 
 
 int removeFolder(std::string path) {
-	int check = system(std::string("rm -rf " + path).c_str()); // Fuck windows gidjsflkjdalfksjdafiowolfif
-  
-    return check;
+    return static_cast<int>(std::filesystem::remove_all(path));
 }
 
 
 int createFile(std::string path, std::string content/* = ""*/, bool useUtf8BOM/* = false*/) {
-	int output = 0;
+	std::filesystem::path p = path;
 
-	FILE* f = fopen(path.c_str(), "r");
-	if (f == NULL) {
-		f = fopen(path.c_str(), "w");
-		if (!content.empty() && f != NULL) {
-			if (useUtf8BOM) fprintf(f, "\xEF\xBB\xBF");
-			fprintf(f, "%s", content.c_str());
-		}
-		else if (f == NULL) { output = -1; }
-	}
-	else {
-		output = -1;
-	}
-    fclose(f);
+    if (!std::filesystem::create_directories(p.parent_path())) return -1;
 
-	return output;
+    auto out = std::ofstream(p);
+    out << content;
+
+	return 0;
 }
 
 
-std::string readFile(std::string path) {
-	FILE* f = fopen(path.c_str(), "rb");
-	std::string text;
-    char* buffer = nullptr;
- 
-    if (f != NULL) {
-        fseek(f, 0, SEEK_END);
-        long fsize = ftell(f);
-        fseek(f, 0, SEEK_SET);
+std::string readFile(std::string path)
+{
+    std::stringstream out;
+    auto in = std::ifstream(path);
+    std::string ln;
+    while (std::getline(in, ln))
+        out << ln;
 
-        buffer = (char*)malloc(fsize + 1);
-        size_t size = fread(buffer, 1, fsize, f);
-		buffer[size] = 0;
-		text = buffer;
-
-		if (text[0] == '\xEF' && text[1] == '\xBB' && text[2] == '\xBF') // Utf-8 bom text, remove the 3 first bytes just in case.
-			text.erase(0, 3);
-    }
-	fclose(f);
-	free(buffer);
-  
-    return text;
+    return out.str();
 }
 
 
-int writeFile(std::string path, std::string content, std::string mode/* = "w"*/) {
-	FILE* f = fopen(path.c_str(), mode.c_str());
- 
-    if (f != NULL) {
-        fprintf(f, "%s", content.c_str());
-    }
-	else {
-		fclose(f);
-		return -1;
-	}
-    fclose(f);
-  
+int writeFile(std::string path, std::string content) {
+    auto out = std::ofstream(path);
+    out << content;
     return 0;
 }
 
 
-int writeToLine(std::string path, int line, std::string content, std::string mode/* = "w"*/) {
-	std::string buffer = "";
-	int lineCount = 0;
-	FILE* f = fopen(path.c_str(), "r");
-	FILE* fw = fopen("replace.tmp", "w");
+int writeToLine(std::string path, int line, std::string content) {
+    auto out = std::ofstream(path);
+    out.seekp(0);
+    auto in = std::ifstream(path);
 
-	if (f != NULL) {
-		fseek(f, 0, SEEK_END);
-		long size = ftell(f);
-		fseek(f, 0, SEEK_SET);
-		char* buf = new char[size];
+    auto buf = std::stringstream();
+    size_t c = 0;
+    std::string ln;
+    for (;std::getline(in, ln), c < line; c++)
+        buf << ln << '\n';
 
-		if (line < 0) { // Since the provided line count is negative, we gotta count backwards now.
-			int entireCount = 0;
+    buf << content << '\n';
 
-			char* tempBuf = (char*)malloc(size + 1);
-			size_t res = fread(tempBuf, 1, size, f);
-			tempBuf[size] = 0;
+    while (std::getline(in, ln))
+        buf << ln << '\n';
 
-			for(int i = 0; i < res; i++) {
-				if (tempBuf[i] == '\n')
-					entireCount++;
-			}
-
-			line += entireCount + 2;
-			free(tempBuf);
-			fseek(f, 0, SEEK_SET);
-		}
-
-		while (fgets(buf, size + 1, f)) {
-			std::string str = content;
-			lineCount++;
-
-			if (line == lineCount) {
-				if (!find(mode, "w"))
-					str = buf + content;
-
-				fputs(str.c_str(), fw);
-			}
-			else
-				fputs(buf, fw);
-		}
-		fclose(f);
-		fclose(fw);
-
-		remove(path.c_str());
-		rename("replace.tmp", path.c_str());
-	}
-	else {
-		fclose(f);
-		return -1;
-	}
+    in.close();
+    out << buf.str();
 
 	return 0;
 }
@@ -218,16 +146,16 @@ int moveFile(std::string source, std::string output) {
 
 
 int writeLocalisation(std::string file, std::string name, std::string description) {
-	return writeFile(file, "\n\t" + name + ":0 \"" + description + "\"", "a");
+	return writeFile(file, "\n\t" + name + ":0 \"" + description + "\"");
 }
 
 
 int convertToDds(std::string input, std::string output) {
 	int w, h, channels;
 	
-	unsigned char* png = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
+	unsigned char *png = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
 
-	if (png != NULL) // If loading the image failed.
+	if (png != nullptr) // If loading the image failed.
 		return SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, png);
 	else
 		return -1;
@@ -235,10 +163,10 @@ int convertToDds(std::string input, std::string output) {
 
 
 bool pathExists(std::string path) {
-	return (access(path.c_str(), F_OK) == 0);
+	return std::filesystem::exists(path);
 }
 
 
 std::string getFilenameFromPath(std::string path) {
-	return path.substr(path.find_last_of("/\\") + 1);
+	return std::filesystem::path(path).filename();
 }
