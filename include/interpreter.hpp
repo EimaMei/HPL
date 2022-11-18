@@ -42,10 +42,12 @@
 // Convert core type to void.
 #define intToVoid(integer) (void*)(uintptr_t)integer
 #define stringToVoid(str) static_cast<void*>(new std::string(str))
+#define floatToVoid(num) static_cast<void*>(new float(num))
 
 // Convert void back to the specified core type.
 #define voidToInt(pointer) (int)(uintptr_t)pointer
 #define voidToString(pointer) *static_cast<std::string*>(pointer)
+#define voidToFloat(pointer) *static_cast<float*>(pointer)
 
 
 namespace HCL {
@@ -101,7 +103,8 @@ namespace HCL {
 	extern std::vector<variable> variables;
 	extern std::vector<structure> structures;
 	extern std::vector<function> functions;
-	extern std::vector<std::string> scope;
+	//extern std::vector<std::string> scope;
+	extern void* functionOutput; extern std::string functionReturnType;
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);

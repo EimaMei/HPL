@@ -28,6 +28,7 @@
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string/const char*.
 	"int",    // Regular int.
+	"float",
 	"bool",   // Just an int except it can only be 0 or 1.
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"var"     // Generic type.
@@ -64,7 +65,7 @@ HCL::function functionPointer;
 std::string functionType;
 
 
-int checkForFunctions(std::string name, std::string info, HCL::function& function, void*& output, bool dontCheck/* = false*/) {
+int executeFunction(std::string name, std::string info, HCL::function& function, void*& output, std::string& returnTypeOutput, bool dontCheck/* = false*/) {
 	std::vector<std::string> values = split(info, ",", "()\"\"");
 	std::vector<HCL::variable> params;
 	bool pass = (false != dontCheck);
@@ -91,8 +92,8 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 	}
 
 	for (auto& p : values) {
-		HCL::variable var = {"?", "?", {"?"}}; HCL::variable structInfo;
-		useRegex(p, R"(\s*(-?\d+|[^\s]+\(.*\)|f?\".*\"|[^\s]+)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
+		HCL::variable var = {"INVALID_HCL_TYPE", "INVALID_HCL_NAME", {"INVALID_HCL_OUTPUT"}}; HCL::variable structInfo;
+		useRegex(p, R"(\s*([^\s]+\(.*\)|f?\".*\"|-?[\d\s\+\-\*\/\.]+[^\w]*|[^\s]+)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
 		p = unstringify(HCL::matches.str(1));
 		std::string oldMatch = HCL::matches.str(1);
 
@@ -106,7 +107,7 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			while (true) {
 				// Check if the param isn't just a function.
 				useRegex(str, R"(\s*([^\s\(]+)\((.*)\)\s*)");
-				if (!HCL::matches.str(2).empty()) {
+				if (!HCL::matches.str(2).empty() || !str.empty()) {
 					funcValues.insert(funcValues.begin(), HCL::matches);
 					str = HCL::matches.str(2);
 				}
@@ -123,10 +124,7 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 					auto& noodles = funcValues[i + 1].value[1]; // Get the next function.
 
 					std::string msg = var.value[0]; // Get the return from the current function.
-					if (isInt(p) || p == "true" || p == "false") {
-						// do nothing
-				 	}
-					else
+					if (!isInt(p) && p != "true" && p != "false")
 						msg = '\"' + var.value[0] + '\"'; // Since it's a string, we have to add quotes
 
 					// Since the next function's param is gonna be "{currentFunctionName}({currentFunctionParams})",
@@ -136,10 +134,14 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			}
 		}
 		else if (existingVar == NULL) { // If parameter isn't a variable.
+			std::string res = replaceAll(p, " ", "");
+
 			if (find(oldMatch, "\""))
 				var.type = "string";
-			else if (isInt(p))
+			else if (isInt(res) && !find(p, "."))
 				var.type = "int";
+			else if (isInt(res) && find(p, "."))
+				var.type = "float";
 			else if (p == "true" || p == "false") {
 				var.type = "bool";
 				p = std::to_string(stringToBool(p));
@@ -147,8 +149,11 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			else
 				HCL::throwError(true, "Variable '%s' doesn't exist", p.c_str());
 
-			if (getValueFromFstring(oldMatch, var.value[0]) == 0) {// Is F-string string.
+			if (getValueFromFstring(oldMatch, var.value[0]) == 0) {// Is F-string.
 				var.value[0] = convertBackslashes(var.value[0]);
+			}
+			else if (!(res = extractMathFromValue(res, &var)).empty()) { // A math expression.
+				var.value[0] = res;
 			}
 			else
 				var.value[0] = convertBackslashes(p);
@@ -201,7 +206,17 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			for (auto line : func.code) {
 				HCL::lineCount++;
 				HCL::interpreteLine(line);
+
+				if (HCL::functionOutput != nullptr) // If the function returned something, exit.
+					break;
 			}
+			// Set the output value and type.
+			output = HCL::functionOutput;
+			returnTypeOutput = HCL::functionReturnType;
+			// Reset the saved output value and type.
+			HCL::functionOutput = nullptr;
+			HCL::functionReturnType = "";
+
 
 			// If a global variable was edited in the function, save the changes.
 			for (auto& oldV : oldVars) {
@@ -215,8 +230,8 @@ int checkForFunctions(std::string name, std::string info, HCL::function& functio
 			HCL::curFile = oldCurFile;
 			HCL::lineCount = oldLineCount;
 
-			functionType = func.type;
-			function = func;
+			functionPointer = func;
+			foundFunction = true;
 			break;
 		}
 	}
@@ -253,18 +268,23 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 
 
 void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck/* = false*/) {
-	HCL::function func;
+	HCL::function func; std::string returnType;
 	void* output;
-	checkForFunctions(funcName, funcParam, func, output, dontCheck);
+	executeFunction(funcName, funcParam, func, output, returnType, dontCheck);
 
 	if (output != nullptr) {
+		if (func.type != returnType)
+			HCL::throwError(true, "Cannot return a '%s' type (the return type for '%s' is '%s', not '%s')", returnType.c_str(), funcName.c_str(), func.type.c_str(), returnType.c_str());
+
 		existingVar->type = func.type;
 		if (func.type == "int" || func.type == "bool")
 			existingVar->value[0] = std::to_string(voidToInt(output));
+		else if (func.type == "float")
+			existingVar->value[0] = std::to_string(voidToFloat(output));
 		else if (func.type == "string")
 			existingVar->value[0] = voidToString(output);
 	}
-	else if (output == nullptr && (func.type == "int" || func.type == "bool")) { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
+	else if (output == nullptr && (func.type == "int" || func.type == "bool" || func.type == "float")) { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
 		existingVar->type = func.type;
 		existingVar->value[0] = std::to_string(voidToInt(output));
 	}
@@ -351,7 +371,6 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 	// int writeToLine(string path, int line, string content, string mode = "w")
 	else if (useFunction("int", "writeToLine", 3, 4)) {
 		std::string mode = "w";
-		printf("'%i'\n", params.size());
 
 		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
 		if (params[1].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "line");

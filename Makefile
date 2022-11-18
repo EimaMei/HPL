@@ -15,7 +15,7 @@ endif
 FLAGS = -std=c++17 -O2 -Wall -Wpedantic
 LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
-HCL-INPUT = examples/event/main.hcl
+HCL-INPUT = examples/general/main.hcl
 
 all: $(OUTPUT) $(EXE) run
 %.hpp: $(EXE)

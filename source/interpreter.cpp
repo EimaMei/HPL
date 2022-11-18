@@ -190,8 +190,31 @@ int HCL::checkFunctions() {
 		return FOUND_SOMETHING;
 	}
 	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
-		function f; void* n; // Unneeded variables, really.
-		return checkForFunctions(matches.str(1), matches.str(2), f, n);
+		function f; std::string n;
+		return executeFunction(matches.str(1), matches.str(2), f, functionOutput, n);
+	}
+	else if (useRegex(line, R"(\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) {
+		if (matches.str(1).front() == '\"' && matches.str(1).back() == '\"') {
+			std::string output = unstringify(matches.str(1));
+			functionOutput = stringToVoid(output);
+			functionReturnType = "string";
+		}
+		else if (isInt(matches.str(1))) {
+			if (find(matches.str(1), ".")) {
+				functionOutput = floatToVoid(std::stof(matches.str(1)));
+				functionReturnType = "float";
+			}
+			else {
+				functionOutput = intToVoid(std::stoi(matches.str(1)));
+				functionReturnType = "int";
+			}
+		}
+		else if (matches.str(1) == "true" || matches.str(1) == "false") {
+			functionOutput = intToVoid(stringToBool(matches.str(1)));
+			functionReturnType = "bool";
+		}
+
+		return FOUND_SOMETHING;
 	}
 
 	return FOUND_NOTHING;
@@ -200,11 +223,12 @@ int HCL::checkFunctions() {
 
 int HCL::checkVariables() {
 	// Matches the name and value of an existing variable.
-	if (useRegex(line, R"(^\s*([^\s]+)\s*=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[^\s]*)\s*.*$)")) { // Edit a pre-existing variable
+	if (useRegex(line, R"(^\s*([^\s]+)\s*[^\-\+\/\*]=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[\d\s\+\-\*\/\.]+[^\w]*|[^\s]*)\s*.*$)")) { // Edit a pre-existing variable
 		std::string ogValue = matches.str(2);
 		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo, possibleStructInfo;
 		variable* existingVar = getVarFromName(info.name, &structInfo);
 		variable* possibleVar = getVarFromName(info.value[0], &possibleStructInfo);
+		std::string res;
 
 
 		if (existingVar != NULL) {
@@ -223,6 +247,9 @@ int HCL::checkVariables() {
 					info.value[0] = existingVar->value[index];
 				}
 			}
+			else if (!(res = extractMathFromValue(info.value[0], existingVar)).empty()) { // A math expression.
+				info.value[0] = res;
+			}
 
 			if (structInfo.value.empty()) // Edit a regular variable
 				existingVar->value = info.value;
@@ -235,6 +262,39 @@ int HCL::checkVariables() {
 		}
 		else
 			HCL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
+	}
+	// matches <int> <operator> [value]
+	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.`
+		variable* existingVar = getVarFromName(matches.str(1), NULL);
+
+		if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float")) {
+			HCL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
+		}
+		else if (existingVar != nullptr) {
+			double res;
+			if (matches.str(2) == "++")
+				res = std::stod(existingVar->value[0]) + 1;
+			else if (matches.str(2) == "--")
+				res = std::stod(existingVar->value[0]) - 1;
+			else if (matches.str(2) == "+=")
+				res = std::stod(existingVar->value[0]) + std::stod(matches.str(3));
+			else if (matches.str(2) == "-=")
+				res = std::stod(existingVar->value[0]) - std::stod(matches.str(3));
+			else if (matches.str(2) == "*=")
+				res = std::stod(existingVar->value[0]) * std::stod(matches.str(3));
+			else if (matches.str(2) == "/=")
+				res = std::stod(existingVar->value[0]) / std::stod(matches.str(3));
+
+			if (existingVar->type == "int") {
+				existingVar->value[0] = std::to_string((int)res);
+			}
+			else if (existingVar->type == "float") {
+				existingVar->value[0] = std::to_string((float)res);
+			}
+		}
+		else {
+			throwError(true, "Cannot perform any math operations to this variable (Variable '%s' does not exist).", matches.str(1).c_str());
+		}
 	}
 	// Matches the type, name and value
 	else if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) { // Declaring a new variable.
@@ -462,7 +522,7 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 	if (sendRuntimeError)
 		throw std::runtime_error("\x1B[0m" + msg);
 	else
-		printf("\x1B[0m%s\n", msg.c_str());
+		std::printf("\x1B[0m%s\n", msg.c_str());
 }
 
 
@@ -482,5 +542,7 @@ namespace HCL {
 	std::vector<variable> variables;
 	std::vector<structure> structures;
 	std::vector<function> functions;
-	std::vector<std::string> scope;
+	//std::vector<std::string> scope;
+	void* functionOutput = nullptr;
+	std::string functionReturnType = "";
 }

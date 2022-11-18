@@ -137,7 +137,11 @@ bool find(std::string line, std::string str) {
 
 
 bool isInt(std::string str) {
-  return str.find_first_not_of("0123456789+-") == std::string::npos;
+ 	str = replaceAll(str, ".", ""); // For any possible floats.
+    if (str.empty()) // String was just dots for whatever reason, not a decimal eitherway.
+		return false;
+
+    return str.find_first_not_of("0123456789+-/*()") == std::string::npos;
 }
 
 
@@ -217,6 +221,103 @@ bool stringToBool(std::string str) {
 }
 
 
+
+double eval(std::string expr, int& errorCode) {
+	errorCode = 0;
+	// Unfinished code. The code only works with * and / operators,
+	// however this really requires a clean rewrite imo. So for now
+	// I am just keeping this code and eventually I'll finish it.
+	/*int code;
+    expr = replaceAll(expr, " ", "");
+	for (auto x : expr) {
+        if (!std::isdigit(x) && x != '-' && x != '+' && x != '/' && x != '*' && x != '(' && x != ')' && x != '.') {
+            errorCode = -1;
+            return -1;
+        }
+    }
+
+    std::string tok = expr;
+
+    /*for (int i = 0; i < tok.size(); i++) {
+        if (tok[i] == '+')
+            return eval(tok.substr(0, i), code) + eval(tok.substr(i + 1, tok.size() - i - 1), code);
+        else if (tok[i] == '-')
+            return eval(tok.substr(0, i), code) - eval(tok.substr(i + 1, tok.size()- i - 1), code);
+    }
+	std::string num1, num2;
+	std::string output;
+	char lastSym = '\0';
+
+    for (int i = 0; i < tok.size(); i++) {
+        if (tok[i] == '*' || tok[i] == '/' || tok[i] == '+') {
+			if (!num2.empty()) {
+				if (lastSym == '*') {
+					//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
+					num1 = std::to_string(std::stod(num1) * std::stod(num2));
+				}
+				else if (lastSym == '/') {
+					//std::cout << num1 << " / " << num2 << " == " << std::stod(num1) / std::stod(num2) << std::endl;
+					num1 = std::to_string(std::stod(num1) / std::stod(num2));
+				}
+				else if (lastSym == '+') {
+					output += num1 + '+';
+					num1 = num2;
+				}
+
+				num2 = "";
+			}
+			lastSym = tok[i];
+
+		}
+		else if (lastSym == '\0')
+			num1 += tok[i];
+		else
+			num2 += tok[i];
+    }
+	if (lastSym == '*') {
+		num1 = std::to_string(std::stod(num1) * std::stod(num2));
+	}
+	else if (lastSym == '/') {
+		num1 = std::to_string(std::stod(num1) / std::stod(num2));
+	}
+	else if (lastSym == '+') {
+		output += num1 + '+' + num2;
+	}
+
+	num1 = num2 = "";
+	lastSym = '\0';
+	for (auto c : output) {
+		std::cout << c << " " << output << " | " << num1 << " " << num2 << std::endl;
+        if (c == '+' || c == '-') {
+			if (!num2.empty()) {
+				if (lastSym == '+') {
+					//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
+					num1 = std::to_string(std::stod(num1) + std::stod(num2));
+				}
+				else if (lastSym == '-') {
+					//std::cout << num1 << " / " << num2 << " == " << std::stod(num1) / std::stod(num2) << std::endl;
+					num1 = std::to_string(std::stod(num1) - std::stod(num2));
+				}
+				num2 = "";
+			}
+			lastSym = c;
+		}
+		else if (lastSym == '\0')
+			num1 += c;
+		else
+			num2 += c;
+	}
+	if (lastSym == '+') {
+		//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
+		num1 = std::to_string(std::stod(num1) + std::stod(num2));
+	}
+
+
+    return std::stod(num1);*/
+	return 0;
+}
+
+
 bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	if (coreTyped(type)) return true;
 
@@ -281,7 +382,6 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 			}
 			else {
 				value = "{" + value + "}";
-				size_t pos = ogValue.find(value);
 
 				if (!structVar.name.empty()) { // Is a struct member.
 					int index = std::stoi(structVar.extra[0]);
@@ -297,4 +397,19 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 		return 0;
 	}
 	return -1;
+}
+
+
+std::string extractMathFromValue(std::string expr, HCL::variable* var) {
+	int mathError;
+	double res = eval(expr, mathError);
+
+	if (mathError != -1) { // Actual math is in the value.
+		if (var->type == "int")
+			return std::to_string((int)res);
+		else if (var->type == "float")
+			return std::to_string((float)res);
+	}
+
+	return "";
 }

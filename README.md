@@ -28,7 +28,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Add returns to core typed functions.
 - [X] Add f-string.
 - [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
-- [ ] Add returns to non-core typed functions.
+- [X] Add returns to non-core typed functions (Note: only works with core types so structs do not work yet, as well as automatic conversions aren't implementing (eg. int -> bool, float -> int etc.)).
 - [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
 - [ ] `if`, `else` statements.
 
@@ -61,7 +61,7 @@ This gets tricky. If step 2 is completed, then by that point the base language i
 ## Step 4: Adding in additional basic programming features into HCL
 Now that the language can build quite some HOI4 code, by now we should have a stable development environment. So now we can build-upon HCL and add new coding features. These features are, but not limited to:
 - [ ] Arrays.
-- [ ] Implement basic math (+, -, /, *).
+- [ ] Implement basic math (+, -, /, *) (Note: `++, --, +=, -=, *=, /=` are supported).
 - [ ] Implement basic operators (&&, ||, ==, !=, >=, <=).
 - [ ] Loops (`for (<variable> in <variable2>)`), (`for (<variable>, <condition>, <step>)`).
 

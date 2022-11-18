@@ -50,6 +50,8 @@ std::string replaceOnce(std::string, std::string oldString, std::string newStrin
 bool stringToBool(std::string str);
 // Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
 std::string convertBackslashes(std::string str);
+// Converts a math operation to a single double (UNFINISHED, NEEDS REFINING).
+double eval(std::string expr, int& errorCode);
 
 /* HCl specific helper functions. */
 
@@ -66,3 +68,5 @@ bool coreTyped(std::string type);
 HCL::variable* getVarFromName(std::string varName, HCL::variable* var = NULL);
 // Fixes the sentence from being f-string to a normal string.
 int getValueFromFstring(std::string ogValue, std::string& output);
+// Convert math expression to an actual result (UNFINISHED).
+std::string extractMathFromValue(std::string expr, HCL::variable* var);
