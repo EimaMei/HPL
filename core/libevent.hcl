@@ -40,7 +40,7 @@ event newEvent(string namespace, int id, string title, string description, strin
 	writeLocalisation(locPath, f"{namespace}.{id}.t", title)
 	writeLocalisation(locPath, f"{namespace}.{id}.d", description)
 
-	print(convertToDds(path, f"build/output/{HCL_currentModName}/gfx/event_pictures/{ddsName}"))
+	convertToDds(path, f"build/output/{HCL_currentModName}/gfx/event_pictures/{ddsName}")
 	writeFile(f"build/output/{HCL_currentModName}/interface/hcl_eventpictures.gfx", f"\n\nspriteType = {\n\tname = \"GFX_{gfxName}\"\n\ttexturefile = \"gfx/event_pictures/{ddsName}\"\n}", "a")
 	//return {names, id, title, description, path}
 }

@@ -59,10 +59,8 @@ std::vector<std::string> coreFunctionList = {
 };
 
 bool foundFunction = false;
-std::string globalFunctionName;
+HCL::function globalFunction;
 int userSentParamCount;
-HCL::function functionPointer;
-std::string functionType;
 
 
 int executeFunction(std::string name, std::string info, HCL::function& function, void*& output, std::string& returnTypeOutput, bool dontCheck/* = false*/) {
@@ -178,11 +176,18 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 		params.push_back(var);
 	}
 	foundFunction = false;
-	globalFunctionName = name;
+	globalFunction.name = name;
 	userSentParamCount = params.size();
-	functionType = "";
 
 	output = coreFunctions(params);
+
+	if (foundFunction) {
+		function = globalFunction;
+		returnTypeOutput = function.type;
+		globalFunction = {};
+
+		return FOUND_SOMETHING;
+	}
 
 	// Non-core functions
 	for (auto func : HCL::functions) {
@@ -230,16 +235,15 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			HCL::curFile = oldCurFile;
 			HCL::lineCount = oldLineCount;
 
-			functionPointer = func;
+			globalFunction = func;
 			foundFunction = true;
 			break;
 		}
 	}
 
 	if (foundFunction) {
-		functionPointer.params = params;
-		function = functionPointer;
-		functionPointer = {};
+		function = globalFunction;
+		globalFunction = {};
 
 		return FOUND_SOMETHING;
 	}
@@ -248,22 +252,19 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 
 bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount) {
-	if (name == globalFunctionName && maxParamCount < userSentParamCount)
+	if (name == globalFunction.name && maxParamCount < userSentParamCount)
 		HCL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), maxParamCount);
-	if (name == globalFunctionName && minParamCount > userSentParamCount)
+	if (name == globalFunction.name && minParamCount > userSentParamCount)
 		HCL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), minParamCount);
 
 
-	if (name == globalFunctionName) {
+	if (name == globalFunction.name) {
 		foundFunction = true;
-		functionType = type;
-
-		functionPointer.type = type;
-		functionPointer.name = name;
-		functionPointer.minParamCount = minParamCount;
+		globalFunction.type = type;
+		globalFunction.minParamCount = minParamCount;
 	}
 
-	return name == globalFunctionName;
+	return foundFunction;
 }
 
 

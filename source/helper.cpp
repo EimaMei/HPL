@@ -238,7 +238,7 @@ double eval(std::string expr, int& errorCode) {
 
     std::string tok = expr;
 
-    /*for (int i = 0; i < tok.size(); i++) {
+    for (int i = 0; i < tok.size(); i++) {
         if (tok[i] == '+')
             return eval(tok.substr(0, i), code) + eval(tok.substr(i + 1, tok.size() - i - 1), code);
         else if (tok[i] == '-')
