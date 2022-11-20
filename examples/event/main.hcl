@@ -15,7 +15,6 @@ createFolder("build/output")
 
 newMod("Test mod", "1.12.*")
 
-event v = {"hcl_events", 2, "nah broooo", "This ain't fr!!!!!!!!!!!!!!!", "examples/event/res/literal_evil.png"}
-newEvent(v.namespace, v.id, v.title, v.description, v.picture)
-
+event v = newEvent("hcl_events", 56, "nah broooo", "This ain't fr!!!!!!!!!!!!!!!", "examples/event/res/literal_evil.png")
+print(v)
 newEventOption(v, "Damng!")

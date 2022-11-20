@@ -150,9 +150,6 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			if (getValueFromFstring(oldMatch, var.value[0]) == 0) {// Is F-string.
 				var.value[0] = convertBackslashes(var.value[0]);
 			}
-			else if (!(res = extractMathFromValue(res, &var)).empty()) { // A math expression.
-				var.value[0] = res;
-			}
 			else
 				var.value[0] = convertBackslashes(p);
 		}
@@ -268,12 +265,35 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 }
 
 
-void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck/* = false*/) {
+int assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck/* = false*/) {
 	HCL::function func; std::string returnType;
 	void* output;
 	executeFunction(funcName, funcParam, func, output, returnType, dontCheck);
 
 	if (output != nullptr) {
+		if (returnType == "struct") {
+			HCL::structure* s = getStructFromName(func.type);
+			if (s != nullptr) {
+				if (existingVar->type != func.type) {
+					//HCL::throwError(true, "later");
+				}
+				else {
+					auto result = static_cast<std::vector<std::string>*>(output);
+					existingVar->value.clear();
+					returnType = func.type;
+
+					if (result->empty())
+						existingVar->value.push_back("");
+
+					for (auto& r : *result)
+						existingVar->value.push_back(r);
+
+				}
+
+				return FOUND_SOMETHING;
+			}
+		}
+
 		if (func.type != returnType)
 			HCL::throwError(true, "Cannot return a '%s' type (the return type for '%s' is '%s', not '%s')", returnType.c_str(), funcName.c_str(), func.type.c_str(), returnType.c_str());
 
@@ -292,6 +312,8 @@ void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std
 	else {
 		existingVar->value[0] = "";
 	}
+
+	return FOUND_SOMETHING;
 }
 
 

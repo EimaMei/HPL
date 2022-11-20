@@ -225,12 +225,16 @@ int writeLocalisation(std::string file, std::string name, std::string descriptio
 int convertToDds(std::string input, std::string output) {
 	int w, h, channels;
 	
-	unsigned char* png = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
+	unsigned char* img = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
 
-	if (png != NULL) // If loading the image failed.
-		return SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, png);
-	else
-		return -1;
+	if (img != NULL) {
+		int num = SOIL_save_image(output.c_str(), SOIL_SAVE_TYPE_DDS, w, h, channels, img);
+		SOIL_free_image_data(img);
+
+		return num - 1;
+	}
+
+	return -1;
 }
 
 

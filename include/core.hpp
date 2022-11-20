@@ -35,4 +35,4 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 // Defines the core functions and returns the function's return if successful.
 void* coreFunctions(std::vector<HCL::variable> params);
 // Sets the variable's value to the return of specified function.
-void assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck = false);
+int assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck = false);

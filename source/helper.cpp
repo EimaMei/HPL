@@ -343,6 +343,20 @@ bool coreTyped(std::string type) {
 }
 
 
+std::string getTypeFromValue(std::string value) {
+	if (find(value, "\""))
+		return "string";
+	else if (isInt(value) && !find(value, "."))
+		return "int";
+	else if (isInt(value) && find(value, "."))
+		return "float";
+	else if (value == "true" || value == "false")
+		return "bool";
+
+	return "";
+}
+
+
 HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/) {
 	HCL::structure s;
 	for (auto& v : HCL::variables) {
@@ -364,6 +378,16 @@ HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/
 		}
 	}
 	return {};
+}
+
+
+HCL::structure* getStructFromName(std::string name) {
+	for (auto& s : HCL::structures) {
+		if (s.name == name)
+			return &s;
+	}
+
+	return nullptr;
 }
 
 

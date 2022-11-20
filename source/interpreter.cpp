@@ -194,6 +194,7 @@ int HCL::checkFunctions() {
 		return executeFunction(matches.str(1), matches.str(2), f, functionOutput, n);
 	}
 	else if (useRegex(line, R"(\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) {
+		// Core types.
 		if (matches.str(1).front() == '\"' && matches.str(1).back() == '\"') {
 			std::string output = unstringify(matches.str(1));
 			functionOutput = stringToVoid(output);
@@ -212,6 +213,22 @@ int HCL::checkFunctions() {
 		else if (matches.str(1) == "true" || matches.str(1) == "false") {
 			functionOutput = intToVoid(stringToBool(matches.str(1)));
 			functionReturnType = "bool";
+		}
+		// A struct
+		else if (matches.str(1).front() == '{' && matches.str(1).back() == '}') {
+			useIterativeRegex(unstringify(matches.str(1), true), R"(([^\,\s]+))");
+			for (auto& v : HCL::matches.value) {
+				HCL::variable* var = getVarFromName(v);
+				if (var != nullptr) {
+					v = var->value[0]; // Need to add struct support to this too later.
+				}
+				else if (!getTypeFromValue(v).empty())
+					continue;
+				else
+					HCL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
+			}
+			functionOutput = (void*)&HCL::matches.value;
+			functionReturnType = "struct"; // We'll deal with this later in the code.
 		}
 
 		return FOUND_SOMETHING;

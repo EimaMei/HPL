@@ -42,7 +42,8 @@ event newEvent(string namespace, int id, string title, string description, strin
 
 	convertToDds(path, f"build/output/{HCL_currentModName}/gfx/event_pictures/{ddsName}")
 	writeFile(f"build/output/{HCL_currentModName}/interface/hcl_eventpictures.gfx", f"\n\nspriteType = {\n\tname = \"GFX_{gfxName}\"\n\ttexturefile = \"gfx/event_pictures/{ddsName}\"\n}", "a")
-	//return {names, id, title, description, path}
+
+	return {namespace, id, title, description}
 }
 
 int newEventOption(event e, string title) {
@@ -51,4 +52,5 @@ int newEventOption(event e, string title) {
 
 	writeToLine(eventPath, -2, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1\n\t}\n")
 	writeLocalisation(locPath, f"{e.namespace}.{e.id}.1", title)
+	//e.options++
 }

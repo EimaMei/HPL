@@ -60,6 +60,9 @@ double eval(std::string expr, int& errorCode);
 bool typeIsValid(std::string type, HCL::structure* info = NULL);
 // If a type is a core type.
 bool coreTyped(std::string type);
+// Gets the core type from value. If it cannot determine the type,
+// then it's most likely a struct (or a type that doesn't exist).
+std::string getTypeFromValue(std::string value);
 // Gets the variable's value by its name and returns a pointer of it.
 // If the `varName` is a struct member, then regardlessly the function
 // will attempt to find it. If successful, `var` will get the attributes
@@ -68,5 +71,7 @@ bool coreTyped(std::string type);
 HCL::variable* getVarFromName(std::string varName, HCL::variable* var = NULL);
 // Fixes the sentence from being f-string to a normal string.
 int getValueFromFstring(std::string ogValue, std::string& output);
+// Get the struct from name. If no struct is found, returns a nullptr.
+HCL::structure* getStructFromName(std::string name);
 // Convert math expression to an actual result (UNFINISHED).
 std::string extractMathFromValue(std::string expr, HCL::variable* var);

@@ -28,8 +28,8 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Add returns to core typed functions.
 - [X] Add f-string.
 - [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
-- [X] Add returns to non-core typed functions (Note: only works with core types so structs do not work yet, as well as automatic conversions aren't implementing (eg. int -> bool, float -> int etc.)).
-- [ ] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
+- [X] Add returns to non-core typed functions.
+- [X] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
 - [ ] `if`, `else` statements.
 
 ### Not as important features to add:
