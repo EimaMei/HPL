@@ -42,7 +42,7 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 		else
 			buf2 += '\0';
 
-		for (int i = 0; i < charScope.size() / 2; i += 2) {
+		for (int i = 0; i < charScope.size(); i += 2) {
 			if (charScope[i] != '\0' && x == charScope[i]) {
 				counter--;
 				found = true;
@@ -117,6 +117,9 @@ std::string removeSpaces(std::string str) {
 
 
 std::string unstringify(std::string str, bool noChecks/* = false*/, char character/* = '"'*/) {
+	if ((str.front() == 'f' && str[1] == '\"' && str.back() == '\"'))
+		return str;
+
 	if (str[0] == character || noChecks)
 		str.erase(0, 1);
 	if (str[str.size() - 1] == character || noChecks)

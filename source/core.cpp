@@ -64,7 +64,7 @@ int userSentParamCount;
 
 
 int executeFunction(std::string name, std::string info, HCL::function& function, void*& output, std::string& returnTypeOutput, bool dontCheck/* = false*/) {
-	std::vector<std::string> values = split(info, ",", "()\"\"");
+	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HCL::variable> params;
 	bool pass = (false != dontCheck);
 
@@ -91,9 +91,9 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 	for (auto& p : values) {
 		HCL::variable var = {"INVALID_HCL_TYPE", "INVALID_HCL_NAME", {"INVALID_HCL_OUTPUT"}}; HCL::variable structInfo;
-		useRegex(p, R"(\s*([^\s]+\(.*\)|f?\".*\"|-?[\d\s\+\-\*\/\.]+[^\w]*|[^\s]+)\s*)"); // We only get the actual value and remove any unneeded whitespaces/quotes.
-		p = unstringify(HCL::matches.str(1));
-		std::string oldMatch = HCL::matches.str(1);
+		p = unstringify(p, false, ' ');
+		std::string oldMatch = p;
+		p = unstringify(p);
 
 		HCL::variable* existingVar = getVarFromName(oldMatch, &structInfo);
 
@@ -132,25 +132,30 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			}
 		}
 		else if (existingVar == NULL) { // If parameter isn't a variable.
-			std::string res = replaceAll(p, " ", "");
+			getValueFromFstring(oldMatch, p);
 
+			// Core types.
 			if (find(oldMatch, "\""))
 				var.type = "string";
-			else if (isInt(res) && !find(p, "."))
+			else if (isInt(p) && !find(p, "."))
 				var.type = "int";
-			else if (isInt(res) && find(p, "."))
+			else if (isInt(p) && find(p, "."))
 				var.type = "float";
 			else if (p == "true" || p == "false") {
 				var.type = "bool";
 				p = std::to_string(stringToBool(p));
 			}
+			// Non-core types.
+			else if (p.front() == '{' && p.back() == '}') {
+				p = unstringify(p, true);
+				useIterativeRegex(p, R"(([^,\s]+))");
+				var.value = HCL::matches.value;
+				var.type = "struct";
+			}
 			else
 				HCL::throwError(true, "Variable '%s' doesn't exist", p.c_str());
 
-			if (getValueFromFstring(oldMatch, var.value[0]) == 0) {// Is F-string.
-				var.value[0] = convertBackslashes(var.value[0]);
-			}
-			else
+			if (var.type != "struct")
 				var.value[0] = convertBackslashes(p);
 		}
 		else { // If parameter IS a variable.

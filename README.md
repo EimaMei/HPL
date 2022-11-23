@@ -36,7 +36,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Add more runtime errors (defining variables/functions that already exist, too many curly brackets etc.)
 - [ ] Make error/warnings reports more pretty (more aline with how GCC does it).
 - [ ] Multiline variables
-- [ ] Finalize how scopes work in general.
+- [X] Finalize how scopes work in general.
 
 ## Step 2: Core functions implementation
 When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
