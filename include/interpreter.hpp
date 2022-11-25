@@ -52,6 +52,17 @@
 
 namespace HCL {
 	enum RETURN_OUTPUT { OUTPUT_NOTHING, OUTPUT_BLACK, OUTPUT_RED, OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_BLUE, OUTPUT_PURPLE, OUTPUT_CYAN, OUTPUT_GRAY };
+	struct configArgs {
+		bool help;
+
+		bool debugAll;
+		bool debugPrint;
+		bool debugLog;
+
+		bool strict;
+
+		std::string curIndent;
+	};
 
 	struct variable {
 		std::string type;
@@ -89,8 +100,7 @@ namespace HCL {
 	};
 	
 	// Interpreter configs.
-	extern bool debug;
-	extern bool strict;
+	extern configArgs arg;
 	
 	// Interpreter runtime information.
 	extern std::string curFile;
@@ -103,7 +113,6 @@ namespace HCL {
 	extern std::vector<variable> variables;
 	extern std::vector<structure> structures;
 	extern std::vector<function> functions;
-	//extern std::vector<std::string> scope;
 	extern void* functionOutput; extern std::string functionReturnType;
 
 	// Sets the color for the text that'll get printed.

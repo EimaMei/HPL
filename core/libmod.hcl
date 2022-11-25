@@ -5,12 +5,24 @@ struct modTags {
     bool historical = false
 }
 
-string HCL_currentModName
+struct mod {
+    string name
+    string supportedVersion
+    modTags tags
+    string path
+}
 
-int newMod(string name, string supportedVersion) {
-    createFolder(f"build/output/{name}")
+mod HCL_currentMod
 
-    createFile(f"build/output/{name}.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}\npath = \"mod/{name}\"")
-    createFile(f"build/output/{name}/descriptor.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}")
-    HCL_currentModName = name
+int newMod(string path, string name, string supportedVersion) {
+    HCL_currentMod = {name, supportedVersion, {}, f"{path}/{name}"}
+    removeFolder(path)
+    createFolder(path)
+
+
+    createFile(f"{path}/{name}.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}\npath = \"mod/{name}\"")
+    createFile(f"{path}/{name}/descriptor.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}")
+
+
+    return 0
 }

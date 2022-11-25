@@ -24,6 +24,7 @@
 #include <helper.hpp>
 #include <functions.hpp>
 
+#include <iostream>
 
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string/const char*.
@@ -67,6 +68,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HCL::variable> params;
 	bool pass = (false != dontCheck);
+	HCL::arg.curIndent += "\t";
 
 	if (!pass) { // If the error checking isn't disabled.
 		for (auto func : HCL::functions) {
@@ -90,7 +92,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	}
 
 	for (auto& p : values) {
-		HCL::variable var = {"INVALID_HCL_TYPE", "INVALID_HCL_NAME", {"INVALID_HCL_OUTPUT"}}; HCL::variable structInfo;
+		HCL::variable var = {"NO_TYPE", "NO_NAME", {"NO_VALUE"}}; HCL::variable structInfo;
 		p = unstringify(p, false, ' ');
 		std::string oldMatch = p;
 		p = unstringify(p);
@@ -176,6 +178,11 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 		}
 
 		params.push_back(var);
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << HCL::arg.curIndent << "[FIND][PARAM]: " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> = <value>: " << var.type << " " << var.name << " = ";
+			print(var);
+		}
 	}
 	foundFunction = false;
 	globalFunction.name = name;
@@ -187,6 +194,11 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 		function = globalFunction;
 		returnTypeOutput = function.type;
 		globalFunction = {};
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](0): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> <output's type>: " << function.type << " " << function.name << " | " << output << " " << returnTypeOutput << std::endl;
+			HCL::arg.curIndent.pop_back();
+		}
 
 		return FOUND_SOMETHING;
 	}
@@ -205,7 +217,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 			for (int i = 0; i < func.params.size(); i++) {
 				auto var = func.params[i];
-				if (var.value[0].empty()) var.value = params[i].value;
+				if (i < params.size()) var.value = params[i].value;
 
 				HCL::variables.push_back(var);
 			}
@@ -239,6 +251,11 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 			globalFunction = func;
 			foundFunction = true;
+
+			if (HCL::arg.debugAll || HCL::arg.debugLog) {
+				std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](1): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> <output's type>: " << func.type << " " << func.name << " | " << output << " " << returnTypeOutput << std::endl;
+				HCL::arg.curIndent.pop_back();
+			}
 			break;
 		}
 	}

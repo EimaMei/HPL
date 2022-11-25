@@ -30,6 +30,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Being able to set the value of a __CORE TYPED__ variable from a function's return.
 - [X] Add returns to non-core typed functions.
 - [X] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
+- [X] More debug options.
 - [ ] `if`, `else` statements.
 
 ### Not as important features to add:
@@ -75,37 +76,30 @@ The syntax and feature-set of HCL is almost identical to C's, features like stru
 - A variable can be declared dynamically or as a generic.
 
 # Implemented features
-## Variables
-To declare a variable, you must provide the type, name and optionally the value (`<type> <name> = [value]`). You can also do `name := <value>`, which'll automatically get the type, or just declare a generic type `var num = 3`. Editing a variable is the same like everywhere else.
-## Structures
-Structures are defined and work like in C. You can define a structure with default options and that will carry on to the variable that you'll define.
-```c
-struct info {
-	string desc = "Something mildly interesting here"
-	int value = 50
-}
-
-info var // This variable is saved as `info var = {"Something mildly interesting here", 50}`
-
-...
-
-info var = {"Something new here"} // While this would be saved as {"Something new here", 50}
-```
-However, as of now, you *cannot* init variables with out of order arguments (eg. `{.value = 25, .desc = "Out of order shenanigans!"}`)
+A short list of things that are implemented with full functionality:
+- Create and edit variables.
+- C-based structures (you can access and edit struct members)
+- Declare functions with return types.
+- Execute a function and get its return.
+- Core functions.
+- Python's f-string.
+- Debug and logging modes.
+- Standard libraries for creating HOI4 mods (`libpdx.hcl`, `libcountry.hcl` etc).
+- HOI4 scopes*
 ## Scope
-Scopes aren't implemented at all. However, it is a **very** important type in HCL as it dictates when you can use quite a lot of the HOI4-implemented functions in the code. This is due to how Paradox modding files work in general, where the results of a certain action are declared in a scope to make sense (for example, an option in an event would be a scope). As such, you cannot just declare `addStability("SOV", 20)` randomly in the code as neither HCL nor HOI4 would understand where, why or when that action would happen in runtime.
+Scopes aren't implemented at all. However, it is a **very** important type in HOI4 scripting and by default HCL, as the Paradox Wiki describes it, "Scopes select entities in order to check for triggers or apply effects.". Essentially, effects that you associate with HOI4 scripting (eg. add_stability) can only be performed in scopes and no where else. However HOI4 scripting is the only language I know of that really uses scopes for results, as any other language would just have an if statmenet to check if the option got picked. Scopes work pretty well in HOI4 scripting, however in HCL it's quite an issue for 2 reasons. 1 - it makes it unclear when you can use modifiers in HCL code. 2 - since we're translating HCL scopes to HOI4 scripting scopes, it means that certain HCL features cannot make it into it when writing scopes. This only applies to features that don't have a HOI4 scripting equivalent/cannot be implemented by different ways.  To make things more clear for everyone involved using HCL, I've come up with 2 modes in HCL: regular mode (non-scope mode) and HOI4 scripting+ mode (scope mode). In regular mode it's just HCL, meaning you can use the entire full feature-set of the language anywhere. In HOI4 scripting+ mode, you'll be essentially writing HOI4 scripting code with the available feature-set of HCL in scope mode. Backwards compatibility with regular HOI4 scripting would also be possible.
 
-Due to this, it'll be required for me to think about how to implement scopes in HCL that'll:
-1. Make it obvious when you can use HOI4 code without getting errors or just no output.
-2. Not ruin/overcomplicate the syntax.
-3. Fit in nicely with the C-ish syntax.
+To come up with the best scope mode implementation, I've come up with 4 guidelines/required features that should be included in the implementation.
+1. Syntax should be as simple and C-based as possible (no need to have overcomplicated syntax for something that's simple in HOI4 scripting).
+2. Scope variables should exist for more options, portability, convenience for me to program in and backwards compatibility.
+3. Being able to declare functions with scope required functionality. If such functionality is enabled, then the function will get a bonus variable with the scope variable.
+4. Must be clear when the user is writing code in non-scope or scope mod.
 
-I have a few ideas on how I would implement such a type. One of them being that a scope variable would be declared in curly brackets, and inside those brackets you can save HOI4 code (possible even having cross-compatibility with old HOI4 code).
 
-### **Examples of how it could look**
+### **Examples of how one of the scope modes could look**
 1. **Funcion form**
 ```c
-newOption(someEventVar, "da title", "description whatever") = {
+newOption(someEventVar, "da title") = {
 	addStability("ROOT", 50) // If the AI/player picks this option, it gains 50% stability
 }
 ```
@@ -122,13 +116,23 @@ scope savedCode = {
 	addWarSupport("USA", -10)
 } // Now I can use this scope variable in any scope I want.
 
-newOption(someEventVar, "da title 2", "another description whatever") = {
+newOption(someEventVar, "da title 2") = {
 	savedCode // This gets transformed into actual code when the interpreter reads and transforms it back to HCL and then finally HOI4 code.
 }
 
 ```
 
-However for now it isn't required for me to implement scopes, as I still need to create the base language so as is right now, scopes won't be implemented for awhile.
+# CLI options
+```
+ARGS:
+        <FILE>                     Selected file to be interpreted.
+OPTIONS:
+        -help, -h                  Prints the available CLI options as well as the the version, authors, compiler and OS of the HCL executable.
+        -debug, -g                 Enables all debug procedures (logging and printing debug information).
+        -log, -l                   Logs and prints every noteworthy event that the interpreter has got.
+        -strict, -s                Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented).
+```
+
 # Final notes
 ## Building HCL
 If you're planning to build HCL, please note that my main programming environment isn't Windows, so expect possible errors and/or unsual behaviours on that platform, as from my experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being whack and causing issues in code that works in one platform but doesn't in the other). Here is my developer environment that'll be using for most of the HCL work:

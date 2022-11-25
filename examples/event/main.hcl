@@ -10,10 +10,7 @@
 //removeFolder("build/output")
 
 
-removeFolder("build/output")
-createFolder("build/output")
-
-newMod("Test mod", "1.12.*")
+newMod("build/output", "Test mod", "1.12.*")
 
 event v = newEvent("hcl_events", 56, "nah broooo", "This ain't fr!!!!!!!!!!!!!!!", "examples/event/res/literal_evil.png")
 print(v)

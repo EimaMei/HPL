@@ -327,8 +327,10 @@ bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
 	// Didn't find a core type, maybe it'll find a struct instead.
 	for (auto s : HCL::structures) {
 		if (type == s.name) {
-			info->name = s.name;
-			info->value = s.value;
+			if (info != nullptr) {
+				info->name = s.name;
+				info->value = s.value;
+			}
 			return true;
 		}
 	}
@@ -369,7 +371,7 @@ HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/
 
 		if (typeIsValid(v.type, &s) && !coreTyped(v.type)) { // A custom type
 			for (int i = 0; i < s.value.size(); i++) {
-				auto member = s.value[i];
+				auto& member = s.value[i];
 				if (varName == (v.name + "." + member.name)) {
 					var->type = member.type;
 					var->name = varName;

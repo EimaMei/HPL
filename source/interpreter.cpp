@@ -25,6 +25,7 @@
 #include <interpreter.hpp>
 #include <core.hpp>
 #include <helper.hpp>
+#include <functions.hpp>
 
 #include <iostream>
 #include <string.h>
@@ -145,9 +146,14 @@ int HCL::checkIncludes() {
 
 
 		if (find(line, "<") && find(line, ">")) // Core library '#include <libpdx.hcl>'
-			interpreteFile("core/" + unstringify(match, true));
+			match = "core/" + unstringify(match, true);
 		else if (find(line, "\"")) // Some library '#include "../somelib.hcl"'
-			interpreteFile(getPathFromFilename(oldFile) + "/" + match);
+			match = getPathFromFilename(oldFile) + "/" + match;
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [INCLUDE][FILE]: " << curFile << ":" << lineCount << ": #include <file>: #include \"" << match << "\"" << std::endl;
+		}
+		interpreteFile(match);
 
 		curFile = oldFile;
 		lineCount = oldLineCount;
@@ -160,15 +166,15 @@ int HCL::checkIncludes() {
 int HCL::checkFunctions() {
 	// Match <return type> <name>(<params>) {
 	if (useRegex(line, R"(\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{)")) {
-		std::string param = matches.str(3);
 		function func = {matches.str(1), matches.str(2)};
-		std::vector<std::string> params = split(param, ",", "\"\"");
+		std::vector<std::string> params = split(matches.str(3), ",", "\"\"");
 
 		for (auto v : params) {
 			if (useRegex(v, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
 				variable var = {matches.str(1), matches.str(2), {unstringify(matches.str(3))}};
 				func.params.push_back(var);
-				if (var.value[0].empty()) func.minParamCount++;
+
+				if (matches.str(3).empty()) func.minParamCount++;
 			}
 		}
 		func.file = HCL::curFile;
@@ -176,6 +182,17 @@ int HCL::checkFunctions() {
 
 		functions.push_back(func);
 		mode = SAVE_FUNC;
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [CREATE][FUNCTION]: " << curFile << ":" << lineCount << ": <type> <name>(<params>): " << func.type << " " << func.name << "(";
+			for (int i = 0; i < func.params.size(); i++) {
+				auto& p = func.params[i];
+				std::cout << p.type << " " << p.name;
+				if (!p.value[0].empty()) std::cout << " = " << p.value[0];
+				if (i != func.params.size() - 1) std::cout << ", ";
+			}
+			std::cout << ")" << std::endl;
+		}
 
 		return FOUND_SOMETHING;
 	}
@@ -191,6 +208,11 @@ int HCL::checkFunctions() {
 	}
 	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
 		function f; std::string n;
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
+		}
+
 		return executeFunction(matches.str(1), matches.str(2), f, functionOutput, n);
 	}
 	else if (useRegex(line, R"(\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) {
@@ -230,6 +252,9 @@ int HCL::checkFunctions() {
 			functionOutput = (void*)&HCL::matches.value;
 			functionReturnType = "struct"; // We'll deal with this later in the code.
 		}
+		else {
+			HCL::throwError(true, "Internal HCL error: %s", matches.str(1).c_str());
+		}
 
 		return FOUND_SOMETHING;
 	}
@@ -239,7 +264,7 @@ int HCL::checkFunctions() {
 
 
 int HCL::checkVariables() {
-	// Matches the name and value of an existing variable.
+	// <name> = <value>
 	if (useRegex(line, R"(^\s*([^\s]+)\s*[^\-\+\/\*]=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[\d\s\+\-\*\/\.]+[^\w]*|[^\s]*)\s*.*$)")) { // Edit a pre-existing variable
 		std::string ogValue = matches.str(2);
 		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo, possibleStructInfo;
@@ -258,37 +283,71 @@ int HCL::checkVariables() {
 			}
 			else if (possibleVar != nullptr) { // Value might be just a variable, if so just copy it over.
 				if (possibleStructInfo.value.empty()) // Edit a regular variable
-					info.value = possibleVar->value;
+					existingVar->value = possibleVar->value;
 				else {// Edit a struct member
 					int index = std::stoi(possibleStructInfo.extra[0]);
-					info.value[0] = existingVar->value[index];
+					existingVar->value[0] = possibleVar->value[index];
 				}
 			}
 			else if (!(res = extractMathFromValue(info.value[0], existingVar)).empty()) { // A math expression.
 				info.value[0] = res;
 			}
 
-			if (structInfo.value.empty()) // Edit a regular variable
+			else if (coreTyped(existingVar->type)) {// Edit a regular variable
 				existingVar->value = info.value;
-			else {// Edit a struct member
-				int index = std::stoi(structInfo.extra[0]);
-				existingVar->value[index] = info.value[0];
+			}
+			else if (typeIsValid(existingVar->type)) { // A struct variable
+				if (find(existingVar->name, ".")) { // Edit a struct member
+					int index = std::stoi(structInfo.extra[0]);
+					existingVar->value[index] = info.value[0];
+				}
+				else { // Entire struct edit
+					std::vector<std::string> params = split(unstringify(info.value[0], true), ",", "\"\"{}");
+					HCL::structure* s = getStructFromName(existingVar->type);
+					existingVar->value.clear();
+					existingVar->extra.clear();
+
+					for (int i = 0; i < params.size(); i++) {
+						auto& p = params[i];
+						auto& sMem = s->value[i];
+						std::string res;
+
+						p = unstringify(p, false, ' ');
+						getValueFromFstring(p, res);
+						p = unstringify(p);
+						possibleVar = getVarFromName(p);
+
+						if (possibleVar != nullptr)
+							p = possibleVar->value[0];
+						else if (!res.empty())
+							p = res;
+						else if (p.front() == '{' && p.back() == '}') {
+						}
+						existingVar->value.push_back(p);
+						existingVar->extra.push_back(sMem.type);
+					}
+				}
 			}
 
 			getValueFromFstring(ogValue, existingVar->value[0]);
 		}
 		else
 			HCL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [EDIT][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> = <value>: " << existingVar->name << " = ";
+			print(*existingVar);
+		}
 	}
-	// matches <int> <operator> [value]
+	//<int> <operator> [value]
 	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.`
 		variable* existingVar = getVarFromName(matches.str(1), NULL);
+		double res;
 
 		if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float")) {
 			HCL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
 		}
 		else if (existingVar != nullptr) {
-			double res;
 			if (matches.str(2) == "++")
 				res = std::stod(existingVar->value[0]) + 1;
 			else if (matches.str(2) == "--")
@@ -312,6 +371,11 @@ int HCL::checkVariables() {
 		else {
 			throwError(true, "Cannot perform any math operations to this variable (Variable '%s' does not exist).", matches.str(1).c_str());
 		}
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [MATH][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> <operator> [value]: " << existingVar->name << " " << matches.str(2);
+			if (matches.str(2) != "--" || matches.str(2) != "++") std::cout << " " << res;
+		}
 	}
 	// Matches the type, name and value
 	else if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) { // Declaring a new variable.
@@ -325,10 +389,12 @@ int HCL::checkVariables() {
 
 			// Copy over an existing variable to this new one.
 			if (existingVar != nullptr) {
-				// If 'getVarFromName' finds a variable from a struct, `structVar.extra` becomes the index of where the member is in the struct.
-				// However, due to `structVar.extra` being a std::string, we have to convert it to an integer.
-				int index = std::stoi(structVar.extra[0]);
-				var.value = {structVar.value[index]};
+				if (structVar.value.empty()) // Full struct.
+					var.value = existingVar->value;
+				else {// Edit a struct member
+					int index = std::stoi(structVar.extra[0]);
+					var.value = {existingVar->value[index]};
+				}
 			}
 			// Check if the value is a function. If so, execute the
 			// function and get its return, so that it gets assigned
@@ -369,7 +435,7 @@ int HCL::checkVariables() {
 									var.value.push_back(s.value[i].value[0]);
 									var.extra.push_back(s.value[i].type);
 								}
-								else if (strict)
+								else if (arg.strict)
 									throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
 								else
 									break;
@@ -378,7 +444,7 @@ int HCL::checkVariables() {
 					}
 				}
 			}
-			else if (!var.value[0].empty() && existingVar == NULL && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
+			else if (!var.value[0].empty() && existingVar == nullptr && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
 				// This checks for if the user is trying to copy over a variable that doesn't exist. All of these checks check if it isn't just some core type so that it wouldn't output a false-negative.
 				throwError(true, "You cannot copy over a variable that doesn't exist (variable '%s' does not exist).", var.value[0].c_str());
 			}
@@ -393,6 +459,16 @@ int HCL::checkVariables() {
 			structures.begin()->value.push_back(var);
 		else
 			variables.push_back(var);
+
+
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [CREATE][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = [value]: " << var.type << " " << var.name;
+			if (!var.value[0].empty()) {
+				std::cout << " = ";
+				print(var, "");
+			}
+			std::cout << std::endl;
+		}
 	}
 	return FOUND_NOTHING;
 }
@@ -406,11 +482,17 @@ int HCL::checkStruct() {
 		structures.insert(structures.begin(), {name});
 		mode = SAVE_STRUCT;
 
+		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+			std::cout << arg.curIndent << "LOG: [CREATE][STRUCT]: " << curFile << ":" << lineCount << ": struct <name>: struct " << name << std::endl;
+			arg.curIndent += "\t";
+		}
+
 		return FOUND_SOMETHING;
 	}
 	// Find a '}'
 	else if (useRegex(line, R"(\s*(\})\s*)") && mode == SAVE_STRUCT) {
 		mode = SAVE_NOTHING; // Don't save variables into a struct anymore, save them as general variables.
+		arg.curIndent.pop_back();
 
 		return FOUND_SOMETHING;
 	}
@@ -533,7 +615,7 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 	}
 	va_end(valist);
 
-	if (debug && sendRuntimeError)
+	if ((HCL::arg.debugAll || HCL::arg.debugPrint) && sendRuntimeError)
 		debugMode();
 
 	if (sendRuntimeError)
@@ -545,8 +627,7 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 
 namespace HCL {
 	// Inteperter configs.
-	bool debug;
-	bool strict;
+	HCL::configArgs arg;
 
 	// Interpreter rules runtime.
 	std::string curFile;

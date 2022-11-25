@@ -37,6 +37,8 @@ void print(HCL::variable msg, std::string end/* = \n*/) {
 		if (i < msg.extra.size()) vtype = msg.extra[i];
 		if (vtype == "bool")
 			value = (value == "1" ? "true" : "false");
+		else if (vtype == "string")
+			value = '\"' +  value + '\"';
 
 		output += value;
 
@@ -73,23 +75,20 @@ int removeFolder(std::string path) {
 
 
 int createFile(std::string path, std::string content/* = ""*/, bool useUtf8BOM/* = false*/) {
-	int output = 0;
-
 	FILE* f = fopen(path.c_str(), "r");
+
 	if (f == NULL) {
 		f = fopen(path.c_str(), "w");
 		if (!content.empty() && f != NULL) {
 			if (useUtf8BOM) fprintf(f, "\xEF\xBB\xBF");
 			fprintf(f, "%s", content.c_str());
 		}
-		else if (f == NULL) { output = -1; }
+		else if (f == NULL) { return -1; }
 	}
-	else {
-		output = -1;
-	}
+	else { return -1; }
     fclose(f);
 
-	return output;
+	return 0;
 }
 
 
@@ -111,6 +110,7 @@ std::string readFile(std::string path) {
 		if (text[0] == '\xEF' && text[1] == '\xBB' && text[2] == '\xBF') // Utf-8 bom text, remove the 3 first bytes just in case.
 			text.erase(0, 3);
     }
+	else { return ""; }
 	fclose(f);
 	free(buffer);
   
@@ -121,13 +121,10 @@ std::string readFile(std::string path) {
 int writeFile(std::string path, std::string content, std::string mode/* = "w"*/) {
 	FILE* f = fopen(path.c_str(), mode.c_str());
  
-    if (f != NULL) {
+    if (f != NULL)
         fprintf(f, "%s", content.c_str());
-    }
-	else {
-		fclose(f);
+	else
 		return -1;
-	}
     fclose(f);
   
     return 0;
@@ -183,7 +180,6 @@ int writeToLine(std::string path, int line, std::string content, std::string mod
 		rename("replace.tmp", path.c_str());
 	}
 	else {
-		fclose(f);
 		return -1;
 	}
 

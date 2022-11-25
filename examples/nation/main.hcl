@@ -1,8 +1,5 @@
 #include <libpdx.hcl>
 
-removeFolder("build/output")
-createFolder("build/output")
+newMod("build/output", "Test mod", "1.12.*")
 
-newMod("Test mod", "1.12.*")
-
-country ukraine = newCountry("UKR", "Ukraine", {255, 0, 0}, 200)
+country ukraine = newCountry("HCL", "Alithron's nation", {200, 23, 210}, 200)
