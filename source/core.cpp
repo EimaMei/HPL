@@ -71,10 +71,6 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	bool pass = (false != dontCheck);
 	HCL::arg.curIndent += "\t";
 
-	std::cout << "Params: " << values.size() << "\n\t" << info << " ";
-	for (auto& p : values) std::cout << "|" << p;
-	std::cout << std::endl;
-
 	if (!pass) { // If the error checking isn't disabled.
 		for (auto func : HCL::functions) {
 			if (func.name == name) { // It's an already defined function, it's fine.
