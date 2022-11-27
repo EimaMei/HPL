@@ -75,3 +75,5 @@ int getValueFromFstring(std::string ogValue, std::string& output);
 HCL::structure* getStructFromName(std::string name);
 // Convert math expression to an actual result (UNFINISHED).
 std::string extractMathFromValue(std::string expr, HCL::variable* var);
+// Returns a string "<type> <name>(<params>)"
+std::string printFunction(HCL::function func);

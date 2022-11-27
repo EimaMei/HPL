@@ -31,7 +31,8 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [X] Add returns to non-core typed functions.
 - [X] Being able to set the value of a __STRUCT TYPED__ variable from a function's return (ties in with "Add returns to non-core typed functions").
 - [X] More debug options.
-- [ ] `if`, `else` statements.
+- [X] `if` statement
+- [ ] `else` and `else if` statements.
 
 ### Not as important features to add:
 - [ ] Add more runtime errors (defining variables/functions that already exist, too many curly brackets etc.)
@@ -62,8 +63,8 @@ This gets tricky. If step 2 is completed, then by that point the base language i
 ## Step 4: Adding in additional basic programming features into HCL
 Now that the language can build quite some HOI4 code, by now we should have a stable development environment. So now we can build-upon HCL and add new coding features. These features are, but not limited to:
 - [ ] Arrays.
-- [ ] Implement basic math (+, -, /, *) (Note: `++, --, +=, -=, *=, /=` are supported).
-- [ ] Implement basic operators (&&, ||, ==, !=, >=, <=).
+- [ ] Implement basic math (+, -, /, *) (Note: `++, --, +=, -=, *=, /=, %=` are supported).
+- [X] Implement basic operators (&&, ||, ==, !=, >=, <=) (Note: only in `if` statements for now, and && isn't supported at the moment).
 - [ ] Loops (`for (<variable> in <variable2>)`), (`for (<variable>, <condition>, <step>)`).
 
 # Documentation
@@ -78,13 +79,15 @@ The syntax and feature-set of HCL is almost identical to C's, features like stru
 # Implemented features
 A short list of things that are implemented with full functionality:
 - Create and edit variables.
-- C-based structures (you can access and edit struct members)
+- C-based structures (you can access and edit struct members).
 - Declare functions with return types.
 - Execute a function and get its return.
 - Core functions.
 - Python's f-string.
 - Debug and logging modes.
 - Standard libraries for creating HOI4 mods (`libpdx.hcl`, `libcountry.hcl` etc).
+- If statements.
+- Simple math (`++, --, +=, -=, *=, /=, %=`)
 - HOI4 scopes*
 ## Scope
 Scopes aren't implemented at all. However, it is a **very** important type in HOI4 scripting and by default HCL, as the Paradox Wiki describes it, "Scopes select entities in order to check for triggers or apply effects.". Essentially, effects that you associate with HOI4 scripting (eg. add_stability) can only be performed in scopes and no where else. However HOI4 scripting is the only language I know of that really uses scopes for results, as any other language would just have an if statmenet to check if the option got picked. Scopes work pretty well in HOI4 scripting, however in HCL it's quite an issue for 2 reasons. 1 - it makes it unclear when you can use modifiers in HCL code. 2 - since we're translating HCL scopes to HOI4 scripting scopes, it means that certain HCL features cannot make it into it when writing scopes. This only applies to features that don't have a HOI4 scripting equivalent/cannot be implemented by different ways.  To make things more clear for everyone involved using HCL, I've come up with 2 modes in HCL: regular mode (non-scope mode) and HOI4 scripting+ mode (scope mode). In regular mode it's just HCL, meaning you can use the entire full feature-set of the language anywhere. In HOI4 scripting+ mode, you'll be essentially writing HOI4 scripting code with the available feature-set of HCL in scope mode. Backwards compatibility with regular HOI4 scripting would also be possible.

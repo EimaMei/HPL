@@ -3,6 +3,7 @@
 build/**
 source/test
 games/
+res
 
 # Files 
 *.exe

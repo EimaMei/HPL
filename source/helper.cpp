@@ -26,12 +26,15 @@
 #include <core.hpp>
 #include <helper.hpp>
 
+#include <iostream>
+
 // Each commit split just keeps getting more and more complex...
 std::vector<std::string> split(std::string str, std::string value, std::string charScope/* = "\0\0"*/) {
 	std::vector<std::string> list;
 	std::string buf, buf2;
 	int counter = 0;
 	bool found;
+	std::string lastScope = "";
 
 	for (auto x : str) {
 		found = false;
@@ -43,17 +46,16 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 			buf2 += '\0';
 
 		for (int i = 0; i < charScope.size(); i += 2) {
-			if (charScope[i] != '\0' && x == charScope[i]) {
+			if (charScope[i] != '\0' && x == charScope[i] && (x != charScope[i + 1] || (x == charScope[i + 1] && !find(lastScope, std::string(1, x))))) {
 				counter--;
 				found = true;
+				lastScope += charScope[i + 1];
 			}
-			else if (charScope[i + 1] != '\0' && x == charScope[i + 1]) {
+			else if (charScope[i + 1] != '\0' && x == charScope[i + 1] && !lastScope.empty() && find(lastScope, std::string(1, charScope[i + 1]))) {
+				std::string d(1, charScope[i + 1]);
 				counter++;
 				found = true;
-			}
-
-			if (charScope[i] == charScope[i + 1] && charScope[i + 1] == x) {
-				counter++;
+				lastScope = replaceOnce(lastScope, d, "");
 			}
 		}
 
@@ -357,6 +359,10 @@ std::string getTypeFromValue(std::string value) {
 		return "float";
 	else if (value == "true" || value == "false")
 		return "bool";
+	else if (value == "==" || value == "!=" || value == ">=" || value == "<=" || value == "<" || value == ">")
+		return "relational-operator";
+	else if (value == "&&" || value == "||")
+		return "logical-operator";
 
 	return "";
 }
@@ -441,4 +447,22 @@ std::string extractMathFromValue(std::string expr, HCL::variable* var) {
 	}
 
 	return "";
+}
+
+
+std::string printFunction(HCL::function func) {
+	std::string str = func.type + " " + func.name + "(";
+
+	for (int i = 0; i < func.params.size(); i++) {
+		auto& p = func.params[i];
+		str += p.type + " " + p.name;
+
+		if (!p.value[0].empty())
+			str += " = " + p.value[0];
+		if (i != func.params.size() - 1)
+			str += ", ";
+	}
+	str += ")";
+
+	return str;
 }

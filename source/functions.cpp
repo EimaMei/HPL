@@ -1,4 +1,25 @@
 /*
+* Copyright (C) 2021-2022 Eima
+*
+* This software is provided 'as-is', without any express or implied
+* warranty.  In no event will the authors be held liable for any damages
+* arising from the use of this software.
+*
+* Permission is granted to anyone to use this software for any purpose,
+* including commercial applications, and to alter it and redistribute it
+* freely, subject to the following restrictions:
+*
+* 1. The origin of this software must not be misrepresented; you must not
+*    claim that you wrote the original software. If you use this software
+*    in a product, an acknowledgment in the product documentation would be
+*    appreciated but is not required.
+* 2. Altered source versions must be plainly marked as such, and must not be
+*    misrepresented as being the original software.
+* 3. This notice may not be removed or altered from any source distribution.
+*
+*
+*/
+/*
 =================================================
 |             CORE FUNCTIONS OF HCL             |
 =================================================
@@ -131,7 +152,7 @@ int writeFile(std::string path, std::string content, std::string mode/* = "w"*/)
 }
 
 
-int writeToLine(std::string path, int line, std::string content, std::string mode/* = "w"*/) {
+int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::string content, std::string mode/* = "w"*/) {
 	std::string buffer = "";
 	int lineCount = 0;
 	FILE* f = fopen(path.c_str(), "r");
@@ -143,9 +164,8 @@ int writeToLine(std::string path, int line, std::string content, std::string mod
 		fseek(f, 0, SEEK_SET);
 		char* buf = new char[size];
 
-		if (line < 0) { // Since the provided line count is negative, we gotta count backwards now.
+		if (lineBegin < 0 || lineEnd < 0) { // Since the provided line count is negative, we gotta count backwards now.
 			int entireCount = 0;
-
 			char* tempBuf = (char*)malloc(size + 1);
 			size_t res = fread(tempBuf, 1, size, f);
 			tempBuf[size] = 0;
@@ -155,20 +175,28 @@ int writeToLine(std::string path, int line, std::string content, std::string mod
 					entireCount++;
 			}
 
-			line += entireCount + 2;
+			if (lineBegin > 0)
+				lineBegin += entireCount + 2;
+			if (lineEnd > 0)
+				lineEnd += entireCount + 2;
+
 			free(tempBuf);
 			fseek(f, 0, SEEK_SET);
 		}
 
+		std::string str;
 		while (fgets(buf, size + 1, f)) {
-			std::string str = content;
 			lineCount++;
 
-			if (line == lineCount) {
-				if (!find(mode, "w"))
-					str = buf + content;
+			if (lineBegin <= lineCount && lineEnd >= lineCount) {
+				if (str.empty()) {
+					if (!find(mode, "w"))
+						str = buf + content;
+					else
+						str = content;
 
-				fputs(str.c_str(), fw);
+					fputs(str.c_str(), fw);
+				}
 			}
 			else
 				fputs(buf, fw);
@@ -184,6 +212,11 @@ int writeToLine(std::string path, int line, std::string content, std::string mod
 	}
 
 	return 0;
+}
+
+
+int writeToLine(std::string path, int line, std::string content, std::string mode/* = "w"*/) {
+	return writeToMultipleLines(path, line, line, content, mode);
 }
 
 

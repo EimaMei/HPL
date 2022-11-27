@@ -21,13 +21,35 @@ country newCountry(string tag, string name, rgb color, int capital, string oob =
     createFolder(f"{path}/history/countries")
 
     createFile(f"{path}/common/countries/{tag}.txt", f"graphical_culture = commonwealth_gfx\ngraphical_culture_2d = commonwealth_2d\n\n{tag} = {\n\trgb { {color.r} {color.g} {color.b} }\n\tcolor_ui { {color.r} {color.g} {color.b} }\n}")
-    createFile(f"{path}/history/countries/{tag} - {name}.txt", f"capital = {capital}\noob = \"{oob}\"\n\nset_research_slots = 3\nset_stability = 0.5\nset_war_support = 0.5\n\nset_popularities = {\n\tdemocratic = 25\n\tcommunism = 25\n\tfascism = 25\n\tneutrality = 25\n}")
+    createFile(f"{path}/history/countries/{tag} - {name}.txt", f"capital = {capital}\noob = \"{oob}\"\n\nset_research_slots = 3\nset_stability = 0.5\nset_war_support = 0.5\nset_convoys = 50\n\nset_popularities = {\n\tdemocratic = 25\n\tcommunism = 25\n\tfascism = 25\n\tneutrality = 25\n}\n\nset_politics = {\n\truling_party = neutrality\n\tlast_election = \"1933.1.1\"\n\telectrion_frequency = 48\n\telections_allowed = no\n}")
 
     return {tag, name, capital, oob}
 }
 
-int countrySetPolitics(string rulingParty, int democratic, int communist, int fascist, int neutral) {
-    //writeToFile("")
+
+int countrySetPolitics(country c, string rulingParty, int democratic, int communist, int fascist, int neutral, int electionFrequency = 0, string lastElection = "1933.1.1", bool electionsAllowed = false) {
+    string path = HCL_currentMod.path
+    string history = f"{path}/history/countries/{c.tag} - {c.name}.txt"
+    string elect = replaceAll(replaceAll(electionsAllowed, "false", "no"), "true", "yes")
+
+    writeToMultipleLines(history, 9, 12, f"\tdemocratic = {democratic}\n\tcommunism = {communist}\n\tfascism = {fascist}\n\tneutrality = {neutral}\n")
+    writeToMultipleLines(history, 16, 19, f"\truling_party = {rulingParty}\n\tlast_election = {lastElection}\n\telection_frequency = {electionFrequency}\n\telections_allowed = {elect}\n")
+
+    return 0
 }
 
+
+int countrySetMisc(country c, int stability, int warSupport, int researchSlots, int convoys = 0) {
+    string path = HCL_currentMod.path
+    string history = f"{path}/history/countries/{c.tag} - {c.name}.txt"
+    float s = stability
+    float w = warSupport
+
+    s *= 0.01
+    w *= 0.01
+
+    writeToMultipleLines(history, 4, 7, f"set_research_slots = {researchSlots}\nset_stability = {s}\nset_war_support = {w}\nset_convoys = {convoys}\n")
+
+    return 0
+}
 // setFlag

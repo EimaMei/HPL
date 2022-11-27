@@ -1,3 +1,24 @@
+/*
+* Copyright (C) 2021-2022 Eima
+*
+* This software is provided 'as-is', without any express or implied
+* warranty.  In no event will the authors be held liable for any damages
+* arising from the use of this software.
+*
+* Permission is granted to anyone to use this software for any purpose,
+* including commercial applications, and to alter it and redistribute it
+* freely, subject to the following restrictions:
+*
+* 1. The origin of this software must not be misrepresented; you must not
+*    claim that you wrote the original software. If you use this software
+*    in a product, an acknowledgment in the product documentation would be
+*    appreciated but is not required.
+* 2. Altered source versions must be plainly marked as such, and must not be
+*    misrepresented as being the original software.
+* 3. This notice may not be removed or altered from any source distribution.
+*
+*
+*/
 #include <interpreter.hpp>
 #include <string.h>
 
@@ -33,9 +54,12 @@ std::string readFile(std::string path);
 // Writes into a file.
 // int writeFile(string path, string content, string mode = "w")
 int writeFile(std::string path, std::string content, std::string mode = "w");
-// Writes to a specific file. If mode is 'w', then the line gets overwritten. If 'a', then the line gets appended with 'content'.
+// Writes to a specific line. If mode is 'w', then the line gets overwritten. If 'a', then the line gets appended with 'content'.
 // int writeToLine(string path, int line, string content, string mode = "w")
 int writeToLine(std::string path, int line, std::string content, std::string mode = "w");
+// Replaces multiple lines with the given content.
+// int writeToMultipleLines(string path, int lineBegin, int lineEnd, string content, string mode = "w")
+int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::string content, std::string mode = "w");
 // Removes a file.
 // int removeFile(string path)
 int removeFile(std::string path);

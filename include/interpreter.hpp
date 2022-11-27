@@ -29,10 +29,11 @@
 #include <windows.h>
 #endif
 
-// Save functions.
-#define SAVE_NOTHING 0
-#define SAVE_STRUCT 1
-#define SAVE_FUNC 2
+// Interpreter modes.
+#define MODE_SAVE_NOTHING 0
+#define MODE_SAVE_STRUCT 1
+#define MODE_SAVE_FUNC 2
+#define MODE_SCOPE_IF 3
 
 // Outputs returns.
 #define FOUND_NOTHING 0
@@ -108,11 +109,13 @@ namespace HCL {
 	extern int lineCount;
 	extern int mode;
 	extern HCL::vector matches;
+	extern int equalBrackets;
 
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;
 	extern std::vector<structure> structures;
 	extern std::vector<function> functions;
+	extern std::vector<function> ifStatements;
 	extern void* functionOutput; extern std::string functionReturnType;
 
 	// Sets the color for the text that'll get printed.
@@ -135,11 +138,15 @@ namespace HCL {
 
 	// Checks for any includes.
 	int checkIncludes();
+	// Checks for any modes.
+	int checkModes();
+	// Checks for any conditions.
+	int checkConditions();
 	// Checks if it's a structure (if so, configure the runtime information).
 	int checkStruct();
 	// Checks for any functions.
 	int checkFunctions();
-	// Check for any variables.
+	// Checks for any variables.
 	int checkVariables();
 
 	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%i' are supported.

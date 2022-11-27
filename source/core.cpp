@@ -45,6 +45,7 @@ std::vector<std::string> coreFunctionList = {
 	"readFile",
 	"writeFile",
 	"writeToLine",
+	"writeToMultipleLines",
 	"removeFile"
 	"copyFile",
 	// Localisation.
@@ -69,6 +70,10 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	std::vector<HCL::variable> params;
 	bool pass = (false != dontCheck);
 	HCL::arg.curIndent += "\t";
+
+	std::cout << "Params: " << values.size() << "\n\t" << info << " ";
+	for (auto& p : values) std::cout << "|" << p;
+	std::cout << std::endl;
 
 	if (!pass) { // If the error checking isn't disabled.
 		for (auto func : HCL::functions) {
@@ -180,7 +185,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 		params.push_back(var);
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
-			std::cout << HCL::arg.curIndent << "[FIND][PARAM]: " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> = <value>: " << var.type << " " << var.name << " = ";
+			std::cout << HCL::arg.curIndent << "LOG: [FIND][PARAM]: " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> = <value>: " << var.type << " " << var.name << " = ";
 			print(var);
 		}
 	}
@@ -222,11 +227,11 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				HCL::variables.push_back(var);
 			}
 
-			for (auto line : func.code) {
+			for (auto& line : func.code) {
 				HCL::lineCount++;
 				HCL::interpreteLine(line);
 
-				if (HCL::functionOutput != nullptr) // If the function returned something, exit.
+				if (HCL::functionOutput != nullptr || (HCL::functionReturnType == "bool" && (HCL::functionOutput == 0x00 || voidToInt(HCL::functionOutput) == 0x01))) // If the function returned something, exit.
 					break;
 			}
 			// Set the output value and type.
@@ -426,6 +431,23 @@ void* coreFunctions(std::vector<HCL::variable> params) {
 				mode = params[3].value[0];
 		}
 		int result = writeToLine(params[0].value[0], std::stoul(params[1].value[0]), params[2].value[0], mode);
+
+		return intToVoid(result); // Returns the result as int.
+	}
+	// int writeToLine(string path, int lineBegin, int lineEnd, string content, string mode = "w")
+	else if (useFunction("int", "writeToMultipleLines", 4, 5)) {
+		std::string mode = "w";
+
+		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
+		if (params[1].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "lineBegin");
+		if (params[2].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "lineEnd");
+		if (params.size() == 5) {
+			if (params[4].type != "string")
+				HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[3].type.c_str(), "mode");
+			else
+				mode = params[4].value[0];
+		}
+		int result = writeToMultipleLines(params[0].value[0], std::stoul(params[1].value[0]), std::stoul(params[2].value[0]), params[3].value[0], mode);
 
 		return intToVoid(result); // Returns the result as int.
 	}
