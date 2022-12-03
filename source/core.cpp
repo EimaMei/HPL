@@ -27,16 +27,20 @@
 #include <iostream>
 
 std::vector<std::string> coreTypes = {
-	"string", // Works just like std::string/const char*.
+	"string", // Works just like std::string.
 	"int",    // Regular int.
-	"float",
-	"bool",   // Just an int except it can only be 0 or 1.
+	"float",  // Regular float.
+	"bool",   // Regular bloat.
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"var"     // Generic type.
 };
 std::vector<std::string> coreFunctionList = {
 	// Misc.
 	"print",
+	"str",
+	"bool",
+	"int",
+	"float",
 	// Folders.
 	"createFolder",
 	"removeFolder",
@@ -62,43 +66,20 @@ std::vector<std::string> coreFunctionList = {
 
 bool foundFunction = false;
 HCL::function globalFunction;
-int userSentParamCount;
 
 
-int executeFunction(std::string name, std::string info, HCL::function& function, void*& output, std::string& returnTypeOutput, bool dontCheck/* = false*/) {
+int executeFunction(std::string name, std::string info, HCL::function& function, HCL::variable& output, bool dontCheck/* = false*/) {
 	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HCL::variable> params;
-	bool pass = (false != dontCheck);
 	HCL::arg.curIndent += "\t";
 
-	if (!pass) { // If the error checking isn't disabled.
-		for (auto func : HCL::functions) {
-			if (func.name == name) { // It's an already defined function, it's fine.
-				pass = true;
-				break;
-			}
-		}
-
-		if (!pass) {
-			for (auto func : coreFunctionList) {
-				if (func == name) { // It's a core function, it's fine.
-					pass = true;
-					break;
-				}
-			}
-
-			if (!pass) // No function was found.
-				HCL::throwError(true, "Function '%s' doesn't exist (Either the function is defined nowhere or it's a typo)", name.c_str());
-		}
-	}
-
 	for (auto& p : values) {
-		HCL::variable var = {"NO_TYPE", "NO_NAME", {"NO_VALUE"}}; HCL::variable structInfo;
+		HCL::variable var = {"NO_TYPE", "NO_NAME"};
 		p = unstringify(p, false, ' ');
 		std::string oldMatch = p;
 		p = unstringify(p);
 
-		HCL::variable* existingVar = getVarFromName(oldMatch, &structInfo);
+		HCL::variable* existingVar = getVarFromName(oldMatch);
 
 		// Checks if the parameter is just a function.
 		if (useRegex(p, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
@@ -124,9 +105,9 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				if ((i + 1) < funcValues.size()) { // If there are more functions inside the param.
 					auto& noodles = funcValues[i + 1].value[1]; // Get the next function.
 
-					std::string msg = var.value[0]; // Get the return from the current function.
+					auto msg = xToStr(var.value); // Get the return from the current function.
 					if (!isInt(p) && p != "true" && p != "false")
-						msg = '\"' + var.value[0] + '\"'; // Since it's a string, we have to add quotes
+						msg = '\"' + msg + '\"'; // Since it's a string, we have to add quotes
 
 					// Since the next function's param is gonna be "{currentFunctionName}({currentFunctionParams})",
 					// we have to replace that with the current function's output (aka msg).
@@ -134,49 +115,14 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				}
 			}
 		}
-		else if (existingVar == NULL) { // If parameter isn't a variable.
-			getValueFromFstring(oldMatch, p);
+		else if (existingVar == nullptr) // If parameter isn't a variable.
+			var = setCorrectValue(oldMatch);
 
-			// Core types.
-			if (find(oldMatch, "\""))
-				var.type = "string";
-			else if (isInt(p) && !find(p, "."))
-				var.type = "int";
-			else if (isInt(p) && find(p, "."))
-				var.type = "float";
-			else if (p == "true" || p == "false") {
-				var.type = "bool";
-				p = std::to_string(stringToBool(p));
-			}
-			// Non-core types.
-			else if (p.front() == '{' && p.back() == '}') {
-				p = unstringify(p, true);
-				useIterativeRegex(p, R"(([^,\s]+))");
-				var.value = HCL::matches.value;
-				var.type = "struct";
-			}
-			else
-				HCL::throwError(true, "Variable '%s' doesn't exist", p.c_str());
+		else if (existingVar != nullptr) // If parameter IS a variable.
+			var = *existingVar;
 
-			if (var.type != "struct")
-				var.value[0] = convertBackslashes(p);
-		}
-		else { // If parameter IS a variable.
-			var.name = p;
-			var.extra = existingVar->extra;
-
-			if (structInfo.name.empty()) // if the type isn't a struct
-				var.type = existingVar->type;
-			else
-				var.type = structInfo.type;
-
-			if (structInfo.value.empty()) // Edit a regular variable
-				var.value = existingVar->value;
-			else {// Edit a struct member
-				int index = std::stoi(structInfo.extra[0]);
-				var.value[0] = existingVar->value[index];
-			}
-		}
+		else
+			HCL::throwError(true, "Variable '%s' doesn't exist (Cannot use a variable that doesn't exist).", p.c_str());
 
 		params.push_back(var);
 
@@ -187,17 +133,16 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	}
 	foundFunction = false;
 	globalFunction.name = name;
-	userSentParamCount = params.size();
 
-	output = coreFunctions(params);
+	output.value = coreFunctions(params);
 
 	if (foundFunction) {
 		function = globalFunction;
-		returnTypeOutput = function.type;
+		output.type = function.type;
 		globalFunction = {};
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
-			std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](0): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> <output's type>: " << function.type << " " << function.name << " | " << output << " " << returnTypeOutput << std::endl;
+			std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](0): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << function.type << " " << function.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
 			HCL::arg.curIndent.pop_back();
 		}
 
@@ -206,15 +151,17 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 	// Non-core functions
 	for (auto func : HCL::functions) {
-		if (useFunction(func.type, func.name, func.minParamCount, func.params.size())) {
+		if (useFunction(func, params)) {
 			// Save the info and reset it all so that the interpreter doesn't spout random info.
 			std::string oldCurFile = HCL::curFile;
 			int oldLineCount = HCL::lineCount;
 			std::vector<HCL::variable> oldVars = HCL::variables;
+			int oldMode = HCL::mode;
 
 			HCL::resetRuntimeInfo();
 			HCL::curFile = func.file;
 			HCL::lineCount = func.startingLine;
+			//HCL::equalBrackets
 
 			for (int i = 0; i < func.params.size(); i++) {
 				auto var = func.params[i];
@@ -227,15 +174,13 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				HCL::lineCount++;
 				HCL::interpreteLine(line);
 
-				if (HCL::functionOutput != nullptr || (HCL::functionReturnType == "bool" && (HCL::functionOutput == 0x00 || voidToInt(HCL::functionOutput) == 0x01))) // If the function returned something, exit.
+				if (HCL::functionOutput.has_value()) // If the function returned something, exit.
 					break;
 			}
 			// Set the output value and type.
 			output = HCL::functionOutput;
-			returnTypeOutput = HCL::functionReturnType;
 			// Reset the saved output value and type.
-			HCL::functionOutput = nullptr;
-			HCL::functionReturnType = "";
+			HCL::functionOutput.reset_all();
 
 
 			// If a global variable was edited in the function, save the changes.
@@ -254,7 +199,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			foundFunction = true;
 
 			if (HCL::arg.debugAll || HCL::arg.debugLog) {
-				std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](1): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> <output's type>: " << func.type << " " << func.name << " | " << output << " " << returnTypeOutput << std::endl;
+				std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](1): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << func.type << " " << func.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
 				HCL::arg.curIndent.pop_back();
 			}
 			break;
@@ -267,21 +212,54 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 		return FOUND_SOMETHING;
 	}
+
+	if (!dontCheck)
+		HCL::throwError(true, "Function '%s' doesn't exist (Either the function is defined nowhere or it's a typo)", name.c_str());
+
 	return FOUND_NOTHING;
 }
 
 
-bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount) {
-	if (name == globalFunction.name && maxParamCount < userSentParamCount)
-		HCL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), maxParamCount);
-	if (name == globalFunction.name && minParamCount > userSentParamCount)
-		HCL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", userSentParamCount, name.c_str(), minParamCount);
+bool useFunction(HCL::function func, std::vector<HCL::variable> &sentUserParams) {
+	if (func.name == globalFunction.name && func.params.size() < sentUserParams.size())
+		HCL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.params.size());
+	if (func.name == globalFunction.name && func.minParamCount > sentUserParams.size())
+		HCL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.minParamCount);
 
 
-	if (name == globalFunction.name) {
+	if (func.name == globalFunction.name) {
+		for (int i = 0; i < func.params.size(); i++) {
+			if ((i + 1) <= sentUserParams.size()) {
+				if (!coreTyped(func.params[i].type)) {
+					auto& userParams = getVars(sentUserParams[i].value);
+
+					HCL::structure* _struct = getStructFromName(func.params[i].type);
+
+					if (_struct->value.size() < userParams.size())
+						HCL::throwError(true, "smth smth bigger than struct size");
+					if (_struct->minParamCount > userParams.size())
+						HCL::throwError(true, "smth smth smaller than struct size");
+
+					for (int x = 0; x < _struct->value.size(); x++) {
+						auto& member = _struct->value[x];
+
+						if (member.type != userParams[x].type && member.type != "var")
+							HCL::throwError(true, "smth smth bad type (%s, %s)", member.type.c_str());
+					}
+					sentUserParams[i].type = func.params[i].type; // why?
+				}
+
+				if (func.params[i].type != sentUserParams[i].type && func.params[i].type != "var")
+					HCL::throwError(true, "Cannot input a '%s' type to a %s-only parameter (param '%s' is %s-only)", sentUserParams[i].type.c_str(), func.params[i].type.c_str(), func.params[i].name.c_str(), func.params[i].type.c_str());
+			}
+
+			if (func.params[i].has_value() && (i + 1) > sentUserParams.size())
+				sentUserParams.push_back(func.params[i]);
+		}
+
 		foundFunction = true;
-		globalFunction.type = type;
-		globalFunction.minParamCount = minParamCount;
+		globalFunction.type = func.type;
+		globalFunction.minParamCount = func.minParamCount;
 	}
 
 	return foundFunction;
@@ -289,254 +267,108 @@ bool useFunction(std::string type, std::string name, int minParamCount, int maxP
 
 
 int assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck/* = false*/) {
-	HCL::function func; std::string returnType;
-	void* output;
-	executeFunction(funcName, funcParam, func, output, returnType, dontCheck);
+	HCL::function func;
+	HCL::variable output;
+	executeFunction(funcName, funcParam, func, output, dontCheck);
 
-	if (output != nullptr) {
-		if (returnType == "struct") {
+	if (output.has_value()) {
+		if (output.type == "struct") {
 			HCL::structure* s = getStructFromName(func.type);
 			if (s != nullptr) {
 				if (existingVar->type != func.type) {
 					//HCL::throwError(true, "later");
 				}
 				else {
-					auto result = static_cast<std::vector<std::string>*>(output);
-					existingVar->value.clear();
-					returnType = func.type;
-
-					if (result->empty())
-						existingVar->value.push_back("");
-
-					for (auto& r : *result)
-						existingVar->value.push_back(r);
-
+					auto result = getVars(output.value);
+					existingVar->value = result;
 				}
 
 				return FOUND_SOMETHING;
 			}
 		}
 
-		if (func.type != returnType)
-			HCL::throwError(true, "Cannot return a '%s' type (the return type for '%s' is '%s', not '%s')", returnType.c_str(), funcName.c_str(), func.type.c_str(), returnType.c_str());
+		if (func.type != output.type)
+			HCL::throwError(true, "Cannot return a '%s' type (the return type for '%s' is '%s', not '%s')", output.type.c_str(), funcName.c_str(), func.type.c_str(), output.type.c_str());
 
 		existingVar->type = func.type;
-		if (func.type == "int" || func.type == "bool")
-			existingVar->value[0] = std::to_string(voidToInt(output));
+
+		if (func.type == "string")
+			existingVar->value = getStr(output.value);
+		else if (func.type == "int")
+			existingVar->value = getInt(output.value);
+		else if (func.type == "bool")
+			existingVar->value = getBool(output.value);
 		else if (func.type == "float")
-			existingVar->value[0] = std::to_string(voidToFloat(output));
-		else if (func.type == "string")
-			existingVar->value[0] = voidToString(output);
-	}
-	else if (output == nullptr && (func.type == "int" || func.type == "bool" || func.type == "float")) { // The function returned a 0, however a 0 is just nullptr so we have to use a "hack" to get the int.
-		existingVar->type = func.type;
-		existingVar->value[0] = std::to_string(voidToInt(output));
+			existingVar->value = getFloat(output.value);
 	}
 	else {
-		existingVar->value[0] = "";
+		existingVar->reset_value();
 	}
 
 	return FOUND_SOMETHING;
 }
 
 
-void* coreFunctions(std::vector<HCL::variable> params) {
-	// void print(var msg, string end = "\n")
-	if (useFunction("void", "print", 1, 2)) {
-		std::string end = "\n";
-		if (params.size() == 2) end = params[1].value[0];
+allowedTypes coreFunctions(std::vector<HCL::variable> params) {
+	if (useFunction({"void", "print", {{"var", "msg"}, {"string", "ending", "\n"}}, .minParamCount = 1}, params))
+		print(params[0], getStr(params[1].value));
 
-		print(params[0], end); // Since our function doesn't return anything, we return nothing.
-	}
-	// int createFolder(string path, int mode = 0777)
-	else if (useFunction("int", "createFolder", 1, 2)) {
-		int mode = 0777;
+	else if (useFunction({"string", "str", {{"var", "value"}}, .minParamCount = 1}, params))
+		return func_str(params[0]);
 
-		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
-		if (params.size() == 2) {
-			if (params[0].type == "int")
-				mode = std::stoi(params[1].value[0]);
-			else
-				HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", true, params[1].type.c_str(), "mode");
-		}
+	else if (useFunction({"int", "int", {{"var", "value"}}, .minParamCount = 1}, params))
+		return func_int(params[0]);
 
+	else if (useFunction({"bool", "bool", {{"var", "value"}}, .minParamCount = 1}, params))
+		return func_bool(params[0]);
 
-		int result = createFolder(params[0].value[0], mode);
-		return intToVoid(result);  // Returns the result as int.
-	}
-	// int removeFolder(string path)
-	else if (useFunction("int", "removeFolder", 1, 1)) {
-		if (params[0].type != "string")
-			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", true, params[0].type.c_str(), "path");
+	else if (useFunction({"float", "float", {{"var", "value"}}, .minParamCount = 1}, params))
+		return func_float(params[0]);
 
-		int result = removeFolder(params[0].value[0]);
+	else if (useFunction({"int", "createFolder", {{"string", "path"}}, .minParamCount = 1}, params))
+		return createFolder(getStr(params[0].value));
 
-		return intToVoid(result); // Returns the result as int.
-	}
-	// int createFile(string path, string content = "", bool useUtf8BOM = false)
-	else if (useFunction("int", "createFile", 1, 3)) {
-		std::string content = "";
-		bool useUtf8BOM = false;
+	else if (useFunction({"int", "removeFolder", {{"string", "path"}}, .minParamCount = 1}, params))
+		return removeFolder(getStr(params[0].value));
 
-		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
-		if (params.size() > 1) content = params[1].value[0];
-		if (params.size() > 2) {
-			if (params[2].type == "bool" || params[2].type == "int")
-				useUtf8BOM = stringToBool(params[2].value[0]);
-			else
-				HCL::throwError(true, "Cannot input a '%s' type to a bool-only parameter (param '%s' is bool-only)", params[2].type.c_str(), "useUtf8BOM");
-		}
+	else if (useFunction({"int", "createFile", {{"string", "path"}, {"string", "content", ""}, {"bool", "useUtf8BOM", false}}, .minParamCount = 1}, params))
+		return createFile(getStr(params[0].value), getStr(params[1].value), getBool(params[2].value));
 
-		int result = createFile(params[0].value[0], content, useUtf8BOM);
+	else if (useFunction({"int", "readFile", {{"string", "path"}}, .minParamCount = 1}, params))
+		return readFile(getStr(params[0].value));
 
-		return intToVoid(result);
-	}
-	// string readFile(string path)
-	else if (useFunction("string", "readFile", 1, 1)) {
-		if (params[0].type != "string")
-			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
+	else if (useFunction({"int", "writeFile",  {{"string", "path"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 2}, params))
+		return writeFile(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
-		std::string result = readFile(params[0].value[0]);
+	else if (useFunction({"int", "removeFile", {{"string", "path"}}, .minParamCount = 1}, params))
+		return removeFile(getStr(params[0].value));
 
-		return stringToVoid(result); // Returns the result as int.
-	}
-	// int writeFile(string path, string content, string mode = "w")
-	else if (useFunction("int", "writeFile", 2, 3)) {
-		std::string mode = "w";
+	else if (useFunction({"int", "copyFile", {{"string", "source"}, {"string", "output"}}, .minParamCount = 2}, params))
+		return copyFile(getStr(params[0].value), getStr(params[1].value));
 
-		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
-		if (params.size() == 3) {
-			mode = params[2].value[0];
-			if (params[2].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[2].type.c_str(), "mode");
-		}
+	else if (useFunction({"int", "writeToLine", {{"string", "path"}, {"int", "line"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 3}, params))
+		return writeToLine(getStr(params[0].value), getInt(params[1].value), getStr(params[2].value), getStr(params[3].value));
 
-		int result = writeFile(params[0].value[0], params[1].value[0], mode);
+	else if (useFunction({"int", "writeToMultipleLines", {{"string", "path"}, {"int", "lineBegin"}, {"int", "lineEnd"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 4}, params))
+		return writeToMultipleLines(getStr(params[0].value), getInt(params[1].value), getInt(params[2].value), getStr(params[3].value), getStr(params[4].value));
 
-		return intToVoid(result); // Returns the result as int.
-	}
-	// int writeToLine(string path, int line, string content, string mode = "w")
-	else if (useFunction("int", "writeToLine", 3, 4)) {
-		std::string mode = "w";
+	else if (useFunction({"int", "writeLocalisation", {{"string", "file"}, {"string", "name"}, {"string", "description"}}, .minParamCount = 3}, params))
+		return writeLocalisation(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
-		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
-		if (params[1].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "line");
-		if (params.size() == 4) {
-			if (params[3].type != "string")
-				HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[3].type.c_str(), "mode");
-			else
-				mode = params[3].value[0];
-		}
-		int result = writeToLine(params[0].value[0], std::stoul(params[1].value[0]), params[2].value[0], mode);
+	else if (useFunction({"int", "convertToDds", {{"string", "input"}, {"string", "output"}}, .minParamCount = 2}, params))
+		return convertToDds(getStr(params[0].value), getStr(params[1].value));
 
-		return intToVoid(result); // Returns the result as int.
-	}
-	// int writeToLine(string path, int lineBegin, int lineEnd, string content, string mode = "w")
-	else if (useFunction("int", "writeToMultipleLines", 4, 5)) {
-		std::string mode = "w";
+	else if (useFunction({"string", "getFilenameFromPath", {{"string", "path"}}, .minParamCount = 1}, params))
+		return getFilenameFromPath(getStr(params[0].value));
 
-		if (params[0].type != "string") HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[0].type.c_str(), "path");
-		if (params[1].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "lineBegin");
-		if (params[2].type != "int") HCL::throwError(true, "Cannot input a '%s' type to an int-only parameter (param '%s' is int-only)", params[1].type.c_str(), "lineEnd");
-		if (params.size() == 5) {
-			if (params[4].type != "string")
-				HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", params[3].type.c_str(), "mode");
-			else
-				mode = params[4].value[0];
-		}
-		int result = writeToMultipleLines(params[0].value[0], std::stoul(params[1].value[0]), std::stoul(params[2].value[0]), params[3].value[0], mode);
+	//else if (useFunction({"bool", "pathExists", {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
+	//	return replaceAll(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value)[
 
-		return intToVoid(result); // Returns the result as int.
-	}
-	// int removeFile(string path)
-	else if (useFunction("int", "removeFile", 1, 1)) {
-		if (params[0].type != "string")
-			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
+	else if (useFunction({"string", "replaceAll", {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
+		return replaceAll(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
-		int result = removeFile(params[0].value[0]);
+	//else if (useFunction({"bool", "find", {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
+	//	return replaceAll(getStr(params[0].value)[0], params[1].value[0], getStr(params[2].value)[
 
-		return intToVoid(result); // Returns the result as int.
-	}
-	// int copyFile(string source, string output)
-	else if (useFunction("int", "copyFile", 2, 2)) {
-		std::vector<std::string> parNames = {"source", "input"};
-		for (int i = 0; i < parNames.size(); i++) {
-			if (params[i].type != "string")
-				HCL::throwError(true, "Cannot input a '%s' type to a core-type only parameter (param '%s' is core-type only)", true, params[i].type.c_str(), parNames[i].c_str());
-		}
-
-		int result = copyFile(params[0].value[0], params[1].value[0]);
-
-		return intToVoid(result); // Returns the result
-	}
-	// int moveFile(string source, string output)
-	else if (useFunction("int", "moveFile", 2, 2)) {
-		std::vector<std::string> parNames = {"source", "input"};
-		for (int i = 0; i < parNames.size(); i++) {
-			if (params[i].type != "string")
-				HCL::throwError(true, "Cannot input a '%s' type to a core-type only parameter (param '%s' is core-type only)", true, params[i].type.c_str(), parNames[i].c_str());
-		}
-
-		int result = moveFile(params[0].value[0], params[1].value[0]);
-
-		return intToVoid(result); // Returns the result
-	}
-	// int convertToDds(string input, string output)
-	else if (useFunction("int", "convertToDds", 2, 2)) {
-		std::vector<std::string> parNames = {"input", "output"};
-		for (int i = 0; i < parNames.size(); i++) {
-			if (params[i].type != "string")
-				HCL::throwError(true, "Cannot input a '%s' type to a core-type only parameter (param '%s' is core-type only)", true, params[i].type.c_str(), parNames[i].c_str());
-		}
-
-		int result = convertToDds(params[0].value[0], params[1].value[0]);
-
-		return intToVoid(result); // Returns the result
-	}
-	// int pathExists(string path)
-	else if (useFunction("bool", "pathExists", 1, 1)) {
-		if (params[0].type != "string")
-			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param 'path' is string-only)", true, params[0].type.c_str());
-
-		bool result = pathExists(params[0].value[0]);
-
-		return intToVoid(result); // Returns the result
-	}
-	// bool find(string line, string str)
-	else if (useFunction("bool", "find", 2, 2)) {
-		std::vector<std::string> parNames = {"line, str"};
-		for (int i = 0; i < parNames.size(); i++) {
-			if (!coreTyped(params[i].type))
-				HCL::throwError(true, "Cannot input a '%s' type to a core-type only parameter (param '%s' is core-type only)", true, params[i].type.c_str(), parNames[i].c_str());
-		}
-
-		int res = find(params[0].value[0], params[1].value[0]);
-
-		return intToVoid(res);
-	}
-	// int writeLocalisation(string file, string name, string description)
-	else if (useFunction("int", "writeLocalisation", 3, 3)) {
-		if (params[0].type != "string")
-			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", true, params[0].type.c_str(), "file");
-
-		int res = writeLocalisation(params[0].value[0], params[1].value[0], params[2].value[0]);
-
-		return intToVoid(res);
-	}
-	// string replaceAll(string str, string oldString, string newString);
-	else if (useFunction("string", "replaceAll", 3, 3)) {
-		std::string res = replaceAll(params[0].value[0], params[1].value[0], params[2].value[0]);
-
-		return stringToVoid(res);
-	}
-	// string getFilenameFromPath(string path)
-	else if (useFunction("string", "getFilenameFromPath", 1, 1)) {
-		if (params[0].type != "string")
-			HCL::throwError(true, "Cannot input a '%s' type to a string-only parameter (param '%s' is string-only)", true, params[0].type.c_str(), "path");
-
-		std::string res = getFilenameFromPath(params[0].value[0]);
-
-		return stringToVoid(res);
-	}
-
-	return nullptr;
+	return {};
 }

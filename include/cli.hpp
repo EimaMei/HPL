@@ -19,10 +19,11 @@
 *
 *
 */
+#include <iostream>
 #include <string>
 #include <vector>
 
-#define VERSION "HCL 0.0.2"
+#define VERSION "HCL 0.1.0 (Canary)"
 #define AUTHORS "Created by EimaMei/Sacode"
 
 #if defined(__clang__)
@@ -45,8 +46,6 @@
 	#define OS "Darwin"
 #elif defined(__linux__)
 	#define OS "Linux"
-#elif defined(__unix__)
-	#define OS "Unix OS"
 #endif
 
 void checkArg(std::string arg, std::string input, bool& config, bool& res) {
@@ -75,10 +74,12 @@ void printHelp() {
 			  << AUTHORS << std::endl
 			  << (std::string)COMPILER << " on " << OS << std::endl
 			  << HCL::colorText("ARGS:", HCL::OUTPUT_YELLOW) << "\n\t"
-			  		<< HCL::colorText("<FILE>", HCL::OUTPUT_GREEN)                                                << "                     Selected file to be interpreted." << "\n"
+			  		<< HCL::colorText("<FILE>", HCL::OUTPUT_GREEN)                                                             << "								Selected file to be interpreted." << "\n"
 			  << HCL::colorText("OPTIONS:", HCL::OUTPUT_YELLOW) << "\n\t"
-			  		<< HCL::colorText("-help", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-h  ", HCL::OUTPUT_GREEN) << "                Prints the available CLI options as well as the the version, authors, compiler and OS of the HCL executable." << "\n\t"
-			  		<< HCL::colorText("-debug", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-g ", HCL::OUTPUT_GREEN) << "                Enables all debug procedures (logging and printing debug information)." << "\n\t"
-					<< HCL::colorText("-log", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-l   ", HCL::OUTPUT_GREEN) << "                Logs and prints every noteworthy event that the interpreter has got." << "\n\t"
-			  		<< HCL::colorText("-strict", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-s", HCL::OUTPUT_GREEN) << "                Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented).";
+			  		<< HCL::colorText("-help", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-h                    ", HCL::OUTPUT_GREEN) << "					Prints the available CLI options as well as the the version, authors, compiler and OS of the HCL executable." << "\n\t"
+			  		<< HCL::colorText("-debug", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-g                   ", HCL::OUTPUT_GREEN) << "					Enables all debug procedures (logging and printing debug information)." << "\n\t"
+					<< HCL::colorText("-log", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-l                     ", HCL::OUTPUT_GREEN) << "					Logs and prints every noteworthy event that the interpreter has got." << "\n\t"
+			  		<< HCL::colorText("-strict", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-s                  ", HCL::OUTPUT_GREEN) << "					Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented)." << "\n\t"
+					<< HCL::colorText("-breakpoint", HCL::OUTPUT_GREEN) << ", " << HCL::colorText("-b <FILE>:<LINE>", HCL::OUTPUT_GREEN) << "					Sets a breakpoint at a specific file and line where if the interpreter reaches it, it stops interpreting everything.";
+
 }

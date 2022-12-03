@@ -38,28 +38,38 @@
 // void print(var msg, string end = "\n")
 void print(HCL::variable msg, std::string end = "\n");
 
+// Converts value to str.
+// string str(var value)
+std::string func_str(HCL::variable value);
+// Converts value to int`.
+// int int(var value)
+int func_int(HCL::variable value);
+// Converts value to float.
+// float float(var value)
+float func_float(HCL::variable value);
+// Converts value to bool.
+// bool bool(var value)
+bool func_bool(HCL::variable value);
+// Gets the length of the value
+// int len(var value)
+int len(HCL::variable value);
+
 // Creates a folder.
-// int createFolder(string path, int mode = 0777)
-int createFolder(std::string path, int mode = 0777);
+// int createFolder(string path)
+int createFolder(std::string path);
 // Removes a folder.
 // int removeFolder(string path)
 int removeFolder(std::string path);
 
 // Creates a file.
 // int createFile(string path, string content = "", bool useUtf8BOM = false)
-int createFile(std::string, std::string content = "", bool useUtf8BOM = false);
+int createFile(std::string path, std::string content = "", bool useUtf8BOM = false);
 // Reads a file.
 // string readFile(string path)
 std::string readFile(std::string path);
 // Writes into a file.
 // int writeFile(string path, string content, string mode = "w")
 int writeFile(std::string path, std::string content, std::string mode = "w");
-// Writes to a specific line. If mode is 'w', then the line gets overwritten. If 'a', then the line gets appended with 'content'.
-// int writeToLine(string path, int line, string content, string mode = "w")
-int writeToLine(std::string path, int line, std::string content, std::string mode = "w");
-// Replaces multiple lines with the given content.
-// int writeToMultipleLines(string path, int lineBegin, int lineEnd, string content, string mode = "w")
-int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::string content, std::string mode = "w");
 // Removes a file.
 // int removeFile(string path)
 int removeFile(std::string path);
@@ -69,6 +79,12 @@ int copyFile(std::string source, std::string output);
 // Moves a file to a new path.
 // int moveFile(string source, string output)
 int moveFile(std::string source, std::string output);
+// Writes to a specific line. If mode is 'w', then the line gets overwritten. If 'a', then the line gets appended with 'content'.
+// int writeToLine(string path, int line, string content, string mode = "w")
+int writeToLine(std::string path, int line, std::string content, std::string mode = "w");
+// Replaces multiple lines with the given content.
+// int writeToMultipleLines(string path, int lineBegin, int lineEnd, string content, string mode = "w")
+int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::string content, std::string mode = "w");
 // Writes to a pre-existing localisation file.
 // int writeLocalisation(string file, string name, string description)
 int writeLocalisation(std::string file, std::string name, std::string description);
