@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#define VERSION "HCL 0.1.1 (Canary)"
+#define VERSION "HCL 0.1.1 (Main)"
 #define AUTHORS "Created by EimaMei/Sacode"
 
 #if defined(__clang__)
