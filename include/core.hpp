@@ -19,9 +19,11 @@
 *
 *
 */
+#include <interpreter.hpp>
+
 #include <string>
 #include <vector>
-#include <interpreter.hpp>
+
 
 // The core types of the language.
 extern std::vector<std::string> coreTypes;
@@ -29,10 +31,10 @@ extern std::vector<std::string> coreTypes;
 // Reformats the params to be turned into variables.
 // Afterwards, check what function the user specified
 // and execute it.
-int executeFunction(std::string name, std::string params, HCL::function& func, void*& output, std::string& returnTypeOutput, bool dontCheck = false);
-// Sorts out any shenanigans with functions.
-bool useFunction(std::string type, std::string name, int minParamCount, int maxParamCount);
+int executeFunction(std::string name, std::string params, HCL::function& func, HCL::variable& output, bool dontCheck = false);
+// Checks if the specific function got used.
+bool useFunction(HCL::function func, std::vector<HCL::variable>& userParams);
 // Defines the core functions and returns the function's return if successful.
-void* coreFunctions(std::vector<HCL::variable> params);
+allowedTypes coreFunctions(std::vector<HCL::variable> params);
 // Sets the variable's value to the return of specified function.
 int assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck = false);

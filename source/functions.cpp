@@ -46,41 +46,50 @@
 
 #include <deps/SOIL2.h>
 
+
 void print(HCL::variable msg, std::string end/* = \n*/) {
 	std::string output;
-	std::string vtype = msg.type;
 
-	if (msg.value.size() > 1)
+	if (isVars(msg.value)) {
 		output += "{";
+		auto& _struct = getVars(msg.value);
 
-	for (int i = 0; i < msg.value.size(); i++) {
-		auto value = msg.value[i];
-		if (i < msg.extra.size()) vtype = msg.extra[i];
-		if (vtype == "bool")
-			value = (value == "1" ? "true" : "false");
-		else if (vtype == "string")
-			value = '\"' +  value + '\"';
+		for (int memberIndex = 0; memberIndex < _struct.size(); memberIndex++) {
+			auto& member = _struct[memberIndex];
 
-		output += value;
+			if (member.has_value()) {
+				if (member.type == "string")
+					output += "\"" + xToStr(member.value) + "\"";
+				else
+					output += xToStr(member.value);
+			}
 
-		if (msg.value.size() > 1 && ((i + 1) < msg.value.size()))
-			output += ", ";
+			if (_struct.size() > 1 && ((memberIndex + 1) < _struct.size()))
+				output += ", ";
+		}
+		output += "}";
 	}
+	else
+		output = xToStr(msg.value);
 
-	if (msg.value.size() > 1) output += "}";
-
-	printf("%s%s", output.c_str(), end.c_str());
+	std::printf("%s%s", output.c_str(), end.c_str());
 }
 
 
-int createFolder(std::string path, int mode/* = 0777*/) {
+std::string func_str(HCL::variable value) { return xToStr(value.value); }
+int func_int(HCL::variable value) { return xToType<int>(value.value); }
+float func_float(HCL::variable value) { return xToType<float>(value.value); }
+bool func_bool(HCL::variable value) { return xToType<bool>(value.value); }
+
+
+int createFolder(std::string path) {
 	int check;
 	std::string fullPath;
 	std::vector<std::string> folders = split(path, "/");
 
 	for (auto folder : folders) {
 		fullPath += folder;
-		check = mkdir(fullPath.c_str(), mode);
+		check = mkdir(fullPath.c_str(), 0777);
 		fullPath += "/";
 	}
   

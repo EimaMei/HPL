@@ -98,6 +98,9 @@ void HCL::interpreteFile(std::string file) {
 
 		char* buf = new char[size];
 		while (fgets(buf, size + 1, fp)) {
+			if (!arg.interprete)
+				break;
+
 			buf[strcspn(buf, "\n")] = 0;
 			line = buf;
 			lineCount++;
@@ -121,10 +124,20 @@ void HCL::interpreteFile(std::string file) {
 
 
 int HCL::interpreteLine(std::string str) {
+	if (!arg.interprete)
+		return FOUND_NOTHING;
+
 	if (find(str, "//")) // Ignore comments
 		str = split(str, "//", "\"\"")[0];
 
 	line = str;
+
+	if (arg.breakpoint) { // A breakpoint was set.
+		if (curFile == arg.breakpointValues.first && lineCount == arg.breakpointValues.second) {
+			std::cout << "Breakpoint reached at " << curFile << ":" << lineCount << std::endl;
+			arg.interprete = false;
+		}
+	}
 
 	if (checkIncludes() == FOUND_SOMETHING) return FOUND_SOMETHING;
 	if (checkModes() == FOUND_SOMETHING) return FOUND_SOMETHING;
@@ -168,6 +181,7 @@ int HCL::checkIncludes() {
 
 int HCL::checkModes() {
 	bool bracket = useRegex(line, R"(^\s*(\})\s*$)");
+	bool rightBracket = useRegex(line, R"(^.*\s*\{\s*$)");
 
 	if (bracket)
 		equalBrackets--;
@@ -175,17 +189,17 @@ int HCL::checkModes() {
 		equalBrackets++;
 
 	if (bracket && mode == MODE_SAVE_STRUCT) {
-		mode = MODE_SAVE_NOTHING;
+		mode = MODE_DEFAULT;
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
 			arg.curIndent.pop_back();
-			std::cout << arg.curIndent << "LOG: [DONE][STRUCT]: " << curFile << ":" << lineCount << ": struct <name> {...}: struct " << structures.back().name << "{...}" << std::endl;
+			std::cout << arg.curIndent << "LOG: [DONE][STRUCT]: " << curFile << ":" << lineCount << ": struct <name> {...}: struct " << structures.front().name << " {...}" << std::endl;
 		}
 
 		return FOUND_SOMETHING;
 	}
 	else if (bracket && mode == MODE_SAVE_FUNC && equalBrackets == 0) { // Last line, do not save anymore after this.
-		mode = MODE_SAVE_NOTHING;
+		mode = MODE_DEFAULT;
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
 			arg.curIndent.pop_back();
@@ -198,21 +212,35 @@ int HCL::checkModes() {
 		functions.back().code.push_back(line);
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
-			std::cout << arg.curIndent << "LOG: [ADDED][LINE]: " << curFile << ":" << lineCount << ": <line>: " << line << std::endl;
+			//std::cout << arg.curIndent << "LOG: [ADDED][LINE]: " << curFile << ":" << lineCount << ": <line>: " << line << std::endl;
 		}
 
 		return FOUND_SOMETHING;
 	}
-	else if (bracket && mode == MODE_SCOPE_IF && !ifStatements.empty()) {
+	else if (mode == MODE_SCOPE_IGNORE_ALL) {
+		if (bracket && equalBrackets + 1 == ifStatements.back().startingLine) {
+			if (ifStatements.size() > 1)
+				mode = MODE_SCOPE_IF_STATEMENT;
+			else
+				mode = MODE_DEFAULT;
+		}
+		return FOUND_SOMETHING;
+	}
+	else if ((bracket || rightBracket) && mode == MODE_SCOPE_IF_STATEMENT && !ifStatements.empty()) {
 		std::vector<HCL::variable> oldVars = HCL::variables;
-		mode = MODE_SAVE_NOTHING;
+		mode = MODE_DEFAULT;
 
 		if (ifStatements.back().type == "invalid") {
 			if (equalBrackets != 0)
-				mode = MODE_SCOPE_IF;
+				mode = MODE_SCOPE_IF_STATEMENT;
+			else
+				mode = MODE_DEFAULT;
 			ifStatements.pop_back();
 
-			return FOUND_SOMETHING;
+			if (rightBracket)
+				return FOUND_NOTHING;
+			else
+				return FOUND_SOMETHING;
 		}
 
 		HCL::lineCount -= ifStatements.front().code.size();
@@ -234,11 +262,12 @@ int HCL::checkModes() {
 		arg.curIndent.pop_back();
 
 		if (!ifStatements.empty())
-			mode = MODE_SCOPE_IF;
+			mode = MODE_SCOPE_IF_STATEMENT;
 
-		return FOUND_SOMETHING;
+		if (bracket || (rightBracket && ifStatements.empty()))
+			return FOUND_SOMETHING;
 	}
-	else if (mode == MODE_SCOPE_IF) {
+	else if (mode == MODE_SCOPE_IF_STATEMENT) {
 		if (ifStatements.empty())
 			return FOUND_SOMETHING;
 
@@ -263,8 +292,8 @@ int HCL::checkConditions() {
 		std::vector params = split(matches.str(1), " ", "\"\"{}");
 
 		std::string oldValue = matches.str(1);
-		mode = MODE_SCOPE_IF;
-		ifStatements.push_back({});
+		mode = MODE_SCOPE_IF_STATEMENT;
+		ifStatements.push_back({.startingLine = equalBrackets});
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [FOUND][IF-STATEMENT]: " << curFile << ":" << lineCount << ": if (<condition>): if (" << oldValue << ")" << std::endl;
@@ -280,19 +309,14 @@ int HCL::checkConditions() {
 			p = unstringify(p);
 
 			if (type.empty()) {
-				variable structVar;
-				variable* existingVar = getVarFromName(p, &structVar);
+				variable* existingVar = getVarFromName(p);
 
 				// Copy over an existing variable to this new one.
 				if (existingVar != nullptr) {
 					if (!coreTyped(existingVar->type)) // Struct
-						HCL::throwError(true, "qweqwe can't check full struct");
-					else if (!structVar.value.empty()) {// Edit a struct member
-						int index = std::stoi(structVar.extra[0]);
-						p = existingVar->value[index];
-					}
+						HCL::throwError(true, "Cannot compare a struct in an if-statement");
 					else
-						p = existingVar->value[0];
+						p = xToStr(existingVar->value);
 
 					type = existingVar->type;
 				}
@@ -302,7 +326,7 @@ int HCL::checkConditions() {
 					assignFuncReturnToVar(&var, matches.str(1), matches.str(2));
 
 					if (coreTyped(var.type))
-						p = var.value[0];
+						params[i] = p = xToStr(var.value);
 					else
 						HCL::throwError(true, "Cannot compare struct variables in an if-statement (variable '%s' is struct-typed)", p.c_str());
 				}
@@ -323,6 +347,7 @@ int HCL::checkConditions() {
 				if (!failed) { failed = true; continue; }
 
 				ifStatements.back().type = "invalid";
+				mode = MODE_SCOPE_IGNORE_ALL;
 				arg.curIndent.pop_back();
 				arg.curIndent.pop_back();
 
@@ -365,6 +390,7 @@ int HCL::checkConditions() {
 					if (!failed) { failed = true; continue; }
 
 					ifStatements.back().type = "invalid";
+					mode = MODE_SCOPE_IGNORE_ALL;
 
 					if (HCL::arg.debugAll || HCL::arg.debugLog) {
 						arg.curIndent.pop_back();
@@ -413,10 +439,14 @@ int HCL::checkFunctions() {
 
 		for (auto v : params) {
 			if (useRegex(v, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
-				variable var = {matches.str(1), matches.str(2), {unstringify(matches.str(3))}};
-				func.params.push_back(var);
+				variable var = {matches.str(1), matches.str(2)};
 
-				if (matches.str(3).empty()) func.minParamCount++;
+				if (matches.str(3).empty())
+					func.minParamCount++;
+				else
+					var.value = unstringify(matches.str(3));
+
+				func.params.push_back(var);
 			}
 		}
 		func.file = HCL::curFile;
@@ -433,57 +463,19 @@ int HCL::checkFunctions() {
 		return FOUND_SOMETHING;
 	}
 	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
-		function f; std::string n;
+		function f; HCL::variable res;
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
 		}
 
-		return executeFunction(matches.str(1), matches.str(2), f, functionOutput, n);
+		return executeFunction(matches.str(1), matches.str(2), f, res);
 	}
 	else if (useRegex(line, R"(\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) {
-		// Core types.
-		if (matches.str(1).front() == '\"' && matches.str(1).back() == '\"') {
-			std::string output = unstringify(matches.str(1));
-			functionOutput = stringToVoid(output);
-			functionReturnType = "string";
-		}
-		else if (isInt(matches.str(1))) {
-			if (find(matches.str(1), ".")) {
-				functionOutput = floatToVoid(std::stof(matches.str(1)));
-				functionReturnType = "float";
-			}
-			else {
-				functionOutput = intToVoid(std::stoi(matches.str(1)));
-				functionReturnType = "int";
-			}
-		}
-		else if (matches.str(1) == "true" || matches.str(1) == "false") {
-			functionOutput = intToVoid(stringToBool(matches.str(1)));
-			functionReturnType = "bool";
-		}
-		// A struct
-		else if (matches.str(1).front() == '{' && matches.str(1).back() == '}') {
-			useIterativeRegex(unstringify(matches.str(1), true), R"(([^\,\s]+))");
-			for (auto& v : HCL::matches.value) {
-				HCL::variable* var = getVarFromName(v);
-				if (var != nullptr) {
-					v = var->value[0]; // Need to add struct support to this too later.
-				}
-				else if (!getTypeFromValue(v).empty())
-					continue;
-				else
-					HCL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
-			}
-			functionOutput = (void*)&HCL::matches.value;
-			functionReturnType = "struct"; // We'll deal with this later in the code.
-		}
-		else {
-			HCL::throwError(true, "Internal HCL error: %s", matches.str(1).c_str());
-		}
+		setCorrectValue(functionOutput, matches.str(1));
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
-			std::cout << arg.curIndent << "LOG: [FOUND][RETURN]: " << curFile << ":" << lineCount << ": return <value> | <type>: return " << functionOutput << " " << functionReturnType << std::endl;
+			std::cout << arg.curIndent << "LOG: [FOUND][RETURN]: " << curFile << ":" << lineCount << ": return <value> (<type>): return " << xToStr(functionOutput.value) << " (" << functionOutput.type << ")" << std::endl;
 		}
 
 		return FOUND_SOMETHING;
@@ -496,70 +488,14 @@ int HCL::checkFunctions() {
 int HCL::checkVariables() {
 	// <name> = <value>
 	if (useRegex(line, R"(^\s*([^\s]+)\s*[^\-\+\/\*]=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[\d\s\+\-\*\/\.]+[^\w]*|[^\s]*)\s*.*$)")) { // Edit a pre-existing variable
-		std::string ogValue = matches.str(2);
-		variable info = {"", matches.str(1), {unstringify(matches.str(2))}}; variable structInfo, possibleStructInfo;
-		variable* existingVar = getVarFromName(info.name, &structInfo);
-		variable* possibleVar = getVarFromName(info.value[0], &possibleStructInfo);
-		std::string res;
+		variable info = {"", matches.str(1), matches.str(2)};
+		auto& value = getStr(info.value);
+
+		variable* existingVar = getVarFromName(info.name);
 
 
-		if (existingVar != NULL) {
-			// Check if the value is a function. If so, execute the
-			// function and get its return, so that it gets assigned
-			// to the variable.
-			if (useRegex(line, R"(\s*([^\s]+)\((.*)\))")) {
-				assignFuncReturnToVar(existingVar, matches.str(1), matches.str(2));
-				return FOUND_SOMETHING;
-			}
-			else if (possibleVar != nullptr) { // Value might be just a variable, if so just copy it over.
-				if (possibleStructInfo.value.empty()) // Edit a regular variable
-					existingVar->value = possibleVar->value;
-				else {// Edit a struct member
-					int index = std::stoi(possibleStructInfo.extra[0]);
-					existingVar->value[0] = possibleVar->value[index];
-				}
-			}
-			else if (!(res = extractMathFromValue(info.value[0], existingVar)).empty()) { // A math expression.
-				info.value[0] = res;
-			}
-
-			else if (coreTyped(existingVar->type)) {// Edit a regular variable
-				existingVar->value = info.value;
-			}
-			else if (typeIsValid(existingVar->type)) { // A struct variable
-				if (find(existingVar->name, ".")) { // Edit a struct member
-					int index = std::stoi(structInfo.extra[0]);
-					existingVar->value[index] = info.value[0];
-				}
-				else { // Entire struct edit
-					std::vector<std::string> params = split(unstringify(info.value[0], true), ",", "\"\"{}");
-					HCL::structure* s = getStructFromName(existingVar->type);
-					existingVar->value.clear();
-					existingVar->extra.clear();
-
-					for (int i = 0; i < params.size(); i++) {
-						auto& p = params[i];
-						auto& sMem = s->value[i];
-						std::string res;
-
-						p = unstringify(p, false, ' ');
-						getValueFromFstring(p, res);
-						p = unstringify(p);
-						possibleVar = getVarFromName(p);
-
-						if (possibleVar != nullptr)
-							p = possibleVar->value[0];
-						else if (!res.empty())
-							p = res;
-						else if (p.front() == '{' && p.back() == '}') {
-						}
-						existingVar->value.push_back(p);
-						existingVar->extra.push_back(sMem.type);
-					}
-				}
-			}
-
-			getValueFromFstring(ogValue, existingVar->value[0]);
+		if (existingVar != nullptr) {
+			setCorrectValue(*existingVar, value);
 		}
 		else
 			HCL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
@@ -571,34 +507,36 @@ int HCL::checkVariables() {
 	}
 	//<int> <operator> [value]
 	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.`
-		variable* existingVar = getVarFromName(matches.str(1), NULL);
+		variable* existingVar = getVarFromName(matches.str(1));
 		double res;
 
 		if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float")) {
 			HCL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
 		}
 		else if (existingVar != nullptr) {
+			double dec1 = xToType<float>(existingVar->value);
+			double dec2 = std::stod(matches.str(3));
+
 			if (matches.str(2) == "++")
-				res = std::stod(existingVar->value[0]) + 1;
+				res = dec1 + 1;
 			else if (matches.str(2) == "--")
-				res = std::stod(existingVar->value[0]) - 1;
+				res = dec1 - 1;
 			else if (matches.str(2) == "+=")
-				res = std::stod(existingVar->value[0]) + std::stod(matches.str(3));
+				res = dec1 + dec2;
 			else if (matches.str(2) == "-=")
-				res = std::stod(existingVar->value[0]) - std::stod(matches.str(3));
+				res = dec1 - dec2;
 			else if (matches.str(2) == "*=")
-				res = std::stod(existingVar->value[0]) * std::stod(matches.str(3));
+				res = dec1 * dec2;
 			else if (matches.str(2) == "/=")
-				res = std::stod(existingVar->value[0]) / std::stod(matches.str(3));
+				res = dec1 / dec2;
 			else if (matches.str(2) == "%=")
-				res = fmod(std::stod(existingVar->value[0]), std::stod(matches.str(3)));
+				res = fmod(dec1, dec2);
 
 			if (existingVar->type == "int") {
-				existingVar->value[0] = std::to_string((int)res);
+				existingVar->value = (int)res;
 			}
 			else if (existingVar->type == "float") {
-				existingVar->value[0] = std::to_string((float)res);
-				existingVar->value[0].erase(existingVar->value[0].find_last_not_of('0') + 1, std::string::npos);
+				existingVar->value = (float)res;
 			}
 		}
 		else {
@@ -612,81 +550,60 @@ int HCL::checkVariables() {
 	}
 	// Matches the type, name and value
 	else if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) { // Declaring a new variable.
-		std::string ogValue = matches.str(3);
-		variable var = {matches.str(1), matches.str(2), {unstringify(ogValue)}};
+		variable var = {matches.str(1), matches.str(2), matches.str(3)};
+		auto& value = getStr(var.value);
 		structure s;
 
-		if (typeIsValid(var.type, &s)) { // Is type cored or a structure.
-			variable structVar;
-			variable* existingVar = getVarFromName(var.value[0], &structVar);
+		if (value.empty())
+			var.reset_value();
 
-			// Copy over an existing variable to this new one.
-			if (existingVar != nullptr) {
-				if (structVar.value.empty()) // Full struct.
-					var.value = existingVar->value;
-				else {// Edit a struct member
-					int index = std::stoi(structVar.extra[0]);
-					var.value = {existingVar->value[index]};
-				}
-			}
-			// Check if the value is a function. If so, execute the
-			// function and get its return, so that it gets assigned
-			// to the variable.
-			else if (useRegex(var.value[0], R"(\s*([^\s\(]+)\((.*)\)\s*)")) {
-				assignFuncReturnToVar(&var, matches.str(1), matches.str(2));
-			}
-			// The type is a struct.
-			else if (!s.name.empty()) {
-				if (var.type == s.name) {
-					var.value.clear(); // Clear everything in the vector so that no vector shenanigans would happen.
-
-					if (var.value[0].empty()) { // Nothing is set, meaning it's just the struct's default arguments.
-						for (int i = 0; i < s.value.size(); i++) {
-							auto data = s.value[i];
-							var.value.push_back(data.value[0]);
-							var.extra.push_back(data.type);
-						}
-					}
-					else { // Oh god oh fuck it's a custom list.
-						// We don't split the string by the comma if the comma is inside double quotes
-						// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
-						std::vector<std::string> valueList = split(unstringify(var.value[0], true), ",", "\"\"");
-
-						if (valueList.size() > s.value.size()) {
-							throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
-						}
-
-						// The first unstringify is used to remove any unneeded spaces.
-						// Then the second removes the double quotes if it's a string.
-						for (int i = 0; i < s.value.size(); i++) {
-							if (i < s.value.size() && i < valueList.size()) {
-								var.value.push_back(unstringify(unstringify(valueList[i], false, ' ')));
-								var.extra.push_back(s.value[i].type);
-							}
-							else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
-								if (!s.value[i].value[0].empty()) {
-									var.value.push_back(s.value[i].value[0]);
-									var.extra.push_back(s.value[i].type);
-								}
-								else if (arg.strict)
-									throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
-								else
-									break;
-							}
-						}
-					}
-				}
-			}
-			else if (!var.value[0].empty() && existingVar == nullptr && !isInt(var.value[0]) && (var.value[0] != "true" && var.value[0] != "false") && !(find(ogValue, "\"") && var.type == "string")) {
-				// This checks for if the user is trying to copy over a variable that doesn't exist. All of these checks check if it isn't just some core type so that it wouldn't output a false-negative.
-				throwError(true, "You cannot copy over a variable that doesn't exist (variable '%s' does not exist).", var.value[0].c_str());
-			}
-		}
-		else {
+		if (!typeIsValid(var.type, &s)) // Type isn't cored or a structure.
 			throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
+
+		if (!s.name.empty()) { // The returned type from `typeIsValid` returned a struct
+			if (useRegex(value, R"(\s*([^\s]+)\((.*)\))")) { // Value is a function.
+				if (HCL::arg.debugAll || HCL::arg.debugLog) {
+					std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
+				}
+
+				assignFuncReturnToVar(&var, HCL::matches.str(1), HCL::matches.str(2));
+			}
+			else if (!var.has_value()) { // Nothing is set, meaning it's just the struct's default arguments.
+				std::vector<variable> res = s.value;
+				var.value = res;
+			}
+			else { // Oh god oh fuck it's a custom list.
+				// We don't split the string by the comma if the comma is inside double quotes
+				// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
+				std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
+				std::vector<HCL::variable> result;
+
+				if (valueList.size() > s.value.size()) {
+					throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
+				}
+
+				// The first unstringify is used to remove any unneeded spaces.
+				// Then the second removes the double quotes if it's a string.
+				for (int i = 0; i < s.value.size(); i++) {
+					if (i < s.value.size() && i < valueList.size()) {
+						result.push_back({s.value[i].type, s.value[i].name, unstringify(unstringify(valueList[i], false, ' '))});
+					}
+					else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
+						if (s.value[i].has_value()) {
+							result.push_back(s.value[i]);
+						}
+						else if (arg.strict)
+							HCL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
+						else
+							HCL::throwError(true, "Shouldn't happen?");
+					}
+				}
+
+				var.value = result;
+			}
 		}
-		getValueFromFstring(ogValue, var.value[0]);
-		var.value[0] = convertBackslashes(var.value[0]);
+		else if (!value.empty())
+			setCorrectValue(var, value);
 
 		if (mode == MODE_SAVE_STRUCT) // Save variables inside a struct.
 			structures.begin()->value.push_back(var);
@@ -696,13 +613,17 @@ int HCL::checkVariables() {
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [CREATE][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = [value]: " << var.type << " " << var.name;
-			if (!var.value[0].empty()) {
+			if (!value.empty()) {
 				std::cout << " = ";
 				print(var, "");
 			}
 			std::cout << std::endl;
 		}
+
+		return FOUND_SOMETHING;
 	}
+
+
 	return FOUND_NOTHING;
 }
 
@@ -721,35 +642,16 @@ void HCL::debugMode() {
 
 void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, std::string end/* = "\n"*/) {
 	for (int index = 0; index < vars.size(); index++) {  // Regular variables
-		auto v = vars[index];
+		auto& var = vars[index];
 
 		RETURN_OUTPUT clr = OUTPUT_PURPLE;
 
-		if (v.type == "scope")
-			clr = OUTPUT_BLUE;
-		else if (!coreTyped(v.type))
+		if (!coreTyped(var.type))
 			clr = OUTPUT_NOTHING;
 
-		std::cout << tabs << colorText(v.type, clr) << " " << v.name;
-
-		if (!v.value[0].empty()) std::cout << " = ";
-		if (v.value.size() > 1) std::cout << "{";
-
-		std::string vtype = v.type;
-		for (int i = 0; i < v.value.size(); i++) {
-			auto value = v.value[i];
-			if (i < v.extra.size()) vtype = v.extra[i];
-
-			if (vtype == "string" && (!value.empty() || v.value.size() > 1))
-				std::cout << colorText("\"" + value + "\"", HCL::OUTPUT_BLUE, true);
-			else if (!value.empty() || v.value.size() > 1)
-				std::cout << colorText(value, HCL::OUTPUT_BLUE, true);
-
-			if (v.value.size() > 1 && ((i + 1) < v.value.size()))
-				std::cout << ", ";
-		}
-
-		if (v.value.size() > 1) std::cout << "}";
+		std::cout << tabs << colorText(var.type, clr) << " " << var.name;
+		if (var.has_value()) std::cout << " = ";
+		print(var, "");
 
 		if (index + 1 < vars.size()) std::cout << end;
 	}
@@ -787,8 +689,10 @@ void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"
 void HCL::resetRuntimeInfo() {
 	curFile.clear();
 	line.clear();
+	functionOutput.reset_value();
+
 	lineCount = 0;
-	mode = MODE_SAVE_NOTHING;
+	mode = MODE_DEFAULT;
 	matches = {};
 }
 
@@ -797,19 +701,36 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 	va_list valist;
 	va_start(valist, text);
 	std::string msg = colorText("Error at ", OUTPUT_RED) + "'" + colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) + "'" + colorText(": ", OUTPUT_RED);
+	bool colorMode = false;
 
 	for (int i = 0; i < text.size(); i++) {
 		auto x = text[i];
 		int num = 0;
+		colorMode = false;
 
 		if (x == '%' && (i + 1) < text.size()) {
+			if ((i + 1) < text.size()) {
+				if (text[i - 1] == '\'' && text[i + 2] == '\'')
+					colorMode = true;
+			}
+
 			switch (text[i + 1]) {
 				case 's':
-					msg += colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
+					if (colorMode)
+						msg += colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
+					else
+						msg += va_arg(valist, const char*);
+
 					break;
+				case 'd':
 				case 'i':
 					num = va_arg(valist, int);
-					msg += colorText(std::to_string(num), OUTPUT_YELLOW);
+
+					if (colorMode)
+						msg += colorText(std::to_string(num), OUTPUT_YELLOW);
+					else
+						msg += std::to_string(num);
+
 					break;
 
 				default:
@@ -849,6 +770,5 @@ namespace HCL {
 	std::vector<function> functions;
 	std::vector<function> ifStatements;
 
-	void* functionOutput = nullptr;
-	std::string functionReturnType = "";
+	HCL::variable functionOutput;
 }

@@ -150,6 +150,11 @@ bool isInt(std::string str) {
 }
 
 
+bool isStr(std::string str) {
+	return (str.front() == '\"' && str.back() == '\"') || (str.front() == 'f' && str[1] == '\"' && str.back() == '\"');
+}
+
+
 std::string replaceAll(std::string str, std::string oldString, std::string newString) {
 	size_t pos = 0;
 	while ((pos = str.find(oldString, pos)) != std::string::npos) {
@@ -177,13 +182,13 @@ std::string convertBackslashes(std::string str) {
 	while (NULL != (here = strchr(here, '\\'))) {
 		numlen = 1;
 		switch (here[1]) {
-			case '\\': break;
+			case '\\': *here = '\\'; break;
 			case '\"': *here = '\"'; break;
-			case 'r': *here = '\r'; break;
-			case 'n': *here = '\n'; break;
-			case 't': *here = '\t'; break;
-			case 'v': *here = '\v'; break;
-			case 'a': *here = '\a'; break;
+			case 'r':  *here = '\r'; break;
+			case 'n':  *here = '\n'; break;
+			case 't':  *here = '\t'; break;
+			case 'v':  *here = '\v'; break;
+			case 'a':  *here = '\a'; break;
 
 			case '0':
 			case '1':
@@ -323,8 +328,46 @@ double eval(std::string expr, int& errorCode) {
 }
 
 
+std::string xToStr(allowedTypes val) {
+	if (std::holds_alternative<std::string>(val))
+		return std::get<std::string>(val);
+
+	else if (std::holds_alternative<int>(val))
+		return std::to_string(std::get<int>(val));
+
+	else if (std::holds_alternative<float>(val))
+		return std::to_string(std::get<float>(val));
+
+	else if (std::holds_alternative<bool>(val))
+		return std::get<bool>(val) == true ? "true" : "false";
+
+	else if (std::holds_alternative<std::vector<HCL::variable>>(val)) {
+		std::string result = "{";
+		auto& _struct = std::get<std::vector<HCL::variable>>(val);
+
+		for (int i = 0; i < _struct.size(); i++) {
+			auto& member = _struct[i];
+
+			if (member.type == "string")
+				result += '\"' + xToStr(member.value) + '\"';
+			else
+				result += xToStr(member.value);
+
+			if (_struct.size() > 1 && ((i + 1) < _struct.size()))
+				result += ", ";
+		}
+		result += "}";
+
+		return result;
+	}
+
+	return std::string();
+}
+
+
 bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
-	if (coreTyped(type)) return true;
+	if (coreTyped(type))
+		return true;
 
 	// Didn't find a core type, maybe it'll find a struct instead.
 	for (auto s : HCL::structures) {
@@ -351,7 +394,7 @@ bool coreTyped(std::string type) {
 
 
 std::string getTypeFromValue(std::string value) {
-	if (find(value, "\""))
+	if (isStr(value))
 		return "string";
 	else if (isInt(value) && !find(value, "."))
 		return "int";
@@ -359,6 +402,8 @@ std::string getTypeFromValue(std::string value) {
 		return "float";
 	else if (value == "true" || value == "false")
 		return "bool";
+	else if (value.front() == '{' && value.back() == '}')
+		return "struct";
 	else if (value == "==" || value == "!=" || value == ">=" || value == "<=" || value == "<" || value == ">")
 		return "relational-operator";
 	else if (value == "&&" || value == "||")
@@ -367,28 +412,112 @@ std::string getTypeFromValue(std::string value) {
 	return "";
 }
 
+bool setCorrectValue(HCL::variable& var, std::string value) {
+	HCL::variable* existingVar = getVarFromName(value);
 
-HCL::variable* getVarFromName(std::string varName, HCL::variable* var/* = NULL*/) {
-	HCL::structure s;
+	if ((var.type.empty() || var.type == "NO_TYPE") && existingVar == nullptr)
+		var.type = getTypeFromValue(value);
+
+	if (existingVar != nullptr) {
+
+		if (var.type == "NO_TYPE") {
+			var = *existingVar;
+			return true;
+		}
+
+		if (existingVar->type == "string")
+			value = '\"' + xToStr(existingVar->value) + '\"';
+		else
+			value = xToStr(existingVar->value);
+	}
+
+	if (var.type == "string" && isStr(value)) {
+		getValueFromFstring(value, value);
+		var.value = convertBackslashes(unstringify(value));
+		return true;
+	}
+
+	else if (var.type == "int") {
+		var.value = xToType<int>(value);
+		return true;
+	}
+
+	else if (var.type == "float") {
+		var.value = xToType<float>(value);
+		return true;
+	}
+
+	else if (var.type == "bool") {
+		var.value = stringToBool(value);
+		return true;
+	}
+
+	else if (var.type == "struct" || (value.front() == '{' && value.back() == '}')) {
+		useIterativeRegex(unstringify(value, true), R"(([^\,\s]+))");
+		std::vector<HCL::variable> output;
+		HCL::variable coreTypedVariable;
+
+		for (auto& v : HCL::matches.value) {
+			HCL::variable* var = getVarFromName(v);
+			coreTypedVariable.reset_all();
+
+			if (var != nullptr)
+				output.push_back(*var);
+
+			else if (setCorrectValue(coreTypedVariable, v))
+				output.push_back(coreTypedVariable);
+
+			else
+				HCL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
+		}
+		var.value = output;
+
+		if (var.type.empty() || var.type == "NO_TYPE") {
+			var.type = "struct"; // We'll deal with this later in the code.
+		}
+
+		return true;
+	}
+	else if (useRegex(value, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
+		assignFuncReturnToVar(&var, HCL::matches.str(1), HCL::matches.str(2));
+		return true;
+	}
+	/*else if (!(res = extractMathFromValue(value, existingVar)).empty()) // A math expression.
+		value = res;*/
+	else {
+		if (existingVar == nullptr)
+			HCL::throwError(true, "Variable '%s' doesn't exist (Can't copy a variable that doesn't exist)", value.c_str());
+
+		return true;
+	}
+
+	HCL::throwError(true, "Internal error: %s", value.c_str());
+
+	return false;
+}
+
+
+HCL::variable* getVarFromName(std::string varName) {
 	for (auto& v : HCL::variables) {
 		if (v.name == varName) {
 			return &v;
 		}
 
-		if (typeIsValid(v.type, &s) && !coreTyped(v.type)) { // A custom type
-			for (int i = 0; i < s.value.size(); i++) {
-				auto& member = s.value[i];
+		if (find(varName, v.name + ".")) { // A custom type
+			HCL::structure* s = getStructFromName(v.type);
+			auto& varValues = getVars(v.value);
+
+			for (int i = 0; i < varValues.size(); i++) {
+				auto& member = s->value[i];
+
 				if (varName == (v.name + "." + member.name)) {
-					var->type = member.type;
-					var->name = varName;
-					var->value = member.value;
-					var->extra = {std::to_string(i)};
-					return &v;
+					varValues[i].name = member.name;
+					return &varValues[i];
 				}
 			}
 		}
 	}
-	return {};
+	return nullptr;
 }
 
 
@@ -409,21 +538,14 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 		useIterativeRegex(ogValue, R"(\{([\w\.]+)\})");
 		ogValue.erase(0, 1); // Remove the F letter.
 		for (auto value : HCL::matches.value) {
-			HCL::variable structVar;
-			HCL::variable* var = getVarFromName(value, &structVar);
+			HCL::variable* var = getVarFromName(value);
 
 			if (var == NULL) { // Can't use f-string without providing a variable obviously...
 				HCL::throwError(true, "Variable '%s' doesn't exist (Can't get the value from a variable that doesn't exist)", value.c_str());
 			}
 			else {
 				value = "{" + value + "}";
-
-				if (!structVar.name.empty()) { // Is a struct member.
-					int index = std::stoi(structVar.extra[0]);
-					ogValue = replaceOnce(ogValue, value, var->value[index]);
-				}
-				else // Regular variable.
-					ogValue = replaceOnce(ogValue, value, var->value[0]);
+				ogValue = replaceOnce(ogValue, value, xToStr(var->value));
 			}
 		}
 		output = unstringify(ogValue);
@@ -457,8 +579,13 @@ std::string printFunction(HCL::function func) {
 		auto& p = func.params[i];
 		str += p.type + " " + p.name;
 
-		if (!p.value[0].empty())
-			str += " = " + p.value[0];
+		if (p.has_value()) {
+			str += " = ";
+			if (p.type == "string")
+				str += '\"' + xToStr(p.value) + '\"';
+			else
+				str += xToStr(p.value);
+		}
 		if (i != func.params.size() - 1)
 			str += ", ";
 	}

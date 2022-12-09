@@ -24,56 +24,66 @@
 #include <string>
 #include <regex>
 #include <vector>
+#include <variant>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
 // Interpreter modes.
-#define MODE_SAVE_NOTHING 0
+#define MODE_DEFAULT 0
+
 #define MODE_SAVE_STRUCT 1
 #define MODE_SAVE_FUNC 2
-#define MODE_SCOPE_IF 3
+#define MODE_SCOPE_IF_STATEMENT 3
+#define MODE_SCOPE_IGNORE_ALL 4
 
 // Outputs returns.
 #define FOUND_NOTHING 0
 #define FOUND_SOMETHING 1
 #define FOUND_ERROR -1
 
-// Convert core type to void.
-#define intToVoid(integer) (void*)(uintptr_t)integer
-#define stringToVoid(str) static_cast<void*>(new std::string(str))
-#define floatToVoid(num) static_cast<void*>(new float(num))
+//
+#define getStr(value) std::get<std::string>(value)
+#define getInt(value) std::get<int>(value)
+#define getFloat(value) std::get<float>(value)
+#define getBool(value) std::get<bool>(value)
+#define getVars(value) std::get<std::vector<HCL::variable>>(value)
 
-// Convert void back to the specified core type.
-#define voidToInt(pointer) (int)(uintptr_t)pointer
-#define voidToString(pointer) *static_cast<std::string*>(pointer)
-#define voidToFloat(pointer) *static_cast<float*>(pointer)
+#define isVars(value) std::holds_alternative<std::vector<HCL::variable>>(value)
 
 
 namespace HCL {
 	enum RETURN_OUTPUT { OUTPUT_NOTHING, OUTPUT_BLACK, OUTPUT_RED, OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_BLUE, OUTPUT_PURPLE, OUTPUT_CYAN, OUTPUT_GRAY };
 	struct configArgs {
+		bool interprete = true;
+
 		bool help;
+		bool version;
+		bool strict;
 
 		bool debugAll;
 		bool debugPrint;
 		bool debugLog;
-
-		bool strict;
+		bool breakpoint; std::pair<std::string, int> breakpointValues;
 
 		std::string curIndent;
 	};
+	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, double, std::vector<HCL::variable>>
 
 	struct variable {
 		std::string type;
 		std::string name;
-		std::vector<std::string> value;
-		std::vector<std::string> extra;
+		allowedTypes value; // Every possible type in HCL. Note that std::vector<variable> is for structs, while the std::any one is for extra data, like localisation and arrays
+
+		bool has_value() { return value.index() != 0; }
+		void reset_value() { value = std::monostate{}; }
+		void reset_all() { type = std::string(); name = std::string(); value = std::monostate{}; }
 	};
 	struct structure {
 		std::string name;
 		std::vector<variable> value;
+		int minParamCount;
 	};
 	struct function {
 		std::string type;
@@ -85,7 +95,7 @@ namespace HCL {
 		std::string file; // Used for the error message.
 		int startingLine;
 	};
-	struct vector { // A very small implementation of std::smatches.
+	struct vector { // A very small "implementation" of std::smatches.
 		std::vector<std::string> value;
 
 		std::string str(int index) {
@@ -116,7 +126,7 @@ namespace HCL {
 	extern std::vector<structure> structures;
 	extern std::vector<function> functions;
 	extern std::vector<function> ifStatements;
-	extern void* functionOutput; extern std::string functionReturnType;
+	extern HCL::variable functionOutput;
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);
@@ -125,6 +135,7 @@ namespace HCL {
 	void interpreteFile(std::string file);
 	// Interpretes a single line.
 	int interpreteLine(std::string line);
+
 	// Enables debug mode (At the end it'll print everything that the interpreter remembers).
 	void debugMode();
 	// Prints out information about a vector of variables.

@@ -42,16 +42,42 @@ std::string getPathFromFilename(std::string filename);
 bool find(std::string line, std::string str);
 // Checks if string is an int.
 bool isInt(std::string str);
+//Checks if a string is *actually* a string or f-string.
+bool isStr(std::string str);
 // Replaces all instances of 'oldString' with 'newString' in 'str'
 std::string replaceAll(std::string str, std::string oldString, std::string newString);
 // Replaces the FIRST instance of 'oldString' with 'newString' in 'str'
 std::string replaceOnce(std::string, std::string oldString, std::string newString);
-// Converts a string to a C++ bool.
+// Converts a string to a bool.
 bool stringToBool(std::string str);
 // Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
 std::string convertBackslashes(std::string str);
 // Converts a math operation to a single double (UNFINISHED, NEEDS REFINING).
 double eval(std::string expr, int& errorCode);
+
+// Converts 'val' to a string and return it.
+// (eg. xToStr(234) would return a string "234")
+std::string xToStr(allowedTypes val);
+// Converts 'val' to the type given and returns it.
+// (eg. xToType<int>("27") would return an int 27)
+template <class T>
+T xToType(allowedTypes val) {
+	if (std::is_same_v<T, int> || std::is_same_v<T, bool> || std::is_same_v<T, float>) {
+		if (std::holds_alternative<std::string>(val))
+			return (T)std::stod(std::get<std::string>(val));
+
+		else if (std::holds_alternative<int>(val))
+			return (T)std::get<int>(val);
+
+		else if (std::holds_alternative<float>(val))
+			return (T)std::get<float>(val);
+
+		else if (std::holds_alternative<bool>(val))
+			return (T)std::get<bool>(val);
+	}
+
+	return T();
+}
 
 /* HCl specific helper functions. */
 
@@ -63,12 +89,15 @@ bool coreTyped(std::string type);
 // Gets the core type from value. If it cannot determine the type,
 // then it's most likely a struct (or a type that doesn't exist).
 std::string getTypeFromValue(std::string value);
+// Corrects the string value and returns a `HCL::variable`, with the
+// `.type` being the value's original type, and the `.value` being
+// the inputed value in a correct type. (eg. "3" would output
+// {.type = "int", .value = 3}).
+bool setCorrectValue(HCL::variable& var, std::string value);
 // Gets the variable's value by its name and returns a pointer of it.
-// If the `varName` is a struct member, then regardlessly the function
-// will attempt to find it. If successful, `var` will get the attributes
-// of the member, however `var.extra[0]` becomes the index of where the
-// member was in the struct. 
-HCL::variable* getVarFromName(std::string varName, HCL::variable* var = NULL);
+// If the `varName` is a struct member, then regardlessly it'll look
+// for said member's type and values.
+HCL::variable* getVarFromName(std::string varName);
 // Fixes the sentence from being f-string to a normal string.
 int getValueFromFstring(std::string ogValue, std::string& output);
 // Get the struct from name. If no struct is found, returns a nullptr.
