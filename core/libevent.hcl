@@ -12,8 +12,8 @@ struct event {
 	string title
 	string description
 	string picture
-	bool isTriggeredOnly
-	bool isNewsEvent
+	bool isTriggeredOnly = true
+	bool isNewsEvent = false
 
 	// Read-only
 	bool init = false
@@ -46,7 +46,7 @@ event newEvent(string namespace, int id, string title, string description, strin
 	convertToDds(imagePath, f"{path}/gfx/event_pictures/{ddsName}")
 	writeFile(f"{path}/interface/hcl_eventpictures.gfx", f"\n\nspriteType = {\n\tname = \"GFX_{gfxName}\"\n\ttexturefile = \"gfx/event_pictures/{ddsName}\"\n}", "a")
 
-	return {namespace, id, title, description}
+	return {namespace, id, title, description, imagePath}
 }
 
 
@@ -56,7 +56,9 @@ int newEventOption(event e, string title) {
 	string locPath = f"{path}/localisation/hcl_events_l_english.yml"
 	string eventPath = f"{path}/events/{e.namespace}.txt"
 
-	writeToLine(eventPath, -2, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1\n\t}\n")
+	writeToLine(eventPath, 9, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1\n\t}")
 	writeLocalisation(locPath, f"{e.namespace}.{e.id}.1", title)
 	//e.options++
+
+	return 0
 }

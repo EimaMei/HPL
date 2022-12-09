@@ -93,7 +93,7 @@ std::string getTypeFromValue(std::string value);
 // `.type` being the value's original type, and the `.value` being
 // the inputed value in a correct type. (eg. "3" would output
 // {.type = "int", .value = 3}).
-HCL::variable setCorrectValue(std::string value);
+bool setCorrectValue(HCL::variable& var, std::string value);
 // Gets the variable's value by its name and returns a pointer of it.
 // If the `varName` is a struct member, then regardlessly it'll look
 // for said member's type and values.

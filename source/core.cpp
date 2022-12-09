@@ -71,7 +71,10 @@ HCL::function globalFunction;
 int executeFunction(std::string name, std::string info, HCL::function& function, HCL::variable& output, bool dontCheck/* = false*/) {
 	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HCL::variable> params;
-	HCL::arg.curIndent += "\t";
+	bool unorganized = false;
+
+	if (HCL::arg.debugLog || HCL::arg.debugAll)
+		HCL::arg.curIndent += "\t";
 
 	for (auto& p : values) {
 		HCL::variable var = {"NO_TYPE", "NO_NAME"};
@@ -79,7 +82,9 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 		std::string oldMatch = p;
 		p = unstringify(p);
 
-		HCL::variable* existingVar = getVarFromName(oldMatch);
+		/*if (find(oldMatch, "=")) {
+
+		}*/
 
 		// Checks if the parameter is just a function.
 		if (useRegex(p, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
@@ -115,14 +120,12 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				}
 			}
 		}
-		else if (existingVar == nullptr) // If parameter isn't a variable.
-			var = setCorrectValue(oldMatch);
+		else {
+			bool res = setCorrectValue(var, oldMatch);
 
-		else if (existingVar != nullptr) // If parameter IS a variable.
-			var = *existingVar;
-
-		else
-			HCL::throwError(true, "Variable '%s' doesn't exist (Cannot use a variable that doesn't exist).", p.c_str());
+			if (!res)
+				HCL::throwError(true, "Variable '%s' doesn't exist (Cannot use a variable that doesn't exist).", p.c_str());
+		}
 
 		params.push_back(var);
 
@@ -194,6 +197,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			HCL::variables = oldVars;
 			HCL::curFile = oldCurFile;
 			HCL::lineCount = oldLineCount;
+			HCL::mode = oldMode;
 
 			globalFunction = func;
 			foundFunction = true;
@@ -202,15 +206,12 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](1): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << func.type << " " << func.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
 				HCL::arg.curIndent.pop_back();
 			}
-			break;
+
+			function = globalFunction;
+			globalFunction = {};
+
+			return FOUND_SOMETHING;
 		}
-	}
-
-	if (foundFunction) {
-		function = globalFunction;
-		globalFunction = {};
-
-		return FOUND_SOMETHING;
 	}
 
 	if (!dontCheck)
@@ -236,15 +237,13 @@ bool useFunction(HCL::function func, std::vector<HCL::variable> &sentUserParams)
 					HCL::structure* _struct = getStructFromName(func.params[i].type);
 
 					if (_struct->value.size() < userParams.size())
-						HCL::throwError(true, "smth smth bigger than struct size");
-					if (_struct->minParamCount > userParams.size())
-						HCL::throwError(true, "smth smth smaller than struct size");
+						HCL::throwError(true, "Too many members were provided (you provided '%i' arguments when struct '%s' takes at most '%i' members)", userParams.size(), _struct->name.c_str(), userParams.size());
 
-					for (int x = 0; x < _struct->value.size(); x++) {
+					for (int x = 0; x < userParams.size(); x++) {
 						auto& member = _struct->value[x];
 
 						if (member.type != userParams[x].type && member.type != "var")
-							HCL::throwError(true, "smth smth bad type (%s, %s)", member.type.c_str());
+							HCL::throwError(true, "Members' types do not match ('%s' is %s-typed, while '%s' is %s-typed)", member.name.c_str(), member.type.c_str(), userParams[x].name.c_str(), userParams[x].type.c_str());
 					}
 					sentUserParams[i].type = func.params[i].type; // why?
 				}
@@ -276,7 +275,7 @@ int assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std:
 			HCL::structure* s = getStructFromName(func.type);
 			if (s != nullptr) {
 				if (existingVar->type != func.type) {
-					//HCL::throwError(true, "later");
+					HCL::throwError(true, "later");
 				}
 				else {
 					auto result = getVars(output.value);
@@ -303,6 +302,8 @@ int assignFuncReturnToVar(HCL::variable* existingVar, std::string funcName, std:
 	}
 	else {
 		existingVar->reset_value();
+
+		return FOUND_NOTHING;
 	}
 
 	return FOUND_SOMETHING;
