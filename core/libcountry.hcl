@@ -27,10 +27,10 @@ country newCountry(string tag, string name, rgb color, int capital, string oob =
 }
 
 
-int countrySetPolitics(country c, string rulingParty, int democratic, int communist, int fascist, int neutral, int electionFrequency = 0, string lastElection = "1933.1.1", bool electionsAllowed = false) {
+int countrySetPolitics(country country, string rulingParty, int democratic, int communist, int fascist, int neutral, int electionFrequency = 0, string lastElection = "1933.1.1", bool electionsAllowed = false) {
     string path = HCL_currentMod.path
-    string history = f"{path}/history/countries/{c.tag} - {c.name}.txt"
-    string elect = replaceAll(replaceAll(str(electionsAllowed), "false", "no"), "true", "yes")
+    string history = f"{path}/history/countries/{country.tag} - {country.name}.txt"
+    string elect = replaceAll(str = replaceAll(str(electionsAllowed), "false", "no"), "true", "yes")
 
     writeToMultipleLines(history, 10, 13, f"\tdemocratic = {democratic}\n\tcommunism = {communist}\n\tfascism = {fascist}\n\tneutrality = {neutral}\n")
     writeToMultipleLines(history, 17, 20, f"\truling_party = {rulingParty}\n\tlast_election = {lastElection}\n\telection_frequency = {electionFrequency}\n\telections_allowed = {elect}\n")
@@ -39,9 +39,9 @@ int countrySetPolitics(country c, string rulingParty, int democratic, int commun
 }
 
 
-int countrySetMisc(country c, int stability, int warSupport, int researchSlots, int convoys = 0) {
+int countrySetMisc(country country, int stability = 50, int warSupport = 50, int researchSlots = 3, int convoys = 0) {
     string path = HCL_currentMod.path
-    string history = f"{path}/history/countries/{c.tag} - {c.name}.txt"
+    string history = f"{path}/history/countries/{country.tag} - {country.name}.txt"
     float s = stability
     float w = warSupport
 

@@ -64,27 +64,56 @@ std::vector<std::string> coreFunctionList = {
 	"replaceAll"
 };
 
-bool foundFunction = false;
-HCL::function globalFunction;
+bool foundFunction = false; // If we found the function.
+bool organizeParams = false; // If we have to organize params.
+int startOrgAt = 0; // At which index we should start the organization. NOTE: A possible bug exists, where the defines the first few params in order, but then defines out of order arguments with the same first few params, ending in shenanigans. Needs fixing.
+HCL::function globalFunction; // The found function.
 
 
 int executeFunction(std::string name, std::string info, HCL::function& function, HCL::variable& output, bool dontCheck/* = false*/) {
+	// General params.
 	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HCL::variable> params;
-	bool unorganized = false;
+
+	// Out of order related.
+	startOrgAt = 0;
+	organizeParams = false;
 
 	if (HCL::arg.debugLog || HCL::arg.debugAll)
 		HCL::arg.curIndent += "\t";
 
 	for (auto& p : values) {
 		HCL::variable var = {"NO_TYPE", "NO_NAME"};
-		p = unstringify(p, false, ' ');
-		std::string oldMatch = p;
-		p = unstringify(p);
 
-		/*if (find(oldMatch, "=")) {
+		// Removing the spaces and quotes from match.
+		std::string oldMatch = unstringify(p, false, ' '); // In case the match is actually a string.
+		p = unstringify(oldMatch);
 
-		}*/
+		// Out of order initialization settings.
+		bool outOfOrder = false; // Is out of order.
+		std::string outOfOrderParam; // The name of the param.
+
+
+		// Found an out of order argument.
+		if (find(oldMatch, "=") && !isStr(oldMatch)) {
+			// Find the param and true value.
+			useRegex(oldMatch, R"(\s*(\w*)\s*\=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[\d\s\+\-\*\/\.]+[^\w]*|[^\s]*)\s*.*)");
+
+			if (!HCL::matches.empty()) { // If we found the param and value.
+				outOfOrder = true;
+				organizeParams = true;
+				outOfOrderParam = HCL::matches.str(1);
+
+				oldMatch = HCL::matches.str(2);
+				p = unstringify(oldMatch);
+			}
+			else
+				HCL::throwError(true, "Invalid syntax");
+		}
+
+		if (!outOfOrder && organizeParams) { // If the input didn't set the param name, even though we're in out of order init mode.
+			HCL::throwError(true, "All out of order argument initializations must be accompanied with the name of the param (format is '%s', not just '%s')", "<param> = <value>", p.c_str());
+		}
 
 		// Checks if the parameter is just a function.
 		if (useRegex(p, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
@@ -101,10 +130,12 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				else
 					break;
 			}
+
 			oldFuncValues = funcValues;
+
 			for (int i = 0; i < funcValues.size(); i++) {
 				// Since the param DOES have functions inside, we have to get that functions' output.
-				std::vector<std::string> list = split(funcValues[i].str(2), ",", "()\"\"");
+				auto list = split(funcValues[i].str(2), ",", "()\"\"");
 				assignFuncReturnToVar(&var, funcValues[i].str(1), funcValues[i].str(2), true);
 
 				if ((i + 1) < funcValues.size()) { // If there are more functions inside the param.
@@ -126,6 +157,11 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			if (!res)
 				HCL::throwError(true, "Variable '%s' doesn't exist (Cannot use a variable that doesn't exist).", p.c_str());
 		}
+
+		if (organizeParams) // Set the 'var.name' to the param's name, since 'var.name' isn't needed for functions.
+			var.name = outOfOrderParam;
+		else
+			startOrgAt++;
 
 		params.push_back(var);
 
@@ -229,6 +265,44 @@ bool useFunction(HCL::function func, std::vector<HCL::variable> &sentUserParams)
 
 
 	if (func.name == globalFunction.name) {
+		if (organizeParams) { // If there are any out of order arguments.
+			HCL::function* outOfOrderFunc = &func; // The function.
+
+			std::vector<HCL::variable> organizedParams = sentUserParams;
+			std::string buf;
+			int num = 0;
+
+			for (const auto& outOfOrderParam : sentUserParams) {
+				bool paramExist = false;
+				int paramIndex = 0;
+				num++;
+
+				if (!find(buf, outOfOrderParam.name)) // Checks for any duplicates.
+					buf += outOfOrderParam.name;
+				else
+					HCL::throwError(true, "Cannot initialize the same param multiple times (param '%s' was initialized multiple times).", outOfOrderParam.name.c_str());
+
+				if (num - 1 < startOrgAt) { // Ignore the in order initializations.
+					organizedParams.push_back(sentUserParams[num - 1]);
+					continue;
+				}
+
+				for (auto& functionParam : outOfOrderFunc->params) { // Iterate through the *actual* params.
+					if (functionParam.name == outOfOrderParam.name) { // Found it.
+						organizedParams[paramIndex] = outOfOrderParam; // Fix the param.
+						paramExist = true;
+						break;
+					}
+					paramIndex++;
+				}
+
+				if (!paramExist) // Didn't find an existing param.
+					HCL::throwError(true, "Param '%s' doesn't exist (Must use a proper param name that exists in function '%s')", outOfOrderParam.name.c_str(), outOfOrderFunc->name.c_str());
+			}
+
+			sentUserParams = organizedParams;
+		}
+
 		for (int i = 0; i < func.params.size(); i++) {
 			if ((i + 1) <= sentUserParams.size()) {
 				if (!coreTyped(func.params[i].type)) {

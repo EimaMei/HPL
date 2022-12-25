@@ -676,11 +676,11 @@ void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"
 		else if (!coreTyped(f.type))
 			clr = OUTPUT_RED;
 
-		std::cout << indent << colorText(f.type, clr) << " " << f.name << "(";
-		debugPrintVar(f.params, "", ", ");
-		std::cout << ") {\n";
+		std::cout << indent << colorText(f.type, clr) << " " << f.name << "("; debugPrintVar(f.params, "", ", "); std::cout << ") {\n";
+
 		for (auto c : f.code)
 			std::cout << indent << c << std::endl;
+
 		std::cout << indent << "}" << std::endl;
 	}
 }
