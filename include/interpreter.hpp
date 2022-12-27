@@ -1,18 +1,18 @@
 /*
 * Copyright (C) 2021-2022 Eima
-*   
+*
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
 * arising from the use of this software.
-* 
+*
 * Permission is granted to anyone to use this software for any purpose,
 * including commercial applications, and to alter it and redistribute it
 * freely, subject to the following restrictions:
-*   
+*
 * 1. The origin of this software must not be misrepresented; you must not
 *    claim that you wrote the original software. If you use this software
 *    in a product, an acknowledgment in the product documentation would be
-*    appreciated but is not required. 
+*    appreciated but is not required.
 * 2. Altered source versions must be plainly marked as such, and must not be
 *    misrepresented as being the original software.
 * 3. This notice may not be removed or altered from any source distribution.
@@ -53,12 +53,12 @@
 #define getInt(value) std::get<int>(value)
 #define getFloat(value) std::get<float>(value)
 #define getBool(value) std::get<bool>(value)
-#define getVars(value) std::get<std::vector<HCL::variable>>(value)
+#define getVars(value) std::get<std::vector<HPL::variable>>(value)
 
-#define isVars(value) std::holds_alternative<std::vector<HCL::variable>>(value)
+#define isVars(value) std::holds_alternative<std::vector<HPL::variable>>(value)
 
 
-namespace HCL {
+namespace HPL {
 	enum RETURN_OUTPUT { OUTPUT_NOTHING, OUTPUT_BLACK, OUTPUT_RED, OUTPUT_GREEN, OUTPUT_YELLOW, OUTPUT_BLUE, OUTPUT_PURPLE, OUTPUT_CYAN, OUTPUT_GRAY };
 	struct configArgs {
 		bool interprete = true;
@@ -74,12 +74,12 @@ namespace HCL {
 
 		std::string curIndent;
 	};
-	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, double, std::vector<HCL::variable>>
+	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, double, std::vector<HPL::variable>>
 
 	struct variable {
 		std::string type;
 		std::string name;
-		allowedTypes value; // Every possible type in HCL. Note that std::vector<variable> is for structs, while the std::any one is for extra data, like localisation and arrays
+		allowedTypes value; // Every possible type in HPL. Note that std::vector<variable> is for structs, while the std::any one is for extra data, like localisation and arrays
 
 		bool has_value() { return value.index() != 0; }
 		void reset_value() { value = std::monostate{}; }
@@ -114,16 +114,16 @@ namespace HCL {
 		void push_back(std::string x) { value.push_back(x); }
 		std::string operator[](int index) { return value[index]; }
 	};
-	
+
 	// Interpreter configs.
 	extern configArgs arg;
-	
+
 	// Interpreter runtime information.
 	extern std::string curFile;
 	extern std::string line;
 	extern int lineCount;
 	extern int mode;
-	extern HCL::vector matches;
+	extern HPL::vector matches;
 	extern int equalBrackets;
 
 	// Definitions that are saved in memory.
@@ -131,7 +131,7 @@ namespace HCL {
 	extern std::vector<structure> structures;
 	extern std::vector<function> functions;
 	extern std::vector<function> ifStatements;
-	extern HCL::variable functionOutput;
+	extern HPL::variable functionOutput;
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);

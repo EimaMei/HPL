@@ -22,37 +22,37 @@
 #include <interpreter.hpp>
 #include <string.h>
 
-/* ======================== CORE FUNCTIONS OF HCL ======================== */
+/* ======================== CORE FUNCTIONS OF HPL ======================== */
 // Each function define here must follow this format:
 //      <Description of the function>
-//      <Function implementation in HCL>
+//      <Function implementation in HPL>
 //      <The actual function defnition in C++>
 //
 // It's also pretty good to space out functions depending
 // on which group they're categorized as for readability
-// (for example, instead of having no space between 'print', 
+// (for example, instead of having no space between 'print',
 // 'createFolder' and 'removeFolder', it would be best to
 // put a space between 'print' and 'createFolder').
 
 // Prints something out in the terminal.
 // void print(var msg, string end = "\n")
-void print(HCL::variable msg, std::string end = "\n");
+void print(HPL::variable msg, std::string end = "\n");
 
 // Converts value to str.
 // string str(var value)
-std::string func_str(HCL::variable value);
+std::string func_str(HPL::variable value);
 // Converts value to int`.
 // int int(var value)
-int func_int(HCL::variable value);
+int func_int(HPL::variable value);
 // Converts value to float.
 // float float(var value)
-float func_float(HCL::variable value);
+float func_float(HPL::variable value);
 // Converts value to bool.
 // bool bool(var value)
-bool func_bool(HCL::variable value);
+bool func_bool(HPL::variable value);
 // Gets the length of the value
 // int len(var value)
-int len(HCL::variable value);
+int len(HPL::variable value);
 
 // Creates a folder.
 // int createFolder(string path)

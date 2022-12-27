@@ -1,18 +1,18 @@
 /*
 * Copyright (C) 2021-2022 Eima
-*   
+*
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
 * arising from the use of this software.
-* 
+*
 * Permission is granted to anyone to use this software for any purpose,
 * including commercial applications, and to alter it and redistribute it
 * freely, subject to the following restrictions:
-*   
+*
 * 1. The origin of this software must not be misrepresented; you must not
 *    claim that you wrote the original software. If you use this software
 *    in a product, an acknowledgment in the product documentation would be
-*    appreciated but is not required. 
+*    appreciated but is not required.
 * 2. Altered source versions must be plainly marked as such, and must not be
 *    misrepresented as being the original software.
 * 3. This notice may not be removed or altered from any source distribution.
@@ -81,30 +81,30 @@ T xToType(allowedTypes val) {
 	return T();
 }
 
-/* HCl specific helper functions. */
+/* HPL specific helper functions. */
 
 // If a type exists. If the type is a struct, then `info` becomes
 // the pointer to the struct.
-bool typeIsValid(std::string type, HCL::structure* info = NULL);
+bool typeIsValid(std::string type, HPL::structure* info = NULL);
 // If a type is a core type.
 bool coreTyped(std::string type);
 // Gets the core type from value. If it cannot determine the type,
 // then it's most likely a struct (or a type that doesn't exist).
 std::string getTypeFromValue(std::string value);
-// Corrects the string value and returns a `HCL::variable`, with the
+// Corrects the string value and returns a `HPL::variable`, with the
 // `.type` being the value's original type, and the `.value` being
 // the inputed value in a correct type. (eg. "3" would output
 // {.type = "int", .value = 3}).
-bool setCorrectValue(HCL::variable& var, std::string value);
+bool setCorrectValue(HPL::variable& var, std::string value);
 // Gets the variable's value by its name and returns a pointer of it.
 // If the `varName` is a struct member, then regardlessly it'll look
 // for said member's type and values.
-HCL::variable* getVarFromName(std::string varName);
+HPL::variable* getVarFromName(std::string varName);
 // Fixes the sentence from being f-string to a normal string.
 int getValueFromFstring(std::string ogValue, std::string& output);
 // Get the struct from name. If no struct is found, returns a nullptr.
-HCL::structure* getStructFromName(std::string name);
+HPL::structure* getStructFromName(std::string name);
 // Convert math expression to an actual result (UNFINISHED).
-std::string extractMathFromValue(std::string expr, HCL::variable* var);
+std::string extractMathFromValue(std::string expr, HPL::variable* var);
 // Returns a string "<type> <name>(<params>)"
-std::string printFunction(HCL::function func);
+std::string printFunction(HPL::function func);

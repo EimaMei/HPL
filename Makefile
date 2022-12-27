@@ -1,6 +1,6 @@
 CC = clang++
 OUTPUT = build
-EXE = build/hcl
+EXE = build/hpl
 PLATFORM = nothing
 
 SRC = $(basename $(wildcard source/*.cpp))
@@ -15,7 +15,7 @@ endif
 FLAGS = -std=c++17 -O2 -Wall -Wpedantic
 LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
-HCL-INPUT = examples/nation/main.hcl
+HPL-INPUT = examples/nation/main.hpl
 
 all: $(OUTPUT) $(EXE) run
 %.hpp: $(EXE)
@@ -30,10 +30,10 @@ $(EXE): $(OBJ) main.cpp
 	$(CC) $(FLAGS) $(INCLUDE) $(OBJ) main.cpp $(LIBS) -o $@
 
 run: $(EXE)
-	./$(EXE) $(HCL-INPUT)
+	./$(EXE) $(HPL-INPUT)
 
 runDebug: $(EXE)
-	./$(EXE) -l $(HCL-INPUT)
+	./$(EXE) -l $(HPL-INPUT)
 
 clean:
 	rm -rf build/**

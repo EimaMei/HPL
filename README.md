@@ -1,18 +1,18 @@
-# What is HCL?
-The HOI4 Coding Language (HCL) is a high-level interpreter programming language for HOI4 that is set to make HOI4 scripting much better, while also adding a bunch of new features to make HOI4 programming enjoyable.
+# What is HPL?
+The HOI4 Programming Language (HPL) is a high-level interpreter programming language for HOI4 that is set to make HOI4 scripting much better, while also adding a bunch of new features to make HOI4 programming enjoyable.
 
-# Why HCL?
+# Why HPL?
 Because the current HOI4 scripting "language" lacks very basic programming features (which makes the code more ugly and longer), overcomplicates things for the sake of simplicity, always breaks when a new DLC launches and is just generally not fun to program in. This is why I always refer to the current HOI4 coding as "scripting", as its very basic and lacks the many features that programmer like myself take for granted.
 
-The solution to this? Create an actual programming language designed for HOI4 coders. HCL will attempt to fix all of these issues by doing the following:
+The solution to this? Create an actual programming language designed for HOI4 coders. HPL will attempt to fix all of these issues by doing the following:
 - Implement basic language features that many modern languages have (structures, loops etc).
 - Rework the syntax of the HOI4 scripting language to make it more C-based.
 - Make the elements of HOI4 modding easier to implement (automatically converting images to `.dds`, resizing flags to the correct size and format, make `if` statements and variables behave like how they do in proper languages, and so on)
 - Have proper error checking when building code so that mods don't have thousands of errors/crash at startup.
 - Enforcing stability so that code doesn't break each time a new DLC releases.
 
-# Current status of HCL
-Currently HCL is ***very*** expiremental, as such bugs should be expected and reported. However it now already has quite a few basic language features to toy around with, as well as the ability to use `libpdx.hcl` to ouput a few pieces of HOI4 code. With enough time (months, maybe a year or two?) it'll be stable enough for normal use cases for mods (hell, maybe even for full-scale productions but I don't expect that anytime soon, if at all).
+# Current status of HPL
+Currently HPL is ***very*** expiremental, as such bugs should be expected and reported. However it now already has quite a few basic language features to toy around with, as well as the ability to use `libpdx.hpl` to ouput a few pieces of HOI4 code. With enough time (months, maybe a year or two?) it'll be stable enough for normal use cases for mods (hell, maybe even for full-scale productions but I don't expect that anytime soon, if at all).
 # Current roadmap
 ## Step 1: Building the base code
 Currently the language is barely done and it'll take awhile before any random modder will be able to use it without encountering some bug/unimplemented HOI4 functions. As such, these basic features must be implemented:
@@ -56,24 +56,24 @@ When the base code for the interpreter is done, it'll allow us to finally implem
 - [ ] Resize images.
 
 ## Step 3: Basic HOI4 functions implementation
-This gets tricky. If step 2 is completed, then by that point the base language is done, however the implementation of HOI4 functions won't be. Thus, the implementations will be stored at `libpdx.hcl`. You'll be able to import separate libraries like `libevent.hcl` if need be (like how you can with Win32). The reason why this can get tricky is that this might require the language's syntax to be changed. Each change can either be subtle and won't cause issues, or may require extensive rewrites of the code. Anyhow, for this step these are the functions that I strive to be implemented:
+This gets tricky. If step 2 is completed, then by that point the base language is done, however the implementation of HOI4 functions won't be. Thus, the implementations will be stored at `libpdx.hpl`. You'll be able to import separate libraries like `libevent.hpl` if need be (like how you can with Win32). The reason why this can get tricky is that this might require the language's syntax to be changed. Each change can either be subtle and won't cause issues, or may require extensive rewrites of the code. Anyhow, for this step these are the functions that I strive to be implemented:
 - [ ] Mod creation. (Note: Sort of done, however full functionality like tags aren't fully implemented and need more fine-tuning)
 - [ ] Event creation.
 - [ ] Nation creation.
 - [ ] Proper localisation support for other languages.
 
-## Step 4: Adding in additional basic programming features into HCL
-Now that the language can build quite some HOI4 code, by now we should have a stable development environment. So now we can build-upon HCL and add new coding features. These features are, but not limited to:
+## Step 4: Adding in additional basic programming features into HPL
+Now that the language can build quite some HOI4 code, by now we should have a stable development environment. So now we can build-upon HPL and add new coding features. These features are, but not limited to:
 - [ ] Arrays.
 - [ ] Implement basic math (+, -, /, *) (Note: `++, --, +=, -=, *=, /=, %=` are supported).
 - [X] Implement basic operators (&&, ||, ==, !=, >=, <=) (Note: only in `if` statements for now, and && isn't supported at the moment).
 - [ ] Loops (`for (<variable> in <variable2>)`), (`for (<variable>, <condition>, <step>)`).
 
 # Documentation
-Since the language is still pretty expiremntal, all of the documentation for HCL are in source files and/or examples. The notes are there for anyone wanting to know why I do certain things like that for the sake of convenience, and it acts as a reminder for me sometimes.
+Since the language is still pretty expiremntal, all of the documentation for HPL are in source files and/or examples. The notes are there for anyone wanting to know why I do certain things like that for the sake of convenience, and it acts as a reminder for me sometimes.
 
 # Syntax
-The syntax and feature-set of HCL is almost identical to C's, features like structures, static types, declarations etc. are mostly the same. However there are some additions/removals from C to make the language more approachable for HOI4 coders and tailored to HOI4modding. The main changes are:
+The syntax and feature-set of HPL is almost identical to C's, features like structures, static types, declarations etc. are mostly the same. However there are some additions/removals from C to make the language more approachable for HOI4 coders and tailored to HOI4modding. The main changes are:
 - There are no semicolons (`;`).
 - There are HOI4-only types here (main one being 'scope').
 - A variable can be declared dynamically or as a generic.
@@ -87,12 +87,12 @@ A short list of things that are implemented with full functionality:
 - Core functions.
 - Python's f-string.
 - Debug and logging modes.
-- Standard libraries for creating HOI4 mods (`libpdx.hcl`, `libcountry.hcl` etc).
+- Standard libraries for creating HOI4 mods (`libpdx.hpl`, `libcountry.hpl` etc).
 - If statements.
 - Simple math (`++, --, +=, -=, *=, /=, %=`)
 - HOI4 scopes*
 ## Scope
-Scopes aren't implemented at all. However, it is a **very** important type in HOI4 scripting and by default HCL, as the Paradox Wiki describes it, "Scopes select entities in order to check for triggers or apply effects.". Essentially, effects that you associate with HOI4 scripting (eg. add_stability) can only be performed in scopes and no where else. However HOI4 scripting is the only language I know of that really uses scopes for results, as any other language would just have an if statmenet to check if the option got picked. Scopes work pretty well in HOI4 scripting, however in HCL it's quite an issue for 2 reasons. 1 - it makes it unclear when you can use modifiers in HCL code. 2 - since we're translating HCL scopes to HOI4 scripting scopes, it means that certain HCL features cannot make it into it when writing scopes. This only applies to features that don't have a HOI4 scripting equivalent/cannot be implemented by different ways.  To make things more clear for everyone involved using HCL, I've come up with 2 modes in HCL: regular mode (non-scope mode) and HOI4 scripting+ mode (scope mode). In regular mode it's just HCL, meaning you can use the entire full feature-set of the language anywhere. In HOI4 scripting+ mode, you'll be essentially writing HOI4 scripting code with the available feature-set of HCL in scope mode. Backwards compatibility with regular HOI4 scripting would also be possible.
+Scopes aren't implemented at all. However, it is a **very** important type in HOI4 scripting and by default HPL, as the Paradox Wiki describes it, "Scopes select entities in order to check for triggers or apply effects.". Essentially, effects that you associate with HOI4 scripting (eg. add_stability) can only be performed in scopes and no where else. However HOI4 scripting is the only language I know of that really uses scopes for results, as any other language would just have an if statmenet to check if the option got picked. Scopes work pretty well in HOI4 scripting, however in HPL it's quite an issue for 2 reasons. 1 - it makes it unclear when you can use modifiers in HPL code. 2 - since we're translating HPL scopes to HOI4 scripting scopes, it means that certain HPL features cannot make it into it when writing scopes. This only applies to features that don't have a HOI4 scripting equivalent/cannot be implemented by different ways.  To make things more clear for everyone involved using HPL, I've come up with 2 modes in HPL: regular mode (non-scope mode) and HOI4 scripting+ mode (scope mode). In regular mode it's just HPL, meaning you can use the entire full feature-set of the language anywhere. In HOI4 scripting+ mode, you'll be essentially writing HOI4 scripting code with the available feature-set of HPL in scope mode. Backwards compatibility with regular HOI4 scripting would also be possible.
 
 To come up with the best scope mode implementation, I've come up with 4 guidelines/required features that should be included in the implementation.
 1. Syntax should be as simple and C-based as possible (no need to have overcomplicated syntax for something that's simple in HOI4 scripting).
@@ -122,7 +122,7 @@ scope savedCode = {
 } // Now I can use this scope variable in any scope I want.
 
 newOption(someEventVar, "da title 2") = {
-	savedCode // This gets transformed into actual code when the interpreter reads and transforms it back to HCL and then finally HOI4 code.
+	savedCode // This gets transformed into actual code when the interpreter reads and transforms it back to HPL and then finally HOI4 code.
 }
 
 ```
@@ -132,15 +132,15 @@ newOption(someEventVar, "da title 2") = {
 ARGS:
         <FILE>                     Selected file to be interpreted.
 OPTIONS:
-        -help, -h                  Prints the available CLI options as well as the the version, authors, compiler and OS of the HCL executable.
+        -help, -h                  Prints the available CLI options as well as the the version, authors, compiler and OS of the HPL executable.
         -debug, -g                 Enables all debug procedures (logging and printing debug information).
         -log, -l                   Logs and prints every noteworthy event that the interpreter has got.
         -strict, -s                Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented).
 ```
 
 # Final notes
-## Building HCL
-If you're planning to build HCL, please note that my main programming environment isn't Windows, so expect possible errors and/or unsual behaviours on that platform, as from my experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being whack and causing issues in code that works in one platform but doesn't in the other). Here is my developer environment that'll be using for most of the HCL work:
+## Building HPL
+If you're planning to build HPL, please note that my main programming environment isn't Windows, so expect possible errors and/or unsual behaviours on that platform, as from my experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being whack and causing issues in code that works in one platform but doesn't in the other). Here is my developer environment that'll be using for most of the HPL work:
 ```
 OS: macOS 12.6
 Compiler: Apple clang version 14.0.0 (clang-1400.0.29.102)
@@ -155,8 +155,8 @@ Architecture: x86_64
 C++ standard: c++17
 ```
 ## Cross-platform status
-HCL should work perfectly on MacOS after each commit, as that is my main host system. Compatibility on Windows should also be usually good, however it might not be 100% the case. As for Linux, I have no clue. It probably works on Linux too, but I don't know as I haven't tested it out myself yet and I don't plan to add official support to it until HCL will be more completed.
+HPL should work perfectly on MacOS after each commit, as that is my main host system. Compatibility on Windows should also be usually good, however it might not be 100% the case. As for Linux, I have no clue. It probably works on Linux too, but I don't know as I haven't tested it out myself yet and I don't plan to add official support to it until HPL will be more completed.
 ## Dependencies
-I usually do not like including pre-compiled dependencies in projects, as then it becomes a hassle to keep things cross-platform. So for the majority of HCL, using dependecies is stricly forbidden and should be used as a final resort. However, using dependencies in core functions is acceptable and won't cause any fuss (though again, must be a final resort if there aren't any header-only solutions/self-implementations the function). The dependency can only be statically-compiled/header-only and must be cross-platform between all platforms that you can use HOI4 on (Windows, Mac and Linux).
+I usually do not like including pre-compiled dependencies in projects, as then it becomes a hassle to keep things cross-platform. So for the majority of HPL, using dependecies is stricly forbidden and should be used as a final resort. However, using dependencies in core functions is acceptable and won't cause any fuss (though again, must be a final resort if there aren't any header-only solutions/self-implementations the function). The dependency can only be statically-compiled/header-only and must be cross-platform between all platforms that you can use HOI4 on (Windows, Mac and Linux).
 ## Credits
-[SOIL2 (forked version)](https://github.com/EimaMei/SIL2) - for the `convertToDds` core function, HCL uses a modified version of SOIL2 to remove unneeded OpenGL requirements.
+[SOIL2 (forked version)](https://github.com/EimaMei/SIL2) - for the `convertToDds` core function, HPL uses a modified version of SOIL2 to remove unneeded OpenGL requirements.

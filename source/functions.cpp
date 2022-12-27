@@ -21,7 +21,7 @@
 */
 /*
 =================================================
-|             CORE FUNCTIONS OF HCL             |
+|             CORE FUNCTIONS OF HPL             |
 =================================================
 */
 
@@ -47,7 +47,7 @@
 #include <deps/SOIL2.h>
 
 
-void print(HCL::variable msg, std::string end/* = \n*/) {
+void print(HPL::variable msg, std::string end/* = \n*/) {
 	std::string output;
 
 	if (isVars(msg.value)) {
@@ -76,10 +76,10 @@ void print(HCL::variable msg, std::string end/* = \n*/) {
 }
 
 
-std::string func_str(HCL::variable value) { return xToStr(value.value); }
-int func_int(HCL::variable value) { return xToType<int>(value.value); }
-float func_float(HCL::variable value) { return xToType<float>(value.value); }
-bool func_bool(HCL::variable value) { return xToType<bool>(value.value); }
+std::string func_str(HPL::variable value) { return xToStr(value.value); }
+int func_int(HPL::variable value) { return xToType<int>(value.value); }
+float func_float(HPL::variable value) { return xToType<float>(value.value); }
+bool func_bool(HPL::variable value) { return xToType<bool>(value.value); }
 
 
 int createFolder(std::string path) {
@@ -92,14 +92,14 @@ int createFolder(std::string path) {
 		check = mkdir(fullPath.c_str(), 0777);
 		fullPath += "/";
 	}
-  
+
     return check;
 }
 
 
 int removeFolder(std::string path) {
 	int check = system(std::string("rm -rf " + path).c_str()); // Fuck windows gidjsflkjdalfksjdafiowolfif
-  
+
     return check;
 }
 
@@ -126,7 +126,7 @@ std::string readFile(std::string path) {
 	FILE* f = fopen(path.c_str(), "rb");
 	std::string text;
     char* buffer = nullptr;
- 
+
     if (f != NULL) {
         fseek(f, 0, SEEK_END);
         long fsize = ftell(f);
@@ -143,20 +143,20 @@ std::string readFile(std::string path) {
 	else { return ""; }
 	fclose(f);
 	free(buffer);
-  
+
     return text;
 }
 
 
 int writeFile(std::string path, std::string content, std::string mode/* = "w"*/) {
 	FILE* f = fopen(path.c_str(), mode.c_str());
- 
+
     if (f != NULL)
         fprintf(f, "%s", content.c_str());
 	else
 		return -1;
     fclose(f);
-  
+
     return 0;
 }
 
@@ -262,7 +262,7 @@ int writeLocalisation(std::string file, std::string name, std::string descriptio
 
 int convertToDds(std::string input, std::string output) {
 	int w, h, channels;
-	
+
 	unsigned char* img = SOIL_load_image(input.c_str(), &w, &h, &channels, SOIL_LOAD_AUTO);
 
 	if (img != NULL) {
