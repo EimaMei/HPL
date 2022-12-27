@@ -118,6 +118,30 @@ std::string removeSpaces(std::string str) {
 }
 
 
+std::string removeFrontAndBackSpaces(std::string str) {
+	int i = 0, i2 = 0;
+
+	for (const auto& c : str) { // Find the front spaces.
+		if (str[i] == ' ')
+			i++;
+		else
+			break;
+	}
+	str = str.substr(i, str.size()); // Delete the front spaces.
+
+
+	for (i2 = str.size() - 1; 0 < i2; ) { // Find the back spaces.
+		if (str[i2] == ' ')
+			i2--;
+		else
+			break;
+	}
+	str = str.substr(0, i2 + 1); // Delte the back spaces.
+
+	return str;
+}
+
+
 std::string unstringify(std::string str, bool noChecks/* = false*/, char character/* = '"'*/) {
 	if ((str.front() == 'f' && str[1] == '\"' && str.back() == '\"'))
 		return str;
@@ -234,96 +258,6 @@ bool stringToBool(std::string str) {
 
 double eval(std::string expr, int& errorCode) {
 	errorCode = 0;
-	// Unfinished code. The code only works with * and / operators,
-	// however this really requires a clean rewrite imo. So for now
-	// I am just keeping this code and eventually I'll finish it.
-	/*int code;
-    expr = replaceAll(expr, " ", "");
-	for (auto x : expr) {
-        if (!std::isdigit(x) && x != '-' && x != '+' && x != '/' && x != '*' && x != '(' && x != ')' && x != '.') {
-            errorCode = -1;
-            return -1;
-        }
-    }
-
-    std::string tok = expr;
-
-    for (int i = 0; i < tok.size(); i++) {
-        if (tok[i] == '+')
-            return eval(tok.substr(0, i), code) + eval(tok.substr(i + 1, tok.size() - i - 1), code);
-        else if (tok[i] == '-')
-            return eval(tok.substr(0, i), code) - eval(tok.substr(i + 1, tok.size()- i - 1), code);
-    }
-	std::string num1, num2;
-	std::string output;
-	char lastSym = '\0';
-
-    for (int i = 0; i < tok.size(); i++) {
-        if (tok[i] == '*' || tok[i] == '/' || tok[i] == '+') {
-			if (!num2.empty()) {
-				if (lastSym == '*') {
-					//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) * std::stod(num2));
-				}
-				else if (lastSym == '/') {
-					//std::cout << num1 << " / " << num2 << " == " << std::stod(num1) / std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) / std::stod(num2));
-				}
-				else if (lastSym == '+') {
-					output += num1 + '+';
-					num1 = num2;
-				}
-
-				num2 = "";
-			}
-			lastSym = tok[i];
-
-		}
-		else if (lastSym == '\0')
-			num1 += tok[i];
-		else
-			num2 += tok[i];
-    }
-	if (lastSym == '*') {
-		num1 = std::to_string(std::stod(num1) * std::stod(num2));
-	}
-	else if (lastSym == '/') {
-		num1 = std::to_string(std::stod(num1) / std::stod(num2));
-	}
-	else if (lastSym == '+') {
-		output += num1 + '+' + num2;
-	}
-
-	num1 = num2 = "";
-	lastSym = '\0';
-	for (auto c : output) {
-		std::cout << c << " " << output << " | " << num1 << " " << num2 << std::endl;
-        if (c == '+' || c == '-') {
-			if (!num2.empty()) {
-				if (lastSym == '+') {
-					//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) + std::stod(num2));
-				}
-				else if (lastSym == '-') {
-					//std::cout << num1 << " / " << num2 << " == " << std::stod(num1) / std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) - std::stod(num2));
-				}
-				num2 = "";
-			}
-			lastSym = c;
-		}
-		else if (lastSym == '\0')
-			num1 += c;
-		else
-			num2 += c;
-	}
-	if (lastSym == '+') {
-		//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
-		num1 = std::to_string(std::stod(num1) + std::stod(num2));
-	}
-
-
-    return std::stod(num1);*/
 	return 0;
 }
 
@@ -412,6 +346,7 @@ std::string getTypeFromValue(std::string value) {
 	return "";
 }
 
+
 bool setCorrectValue(HCL::variable& var, std::string value) {
 	HCL::variable* existingVar = getVarFromName(value);
 
@@ -419,7 +354,6 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 		var.type = getTypeFromValue(value);
 
 	if (existingVar != nullptr) {
-
 		if (var.type == "NO_TYPE") {
 			var = *existingVar;
 			return true;
@@ -433,7 +367,24 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 
 	if (var.type == "string" && isStr(value)) {
 		getValueFromFstring(value, value);
-		var.value = convertBackslashes(unstringify(value));
+
+		auto plusShenanigans = split(value, "+", "\"\"(){}"); // C's '+' strike again! We gotta organize everything ffs.
+		std::string res;
+
+		for (const auto& sentence : plusShenanigans) {
+			std::string output = removeFrontAndBackSpaces(sentence);
+
+			if (!isStr(output)) {
+				HCL::variable uselessVar = {.type = "NO_TYPE"};
+
+				setCorrectValue(uselessVar, output);
+				output = xToStr(uselessVar.value);
+			}
+
+			res += unstringify(output);
+		}
+
+		var.value = convertBackslashes(res);
 		return true;
 	}
 
@@ -484,6 +435,12 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 	}
 	/*else if (!(res = extractMathFromValue(value, existingVar)).empty()) // A math expression.
 		value = res;*/
+
+	else if (var.type == "relational-operator" || var.type == "logical-operator") {
+		var.value = value;
+		return true;
+	}
+
 	else {
 		if (existingVar == nullptr)
 			HCL::throwError(true, "Variable '%s' doesn't exist (Can't copy a variable that doesn't exist)", value.c_str());
@@ -491,7 +448,7 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 		return true;
 	}
 
-	HCL::throwError(true, "Internal error: %s", value.c_str());
+	//HCL::throwError(true, "Internal error: %s", value.c_str());
 
 	return false;
 }
@@ -532,24 +489,25 @@ HCL::structure* getStructFromName(std::string name) {
 
 
 int getValueFromFstring(std::string ogValue, std::string& output) {
-	// Checks if the string is even an f-string
+	// Checks if the string is even an f-string.
 	if (ogValue.front() == 'f' && ogValue[1] == '\"' && ogValue.back() == '\"') {
-		// Get every match of {words inside curly brackets}
-		useIterativeRegex(ogValue, R"(\{([\w\.]+)\})");
+		// Get every match of {words inside curly brackets}.
+		useIterativeRegex(ogValue, R"(\{([\w\(\)\[\]\.]+)\})");
 		ogValue.erase(0, 1); // Remove the F letter.
-		for (auto value : HCL::matches.value) {
-			HCL::variable* var = getVarFromName(value);
 
-			if (var == NULL) { // Can't use f-string without providing a variable obviously...
-				HCL::throwError(true, "Variable '%s' doesn't exist (Can't get the value from a variable that doesn't exist)", value.c_str());
-			}
+
+		for (auto value : HCL::matches.value) {
+			HCL::variable var = {.type = "NO_TYPE"};
+			bool res = setCorrectValue(var, value);
+
+			if (!res) // Can't use f-string without providing any valid value obviously...
+				HCL::throwError(true, "Argument '%s' is invalid (Either it's a variable that doesn't exist or something else entirely)", value.c_str());
 			else {
 				value = "{" + value + "}";
-				ogValue = replaceOnce(ogValue, value, xToStr(var->value));
+				ogValue = replaceOnce(ogValue, value, xToStr(var.value));
 			}
 		}
-		output = unstringify(ogValue);
-
+		output = ogValue;
 
 		return 0;
 	}

@@ -8,9 +8,7 @@ struct country {
 }
 
 struct rgb {
-    int r // int r, g, b
-    int g
-    int b
+    int r, g, b
 }
 
 country newCountry(string tag, string name, rgb color, int capital, string oob = "") {

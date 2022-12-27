@@ -33,17 +33,22 @@
 // Interpreter modes.
 #define MODE_DEFAULT 0
 
-#define MODE_SAVE_STRUCT 1
-#define MODE_SAVE_FUNC 2
-#define MODE_SCOPE_IF_STATEMENT 3
-#define MODE_SCOPE_IGNORE_ALL 4
+#define MODE_SAVE_STRUCT          0x0001
+#define MODE_SAVE_FUNC            0x0002
+#define MODE_SCOPE_IF_STATEMENT   0x0004
+#define MODE_SCOPE_IGNORE_ALL     0x0006
+
+#define MODE_CHECK_STRUCT         0x0100
+#define MODE_CHECK_FUNC           0x0102
+#define MODE_CHECK_IGNORE_ALL     0x0104
+#define MODE_CHECK_IF_STATEMENT   0x0106
 
 // Outputs returns.
 #define FOUND_NOTHING 0
 #define FOUND_SOMETHING 1
 #define FOUND_ERROR -1
 
-//
+// Get <type>.
 #define getStr(value) std::get<std::string>(value)
 #define getInt(value) std::get<int>(value)
 #define getFloat(value) std::get<float>(value)

@@ -39,6 +39,8 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Make error/warnings reports more pretty (more aline with how GCC does it).
 - [ ] Multiline variables
 - [X] Finalize how scopes work in general.
+- [ ] Out of order initializations of struct variables.
+- Conditional operator (<condition> ? <true> : <false>)
 
 ## Step 2: Core functions implementation
 When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:

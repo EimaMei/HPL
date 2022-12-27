@@ -75,10 +75,6 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HCL::variable> params;
 
-	// Out of order related.
-	startOrgAt = 0;
-	organizeParams = false;
-
 	if (HCL::arg.debugLog || HCL::arg.debugAll)
 		HCL::arg.curIndent += "\t";
 
@@ -181,7 +177,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 		globalFunction = {};
 
 		if (HCL::arg.debugAll || HCL::arg.debugLog) {
-			std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](0): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << function.type << " " << function.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
+			std::cout << HCL::arg.curIndent << "LOG: [FIND][FUNCTION](0): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << function.type << " " << function.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
 			HCL::arg.curIndent.pop_back();
 		}
 
@@ -189,13 +185,13 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 	}
 
 	// Non-core functions
-	for (auto func : HCL::functions) {
+	for (const auto& func : HCL::functions) {
 		if (useFunction(func, params)) {
 			// Save the info and reset it all so that the interpreter doesn't spout random info.
 			std::string oldCurFile = HCL::curFile;
-			int oldLineCount = HCL::lineCount;
-			std::vector<HCL::variable> oldVars = HCL::variables;
-			int oldMode = HCL::mode;
+			auto oldLineCount = HCL::lineCount;
+			auto oldVars = HCL::variables;
+			auto oldMode = HCL::mode;
 
 			HCL::resetRuntimeInfo();
 			HCL::curFile = func.file;
@@ -204,7 +200,9 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 
 			for (int i = 0; i < func.params.size(); i++) {
 				auto var = func.params[i];
-				if (i < params.size()) var.value = params[i].value;
+
+				if (i < params.size())
+					var.value = params[i].value;
 
 				HCL::variables.push_back(var);
 			}
@@ -216,6 +214,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 				if (HCL::functionOutput.has_value()) // If the function returned something, exit.
 					break;
 			}
+
 			// Set the output value and type.
 			output = HCL::functionOutput;
 			// Reset the saved output value and type.
@@ -229,6 +228,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 						oldV.value = newV.value;
 				}
 			}
+
 			// Reset everything back to normal.
 			HCL::variables = oldVars;
 			HCL::curFile = oldCurFile;
@@ -239,7 +239,7 @@ int executeFunction(std::string name, std::string info, HCL::function& function,
 			foundFunction = true;
 
 			if (HCL::arg.debugAll || HCL::arg.debugLog) {
-				std::cout << HCL::arg.curIndent << "[FIND][FUNCTION](1): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << func.type << " " << func.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
+				std::cout << HCL::arg.curIndent << "LOG: [FIND][FUNCTION](1): " << HCL::curFile << ":" << HCL::lineCount << ": <type> <name> | <output> (<output's type>): " << func.type << " " << func.name << " | " << xToStr(output.value) << " (" << output.type << ")" << std::endl;
 				HCL::arg.curIndent.pop_back();
 			}
 
@@ -301,6 +301,8 @@ bool useFunction(HCL::function func, std::vector<HCL::variable> &sentUserParams)
 			}
 
 			sentUserParams = organizedParams;
+			startOrgAt = 0; // Reset out of order initialization organization.
+			organizeParams = false;
 		}
 
 		for (int i = 0; i < func.params.size(); i++) {

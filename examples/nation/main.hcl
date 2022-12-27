@@ -1,4 +1,5 @@
-#include <libpdx.hcl>
+//#include <libpdx.hcl>
+#include <libcountry.hcl>
 
 newMod("build/output", "Test mod", "1.12.*")
 

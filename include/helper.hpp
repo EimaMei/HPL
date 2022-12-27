@@ -34,6 +34,8 @@ bool useRegex(std::string str, std::string regexText);
 bool useIterativeRegex(std::string str, std::string regexText);
 // Removes any whitespace in a sentence.
 std::string removeSpaces(std::string str);
+// Removes any whitespace in the front or back of a string.
+std::string removeFrontAndBackSpaces(std::string str);
 // Removes the double quotes from strings. If 'noChecks' is enabled then it doesn't check if the string has double quotes in the front and back, which just essentially removes both the front and back char for any string.
 std::string unstringify(std::string str, bool noChecks = false, char character = '"');
 // Gets the path from the filename (eg. /usr/bin/somefile.img would turn to /usr/bin).
