@@ -32,7 +32,7 @@ std::vector<std::string> coreTypes = {
 	"float",  // Regular float.
 	"bool",   // Regular bloat.
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
-	"var"     // Generic type.
+	"auto"    // Generic type.
 };
 std::vector<std::string> coreFunctionList = {
 	// Misc.
@@ -65,8 +65,7 @@ std::vector<std::string> coreFunctionList = {
 };
 
 bool foundFunction = false; // If we found the function.
-bool organizeParams = false; // If we have to organize params.
-int startOrgAt = 0; // At which index we should start the organization. NOTE: A possible bug exists, where the defines the first few params in order, but then defines out of order arguments with the same first few params, ending in shenanigans. Needs fixing.
+int startOrgAt = 0; // At which index we should start the organization. NOTE: A possible bug exists, where the first few params are in order, but then afterwards the defines out of order arguments have the same first few param names, ending in shenanigans. Needs fixing.
 HPL::function globalFunction; // The found function.
 
 
@@ -74,6 +73,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 	// General params.
 	std::vector<std::string> values = split(info, ",", "(){}\"\"");
 	std::vector<HPL::variable> params;
+	bool organizeParams = false; // If we have to organize params.
 
 	if (HPL::arg.debugLog || HPL::arg.debugAll)
 		HPL::arg.curIndent += "\t";
@@ -169,6 +169,9 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 	foundFunction = false;
 	globalFunction.name = name;
 
+	if (organizeParams)
+		params.push_back(HPL::variable{.type = "IS_OOO"});
+
 	output.value = coreFunctions(params);
 
 	if (foundFunction) {
@@ -257,7 +260,14 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 }
 
 
-bool useFunction(HPL::function func, std::vector<HPL::variable> &sentUserParams) {
+bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams) {
+	bool organize = false;
+
+	if (!sentUserParams.empty() && sentUserParams.back().type == "IS_OOO") {
+		sentUserParams.pop_back();
+		organize = true;
+	}
+
 	if (func.name == globalFunction.name && func.params.size() < sentUserParams.size())
 		HPL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.params.size());
 	if (func.name == globalFunction.name && func.minParamCount > sentUserParams.size())
@@ -265,7 +275,7 @@ bool useFunction(HPL::function func, std::vector<HPL::variable> &sentUserParams)
 
 
 	if (func.name == globalFunction.name) {
-		if (organizeParams) { // If there are any out of order arguments.
+		if (organize) { // If there are any out of order arguments.
 			HPL::function* outOfOrderFunc = &func; // The function.
 
 			std::vector<HPL::variable> organizedParams = sentUserParams;
@@ -282,7 +292,7 @@ bool useFunction(HPL::function func, std::vector<HPL::variable> &sentUserParams)
 				else
 					HPL::throwError(true, "Cannot initialize the same param multiple times (param '%s' was initialized multiple times).", outOfOrderParam.name.c_str());
 
-				if (num - 1 < startOrgAt) { // Ignore the in order initializations.
+				if (num - 1 < startOrgAt && startOrgAt != 0) { // Ignore the in order initializations.
 					organizedParams.push_back(sentUserParams[num - 1]);
 					continue;
 				}
@@ -301,9 +311,8 @@ bool useFunction(HPL::function func, std::vector<HPL::variable> &sentUserParams)
 			}
 
 			sentUserParams = organizedParams;
-			startOrgAt = 0; // Reset out of order initialization organization.
-			organizeParams = false;
 		}
+		startOrgAt = 0; // Reset out of order initialization organization.
 
 		for (int i = 0; i < func.params.size(); i++) {
 			if ((i + 1) <= sentUserParams.size()) {
@@ -318,13 +327,13 @@ bool useFunction(HPL::function func, std::vector<HPL::variable> &sentUserParams)
 					for (int x = 0; x < userParams.size(); x++) {
 						auto& member = _struct->value[x];
 
-						if (member.type != userParams[x].type && member.type != "var")
+						if (member.type != userParams[x].type && member.type != "auto")
 							HPL::throwError(true, "Members' types do not match ('%s' is %s-typed, while '%s' is %s-typed)", member.name.c_str(), member.type.c_str(), userParams[x].name.c_str(), userParams[x].type.c_str());
 					}
 					sentUserParams[i].type = func.params[i].type; // why?
 				}
 
-				if (func.params[i].type != sentUserParams[i].type && func.params[i].type != "var")
+				if (func.params[i].type != sentUserParams[i].type && func.params[i].type != "auto")
 					HPL::throwError(true, "Cannot input a '%s' type to a %s-only parameter (param '%s' is %s-only)", sentUserParams[i].type.c_str(), func.params[i].type.c_str(), func.params[i].name.c_str(), func.params[i].type.c_str());
 			}
 
@@ -387,65 +396,66 @@ int assignFuncReturnToVar(HPL::variable* existingVar, std::string funcName, std:
 
 
 allowedTypes coreFunctions(std::vector<HPL::variable> params) {
-	if (useFunction({"void", "print", {{"var", "msg"}, {"string", "ending", "\n"}}, .minParamCount = 1}, params))
+	if (useFunction({.type = "void", .name = "print", .params = {{"auto", "msg"}, {"string", "ending", "\n"}}, .minParamCount = 1}, params))
 		print(params[0], getStr(params[1].value));
 
-	else if (useFunction({"string", "str", {{"var", "value"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "string", .name = "str", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
 		return func_str(params[0]);
 
-	else if (useFunction({"int", "int", {{"var", "value"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "int", .name = "int", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
 		return func_int(params[0]);
 
-	else if (useFunction({"bool", "bool", {{"var", "value"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "bool", .name = "bool", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
 		return func_bool(params[0]);
 
-	else if (useFunction({"float", "float", {{"var", "value"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "float", .name = "float", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
 		return func_float(params[0]);
 
-	else if (useFunction({"int", "createFolder", {{"string", "path"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "int", .name = "createFolder", .params = {{"string", "path"}}, .minParamCount = 1}, params))
 		return createFolder(getStr(params[0].value));
 
-	else if (useFunction({"int", "removeFolder", {{"string", "path"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "int", .name = "removeFolder", .params = {{"string", "path"}}, .minParamCount = 1}, params))
 		return removeFolder(getStr(params[0].value));
 
-	else if (useFunction({"int", "createFile", {{"string", "path"}, {"string", "content", ""}, {"bool", "useUtf8BOM", false}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "int", .name = "createFile", .params = {{"string", "path"}, {"string", "content", ""}, {"bool", "useUtf8BOM", false}}, .minParamCount = 1}, params))
 		return createFile(getStr(params[0].value), getStr(params[1].value), getBool(params[2].value));
 
-	else if (useFunction({"int", "readFile", {{"string", "path"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "int", .name = "readFile", .params = {{"string", "path"}}, .minParamCount = 1}, params))
 		return readFile(getStr(params[0].value));
 
-	else if (useFunction({"int", "writeFile",  {{"string", "path"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 2}, params))
+	else if (useFunction({.type = "int", .name = "writeFile",  .params = {{"string", "path"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 2}, params))
 		return writeFile(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
-	else if (useFunction({"int", "removeFile", {{"string", "path"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "int", .name = "removeFile", .params = {{"string", "path"}}, .minParamCount = 1}, params))
 		return removeFile(getStr(params[0].value));
 
-	else if (useFunction({"int", "copyFile", {{"string", "source"}, {"string", "output"}}, .minParamCount = 2}, params))
+	else if (useFunction({.type = "int", .name = "copyFile", .params = {{"string", "source"}, {"string", "output"}}, .minParamCount = 2}, params))
 		return copyFile(getStr(params[0].value), getStr(params[1].value));
 
-	else if (useFunction({"int", "writeToLine", {{"string", "path"}, {"int", "line"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 3}, params))
+	else if (useFunction({.type = "int", .name = "writeToLine", .params = {{"string", "path"}, {"int", "line"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 3}, params))
 		return writeToLine(getStr(params[0].value), getInt(params[1].value), getStr(params[2].value), getStr(params[3].value));
 
-	else if (useFunction({"int", "writeToMultipleLines", {{"string", "path"}, {"int", "lineBegin"}, {"int", "lineEnd"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 4}, params))
+	else if (useFunction({.type = "int", .name = "writeToMultipleLines", .params = {{"string", "path"}, {"int", "lineBegin"}, {"int", "lineEnd"}, {"string", "content"}, {"string", "mode", "w"}}, .minParamCount = 4}, params))
 		return writeToMultipleLines(getStr(params[0].value), getInt(params[1].value), getInt(params[2].value), getStr(params[3].value), getStr(params[4].value));
 
-	else if (useFunction({"int", "writeLocalisation", {{"string", "file"}, {"string", "name"}, {"string", "description"}}, .minParamCount = 3}, params))
+	else if (useFunction({.type = "int", .name = "writeLocalisation", .params = {{"string", "file"}, {"string", "name"}, {"string", "description"}}, .minParamCount = 3}, params))
 		return writeLocalisation(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
-	else if (useFunction({"int", "convertToDds", {{"string", "input"}, {"string", "output"}}, .minParamCount = 2}, params))
+	else if (useFunction({.type = "int", .name = "convertToDds", .params = {{"string", "input"}, {"string", "output"}}, .minParamCount = 2}, params))
 		return convertToDds(getStr(params[0].value), getStr(params[1].value));
 
-	else if (useFunction({"string", "getFilenameFromPath", {{"string", "path"}}, .minParamCount = 1}, params))
+	else if (useFunction({.type = "string", .name = "getFilenameFromPath", .params = {{"string", "path"}}, .minParamCount = 1}, params))
 		return getFilenameFromPath(getStr(params[0].value));
 
-	//else if (useFunction({"bool", "pathExists", {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
-	//	return replaceAll(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value)[
+	else if (useFunction({.type = "bool", .name = "pathExists", .params = {{"string", "path"}}, .minParamCount = 1}, params))
+		return pathExists(getStr(params[0].value));
 
-	else if (useFunction({"string", "replaceAll", {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
+	else if (useFunction({.type = "bool", .name = "find", .params = {{"string", "line"}, {"string", "input"}}, .minParamCount = 2}, params))
+		return find(getStr(params[0].value), getStr(params[1].value));
+
+	else if (useFunction({.type = "string", .name = "replaceAll", .params = {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
 		return replaceAll(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
-	//else if (useFunction({"bool", "find", {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
-	//	return replaceAll(getStr(params[0].value)[0], params[1].value[0], getStr(params[2].value)[
 
 	return {};
 }

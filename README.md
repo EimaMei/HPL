@@ -1,5 +1,5 @@
 # What is HPL?
-The HOI4 Programming Language (HPL) is a high-level interpreter programming language for HOI4 that is set to make HOI4 scripting much better, while also adding a bunch of new features to make HOI4 programming enjoyable.
+The HOI4 Programming Language (HPL) is a high-level interpreter programming language for HOI4 that is set to make HOI4 modding much better, while also adding a bunch of new features to make HOI4 modding more enjoyable.
 
 # Why HPL?
 Because the current HOI4 scripting "language" lacks very basic programming features (which makes the code more ugly and longer), overcomplicates things for the sake of simplicity, always breaks when a new DLC launches and is just generally not fun to program in. This is why I always refer to the current HOI4 coding as "scripting", as its very basic and lacks the many features that programmer like myself take for granted.
@@ -40,7 +40,7 @@ Currently the language is barely done and it'll take awhile before any random mo
 - [ ] Multiline variables
 - [X] Finalize how scopes work in general.
 - [ ] Out of order initializations of struct variables.
-- Conditional operator (<condition> ? <true> : <false>)
+- [ ] Conditional operator (<condition> ? <true> : <false>)
 
 ## Step 2: Core functions implementation
 When the base code for the interpreter is done, it'll allow us to finally implement the core functions of the language. Without core functions, we won't be able to build HOI4 code. Some of these functions will allow the user to:
@@ -72,54 +72,82 @@ Now that the language can build quite some HOI4 code, by now we should have a st
 # Documentation
 Since the language is still pretty expiremntal, all of the documentation for HPL are in source files and/or examples. The notes are there for anyone wanting to know why I do certain things like that for the sake of convenience, and it acts as a reminder for me sometimes.
 
-# Syntax
-The syntax and feature-set of HPL is almost identical to C's, features like structures, static types, declarations etc. are mostly the same. However there are some additions/removals from C to make the language more approachable for HOI4 coders and tailored to HOI4modding. The main changes are:
-- There are no semicolons (`;`).
-- There are HOI4-only types here (main one being 'scope').
+## Syntax
+The syntax and feature-set of HPL is almost identical to C's, features like structures, static types, declarations etc. are mostly the same.
+
+However there are some additions as well as removals from C to make the language more approachable for HOI4 coders and tailored to HOI4 modding. The main changes are:
+- There are no semicolons (`;`)
+- There are HOI4-only types here (main one being `scope`)
 - A variable can be declared dynamically or as a generic.
 
-# Implemented features
+## Implemented features
 A short list of things that are implemented with full functionality:
-- Create and edit variables.
-- C-based structures (you can access and edit struct members).
-- Declare functions with return types.
-- Execute a function and get its return.
-- Core functions.
-- Python's f-string.
-- Debug and logging modes.
-- Standard libraries for creating HOI4 mods (`libpdx.hpl`, `libcountry.hpl` etc).
-- If statements.
-- Simple math (`++, --, +=, -=, *=, /=, %=`)
+- Create and edit variables
+- C-based structures (you can access and edit struct members)
+- Declare functions with return types
+- Execute a function and get its return
+- Core functions
+- Python's `f-string`
+- Debug and logging modes
+- Standard libraries for creating HOI4 mods (e.g. `libpdx.hpl`, `libcountry.hpl`)
+- `if` statements
+- Simple math (`++`, `--`, `+=`, `-=`, `=`, `/=`, `%=`)
 - HOI4 scopes*
-## Scope
-Scopes aren't implemented at all. However, it is a **very** important type in HOI4 scripting and by default HPL, as the Paradox Wiki describes it, "Scopes select entities in order to check for triggers or apply effects.". Essentially, effects that you associate with HOI4 scripting (eg. add_stability) can only be performed in scopes and no where else. However HOI4 scripting is the only language I know of that really uses scopes for results, as any other language would just have an if statmenet to check if the option got picked. Scopes work pretty well in HOI4 scripting, however in HPL it's quite an issue for 2 reasons. 1 - it makes it unclear when you can use modifiers in HPL code. 2 - since we're translating HPL scopes to HOI4 scripting scopes, it means that certain HPL features cannot make it into it when writing scopes. This only applies to features that don't have a HOI4 scripting equivalent/cannot be implemented by different ways.  To make things more clear for everyone involved using HPL, I've come up with 2 modes in HPL: regular mode (non-scope mode) and HOI4 scripting+ mode (scope mode). In regular mode it's just HPL, meaning you can use the entire full feature-set of the language anywhere. In HOI4 scripting+ mode, you'll be essentially writing HOI4 scripting code with the available feature-set of HPL in scope mode. Backwards compatibility with regular HOI4 scripting would also be possible.
 
-To come up with the best scope mode implementation, I've come up with 4 guidelines/required features that should be included in the implementation.
+## Examples
+
+[general](/examples/general/main.hpl) - Shows the general programming features of HPL and what you can do with it.
+
+[country](/examples/country/main.hpl) - Creates a nation.
+
+[event](/examples/event/main.hpl) - An example of creating a simple HOI4 event.
+
+## Scope
+Scopes aren't implemented at all. However, it is a very important type in HOI4 scripting and by default HPL, as the Paradox Wiki describes it, `Scopes select entities in order to check for triggers or apply effects.`.
+
+Essentially, effects that you associate with HOI4 scripting (e.g. `add_stability`) can only be performed in scopes and nowhere else. However HOI4 scripting is the only language we know of that really uses scopes for results, as any other language would just have an `if` statement to check if the option got picked or not.
+
+Scopes work pretty well in HOI4 scripting, however in HPL it's quite an issue for 2 reasons.
+
+1. It makes it unclear when you can use modifiers in HPL code.
+2. Since we're translating HPL scopes to HOI4 scripting scopes, it means that certain HPL features cannot make it into it when writing scopes. This only applies to features that don't have a HOI4 scripting equivalent/cannot be implemented by different ways.
+
+To make things more clear for everyone involved using HPL, we've come up with 2 modes in HPL:
+
+- Regular mode (non-scope mode)
+- HOI4 scripting+ mode (scope mode)
+
+In regular mode it's just HPL, meaning you can use the entire full feature-set of the language anywhere. In HOI4 scripting+ mode, you'll be essentially writing HOI4 scripting code with the available feature-set of HPL in scope mode. Backwards compatibility with regular HOI4 scripting would also be possible.
+
+To come up with the best scope mode implementation, we've come up with 4 guidelines/required features that should be included in the implementation.
+
 1. Syntax should be as simple and C-based as possible (no need to have overcomplicated syntax for something that's simple in HOI4 scripting).
 2. Scope variables should exist for more options, portability, convenience for me to program in and backwards compatibility.
 3. Being able to declare functions with scope required functionality. If such functionality is enabled, then the function will get a bonus variable with the scope variable.
 4. Must be clear when the user is writing code in non-scope or scope mod.
 
-
 ### **Examples of how one of the scope modes could look**
-1. **Funcion form**
+**Function form**
+
 ```c
 newOption(someEventVar, "da title") = {
 	addStability("ROOT", 50) // If the AI/player picks this option, it gains 50% stability
 }
 ```
-2. **Variable form**
+
+**Variable form**
 ```c
 scope savedCode = {
-	addWarSupport("USA", -10) // Now I can use this scope variable anywhere.
+	addWarSupport("USA", -10) // Now we can use this scope variable anywhere we want.
 }
 ```
-3. **Using both examples as one**
+**Using both examples in one**
+
 ```c
 scope savedCode = {
 	addStability("ROOT", 50)
 	addWarSupport("USA", -10)
-} // Now I can use this scope variable in any scope I want.
+} // Now we can use this scope variable in any scope we want.
 
 newOption(someEventVar, "da title 2") = {
 	savedCode // This gets transformed into actual code when the interpreter reads and transforms it back to HPL and then finally HOI4 code.
@@ -128,6 +156,8 @@ newOption(someEventVar, "da title 2") = {
 ```
 
 # CLI options
+**Note:** The most up to date list of CLI options is available via doing `hpl -help`.
+
 ```
 ARGS:
         <FILE>                     Selected file to be interpreted.
@@ -140,7 +170,10 @@ OPTIONS:
 
 # Final notes
 ## Building HPL
-If you're planning to build HPL, please note that my main programming environment isn't Windows, so expect possible errors and/or unsual behaviours on that platform, as from my experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being whack and causing issues in code that works in one platform but doesn't in the other). Here is my developer environment that'll be using for most of the HPL work:
+If you're planning to build HPL, please note that the main programming environment isn't Windows, so expect possible errors and/or unusual behaviour on that platform, as from our experience it's much more buggy and annoying to program on Windows than it is on other platforms (due to mostly compiler implementations being weird and causing issues in code that works in one platform but doesn't in the other).
+
+Here is my developer environment that I'll be using for most of the HPL work:
+
 ```
 OS: macOS 12.6
 Compiler: Apple clang version 14.0.0 (clang-1400.0.29.102)
@@ -149,14 +182,32 @@ C++ standard: c++17
 ```
 In case I use Windows:
 ```
-OS: Windows 10
+OS: Windows 10 (OS Build 19045.2251)
 Compiler: Clang 15.0.3
 Architecture: x86_64
-C++ standard: c++17
+C++ standard: c++20
 ```
+
 ## Cross-platform status
-HPL should work perfectly on MacOS after each commit, as that is my main host system. Compatibility on Windows should also be usually good, however it might not be 100% the case. As for Linux, I have no clue. It probably works on Linux too, but I don't know as I haven't tested it out myself yet and I don't plan to add official support to it until HPL will be more completed.
+HPL should work perfectly on MacOS after each commit, as that is our main host system.
+
+Compatibility on Windows should also be usually good, however it might not be in 100% of the cases (as Windows might do its own thing compared to MacOS/Linux).
+
+Linux support is unofficial but should work 1 to 1 with the MacOS version, considering both are Unix.
+
 ## Dependencies
-I usually do not like including pre-compiled dependencies in projects, as then it becomes a hassle to keep things cross-platform. So for the majority of HPL, using dependecies is stricly forbidden and should be used as a final resort. However, using dependencies in core functions is acceptable and won't cause any fuss (though again, must be a final resort if there aren't any header-only solutions/self-implementations the function). The dependency can only be statically-compiled/header-only and must be cross-platform between all platforms that you can use HOI4 on (Windows, Mac and Linux).
+We usually do not like including pre-compiled dependencies in projects, as then it becomes a hassle to keep things cross-platform.
+
+So for the majority of HPL, using dependecies is stricly forbidden and should only be used as a final resort. However, using dependencies in core functions is acceptable and won't cause any fuss (though again, must be a final resort if there aren't any header-only solutions or self-implementations the function).
+
+The dependency can only be statically-compiled or header-only and must be cross-platform between all platforms that you can play HOI4 on (Windows, Mac and Linux).
+
+## HPL Visual Studio Code extension
+To make development with HPL much more colourful, fun and modern, programmer [Allyedge](https://github.com/Allyedge) has created a VSC extension for programming in HPL. For now it only has a syntax highlighter, however in the future it's gonna much more features to make development even easier (think of it like the C/C++ VSC extension).
+
+To download it you can just look up 'HPL' in the marketplace, or go to [this link](https://marketplace.visualstudio.com/items?itemName=Allyedge.hpl).
+
 ## Credits
 [SOIL2 (forked version)](https://github.com/EimaMei/SIL2) - for the `convertToDds` core function, HPL uses a modified version of SOIL2 to remove unneeded OpenGL requirements.
+
+[Allyedge](https://github.com/Allyedge) - for creating the HPL VSC extension.

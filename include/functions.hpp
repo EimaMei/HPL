@@ -101,9 +101,9 @@ bool pathExists(std::string path);
 std::string getFilenameFromPath(std::string path);
 
 // Checks if a string is in 'line'.
-// bool find(string line, string str)
+// bool find(string line, string input)
 // (Check helper.hpp for the C++ definition)
 
 // Replaces all instances of 'oldString' with 'newString' in 'str'
-// string replaceAll(string str, string oldString, string newString);
+// string replaceAll(string input, string oldString, string newString);
 // (Check helper.hpp for the C++ definition)

@@ -131,7 +131,6 @@ int HPL::interpreteLine(std::string str) {
 		str = split(str, "//", "\"\"")[0];
 
 	line = str;
-	std::cout << lineCount << " " << line << std::endl;
 
 	if (arg.breakpoint) { // A breakpoint was set.
 		if (curFile == arg.breakpointValues.first && lineCount == arg.breakpointValues.second) {
@@ -312,7 +311,7 @@ int HPL::checkConditions() {
 			mode = MODE_CHECK_IF_STATEMENT;
 
 
-		std::vector params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and other values (eg. 33=="@34")
+		std::vector params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
 
 		ifStatements.push_back({.startingLine = equalBrackets});
 
@@ -446,12 +445,10 @@ int HPL::checkStruct() {
 
 int HPL::checkFunctions() {
 	// Match <return type> <name>(<params>) {
-	std::cout << useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{?$)") << " " << mode << std::endl;
 	if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{?$)") && matches.size() >= 3) {
 		function func = {matches.str(1), matches.str(2)};
 		std::vector<std::string> params = split(matches.str(3), ",", "\"\"");
 
-		std::cout << "hey!!!!!1" << std::endl;
 		for (const auto& v : params) {
 			if (useRegex(v, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
 				variable var = {matches.str(1), matches.str(2)};
@@ -489,7 +486,7 @@ int HPL::checkFunctions() {
 
 		return executeFunction(matches.str(1), matches.str(2), f, res);
 	}
-	else if (useRegex(line, R"(\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) {
+	else if (useRegex(line, R"(^\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) {
 		setCorrectValue(functionOutput, matches.str(1));
 
 		if (HPL::arg.debugAll || HPL::arg.debugLog) {
@@ -727,8 +724,14 @@ void HPL::resetRuntimeInfo() {
 void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 	va_list valist;
 	va_start(valist, text);
-	std::string msg = colorText("Error at ", OUTPUT_RED) + "'" + colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) + "'" + colorText(": ", OUTPUT_RED);
 	bool colorMode = false;
+	
+	#if defined(WINDOWS)
+	std::string msg;
+	std::cout << colorText("Error at ", OUTPUT_RED) << "'" << colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) << "'" << colorText(": ", OUTPUT_RED);
+	#else
+	std::string msg = colorText("Error at ", OUTPUT_RED) + "'" + colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) + "'" + colorText(": ", OUTPUT_RED);
+	#endif
 
 	for (int i = 0; i < text.size(); i++) {
 		auto x = text[i];
@@ -743,20 +746,44 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 
 			switch (text[i + 1]) {
 				case 's':
-					if (colorMode)
+					if (colorMode) {
+						#if defined(WINDOWS)
+						std::cout << msg << colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
+						#else
 						msg += colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
-					else
-						msg += va_arg(valist, const char*);
+						#endif
+						msg.clear();
+					}
+					else {
+						#if defined(WINDOWS)
+						std::cout << msg << va_arg(valist, const char*);
+						msg.clear();
+						#else
+						msg += va_arg(valist, const char*), OUTPUT_YELLOW;
+						#endif
+					}
 
 					break;
 				case 'd':
 				case 'i':
 					num = va_arg(valist, int);
 
-					if (colorMode)
+					if (colorMode) {
+						#if defined(WINDOWS)
+						std::cout << msg << colorText(std::to_string(num), OUTPUT_YELLOW);
+						msg.clear();
+						#else
 						msg += colorText(std::to_string(num), OUTPUT_YELLOW);
-					else
+						#endif
+					}
+					else {
+						#if defined(WINDOWS)
+						std::cout << msg << num;
+						msg.clear();
+						#else
 						msg += std::to_string(num);
+						#endif
+					}
 
 					break;
 
@@ -769,13 +796,31 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 	}
 	va_end(valist);
 
-	if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
-		debugMode();
+	if (sendRuntimeError) {
+		#if defined(WINDOWS) // Windows is fucking stupid with colored terminals.
+		std::cout << msg << std::endl;
 
-	if (sendRuntimeError)
+		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
+			debugMode();
+
+		throw std::runtime_error("");
+		#else
 		throw std::runtime_error("\x1B[0m" + msg);
-	else
+		#endif
+	}
+	else {
+		#if !defined(WINDOWS) // Windows is fucking stupid with colored terminals.
+		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
+			debugMode();
+		#endif
+
 		std::printf("\x1B[0m%s\n", msg.c_str());
+
+		#if defined(WINDOWS) // Windows is fucking stupid with colored terminals.
+		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
+			debugMode();
+		#endif
+	}
 }
 
 

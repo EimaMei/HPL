@@ -23,11 +23,11 @@
 #include <string>
 #include <vector>
 
-#define VERSION "HPL 0.1.2"
+#define VERSION "HPL 0.2.0"
 #define AUTHORS "Created by EimaMei/Sacode"
 
 #if defined(__clang__)
-    #define COMPILER "Clang version " + __clang_version__
+    #define COMPILER removeFrontAndBackSpaces(std::string("Clang version ") + std::string(__clang_version__)).c_str() // mfw random space exists randomly on linux and windows.
 #elif defined(__GNUC__) && !defined(__clang__)
 	#define COMPILER "GCC version " + __GNUC__ + "." + __GNUC_MINOR__ + "." + __GNUC_PATCHLEVEL__
 #elif __MSC_VER__
@@ -72,7 +72,7 @@ void checkArgs(std::vector<std::string> args, std::string input, bool& config, b
 void printHelp() {
 	std::cout << HPL::colorText(VERSION, HPL::OUTPUT_GREEN) << std::endl
 			  << AUTHORS << std::endl
-			  << (std::string)COMPILER << " on " << OS << std::endl
+			  << COMPILER << " on " << OS << std::endl
 			  << HPL::colorText("ARGS:", HPL::OUTPUT_YELLOW) << "\n\t"
 			  		<< HPL::colorText("<FILE>", HPL::OUTPUT_GREEN)                                                             << "								Selected file to be interpreted." << "\n"
 			  << HPL::colorText("OPTIONS:", HPL::OUTPUT_YELLOW) << "\n\t"

@@ -27,6 +27,7 @@
 #include <helper.hpp>
 
 #include <iostream>
+#include <cstring>
 
 // Each commit split just keeps getting more and more complex...
 std::vector<std::string> split(std::string str, std::string value, std::string charScope/* = "\0\0"*/) {
@@ -122,7 +123,7 @@ std::string removeFrontAndBackSpaces(std::string str) {
 	int i = 0, i2 = 0;
 
 	for (const auto& c : str) { // Find the front spaces.
-		if (str[i] == ' ')
+		if (c == ' ')
 			i++;
 		else
 			break;
@@ -407,8 +408,9 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 		useIterativeRegex(unstringify(value, true), R"(([^\,\s]+))");
 		std::vector<HPL::variable> output;
 		HPL::variable coreTypedVariable;
+		auto oldMatches = HPL::matches.value;
 
-		for (auto& v : HPL::matches.value) {
+		for (auto& v : oldMatches) {
 			HPL::variable* var = getVarFromName(v);
 			coreTypedVariable.reset_all();
 
@@ -417,6 +419,9 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 
 			else if (setCorrectValue(coreTypedVariable, v))
 				output.push_back(coreTypedVariable);
+			
+			else if (v.empty())
+				output.push_back({});
 
 			else
 				HPL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
@@ -440,15 +445,6 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 		var.value = value;
 		return true;
 	}
-
-	else {
-		if (existingVar == nullptr)
-			HPL::throwError(true, "Variable '%s' doesn't exist (Can't copy a variable that doesn't exist)", value.c_str());
-
-		return true;
-	}
-
-	//HPL::throwError(true, "Internal error: %s", value.c_str());
 
 	return false;
 }

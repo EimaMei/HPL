@@ -14,8 +14,7 @@ struct mod {
 
 mod HPL_currentMod
 
-int newMod(string path, string name, string supportedVersion)
-{
+int newMod(string path, string name, string supportedVersion) {
     HPL_currentMod = {name, supportedVersion, {}, f"{path}/{name}"}
     removeFolder(path)
     createFolder(HPL_currentMod.path)
