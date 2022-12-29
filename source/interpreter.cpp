@@ -33,7 +33,7 @@
 
 std::vector<std::string> alreadyReadFiles;
 
-std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
+std::string HPL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = false*/) {
 	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 	int clr;
 
@@ -80,7 +80,7 @@ std::string HCL::colorText(std::string txt, RETURN_OUTPUT type, bool light/* = f
 }
 
 
-void HCL::interpreteFile(std::string file) {
+void HPL::interpreteFile(std::string file) {
 	curFile = file;
 	FILE* fp = fopen(curFile.c_str(), "r");
 	bool alreadyRead = false;
@@ -115,7 +115,7 @@ void HCL::interpreteFile(std::string file) {
 		if (!alreadyRead) std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
 	}
 	else
-		std::cout << HCL::colorText("Error: ", HCL::OUTPUT_RED) << HCL::colorText(curFile, HCL::OUTPUT_RED) << ": No such file or directory" << std::endl;
+		std::cout << HPL::colorText("Error: ", HPL::OUTPUT_RED) << HPL::colorText(curFile, HPL::OUTPUT_RED) << ": No such file or directory" << std::endl;
 
 	fclose(fp);
 	resetRuntimeInfo();
@@ -123,7 +123,7 @@ void HCL::interpreteFile(std::string file) {
 }
 
 
-int HCL::interpreteLine(std::string str) {
+int HPL::interpreteLine(std::string str) {
 	if (!arg.interprete)
 		return FOUND_NOTHING;
 
@@ -150,7 +150,7 @@ int HCL::interpreteLine(std::string str) {
 }
 
 
-int HCL::checkIncludes() {
+int HPL::checkIncludes() {
 	if (useRegex(line, R"(#include\s+([<|\"].*[>|\"]))")) {
 		std::string match = unstringify(matches.str(1));
 
@@ -161,12 +161,12 @@ int HCL::checkIncludes() {
 		lineCount = 0; // We reset it so that the lineCount won't be innaccurate when the lines gets interpreted correctly.
 
 
-		if (find(line, "<") && find(line, ">")) // Core library '#include <libpdx.hcl>'
+		if (find(line, "<") && find(line, ">")) // Core library '#include <libpdx.hpl>'
 			match = "core/" + unstringify(match, true);
-		else if (find(line, "\"")) // Some library '#include "../somelib.hcl"'
+		else if (find(line, "\"")) // Some library '#include "../somelib.hpl"'
 			match = getPathFromFilename(oldFile) + "/" + match;
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [INCLUDE][FILE]: " << curFile << ":" << lineCount << ": #include <file>: #include \"" << match << "\"" << std::endl;
 		}
 		interpreteFile(match);
@@ -179,29 +179,40 @@ int HCL::checkIncludes() {
 }
 
 
-int HCL::checkModes() {
-	bool bracket = useRegex(line, R"(^\s*(\})\s*$)");
+int HPL::checkModes() {
+	bool leftBracket = useRegex(line, R"(^\s*(\})\s*$)");
 	bool rightBracket = useRegex(line, R"(^.*\s*\{\s*$)");
 
-	if (bracket)
+	if (find(line, "{") && (mode >= 0x100 && mode <= 0x1000)) {
+		switch (mode) {
+			case MODE_CHECK_STRUCT: mode = MODE_SAVE_STRUCT; break;
+			case MODE_CHECK_FUNC: mode = MODE_SAVE_FUNC; return FOUND_SOMETHING;
+			case MODE_CHECK_IF_STATEMENT: mode = MODE_SCOPE_IF_STATEMENT; return FOUND_SOMETHING; // NEEDS FIXING TOO.
+			case MODE_CHECK_IGNORE_ALL: mode = MODE_SCOPE_IGNORE_ALL; return FOUND_SOMETHING;
+			default: return FOUND_SOMETHING;
+		}
+	}
+
+	if (leftBracket)
 		equalBrackets--;
 	if (useRegex(line, R"(^.*\s*\{\s*$)"))
 		equalBrackets++;
 
-	if (bracket && mode == MODE_SAVE_STRUCT) {
+
+	if (leftBracket && mode == MODE_SAVE_STRUCT) {
 		mode = MODE_DEFAULT;
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			arg.curIndent.pop_back();
 			std::cout << arg.curIndent << "LOG: [DONE][STRUCT]: " << curFile << ":" << lineCount << ": struct <name> {...}: struct " << structures.front().name << " {...}" << std::endl;
 		}
 
 		return FOUND_SOMETHING;
 	}
-	else if (bracket && mode == MODE_SAVE_FUNC && equalBrackets == 0) { // Last line, do not save anymore after this.
+	else if (leftBracket && mode == MODE_SAVE_FUNC && equalBrackets == 0) { // Last line, do not save anymore after this.
 		mode = MODE_DEFAULT;
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			arg.curIndent.pop_back();
 			std::cout << arg.curIndent << "LOG: [DONE][FUNCTION]: " << curFile << ":" << lineCount << ": <type> <name>(<params>): " << printFunction(functions.back()) << std::endl;
 		}
@@ -211,14 +222,14 @@ int HCL::checkModes() {
 	else if (mode == MODE_SAVE_FUNC) {
 		functions.back().code.push_back(line);
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			//std::cout << arg.curIndent << "LOG: [ADDED][LINE]: " << curFile << ":" << lineCount << ": <line>: " << line << std::endl;
 		}
 
 		return FOUND_SOMETHING;
 	}
 	else if (mode == MODE_SCOPE_IGNORE_ALL) {
-		if (bracket && equalBrackets + 1 == ifStatements.back().startingLine) {
+		if (leftBracket && equalBrackets + 1 == ifStatements.back().startingLine) {
 			if (ifStatements.size() > 1)
 				mode = MODE_SCOPE_IF_STATEMENT;
 			else
@@ -226,8 +237,8 @@ int HCL::checkModes() {
 		}
 		return FOUND_SOMETHING;
 	}
-	else if ((bracket || rightBracket) && mode == MODE_SCOPE_IF_STATEMENT && !ifStatements.empty()) {
-		std::vector<HCL::variable> oldVars = HCL::variables;
+	else if ((leftBracket || rightBracket) && mode == MODE_SCOPE_IF_STATEMENT && !ifStatements.empty()) {
+		std::vector<HPL::variable> oldVars = HPL::variables;
 		mode = MODE_DEFAULT;
 
 		if (ifStatements.back().type == "invalid") {
@@ -243,28 +254,28 @@ int HCL::checkModes() {
 				return FOUND_SOMETHING;
 		}
 
-		HCL::lineCount -= ifStatements.front().code.size();
+		HPL::lineCount -= ifStatements.front().code.size();
 
 		for (auto line : ifStatements.front().code) {
-			HCL::lineCount++;
-			HCL::interpreteLine(line);
+			HPL::lineCount++;
+			HPL::interpreteLine(line);
 		}
 
 		// If a global variable was edited in the function, save the changes.
 		for (auto& oldV : oldVars) {
-			for (auto newV : HCL::variables) {
+			for (auto newV : HPL::variables) {
 				if (oldV.name == newV.name)
 					oldV.value = newV.value;
 			}
 		}
-		HCL::variables = oldVars;
+		HPL::variables = oldVars;
 		ifStatements.erase(ifStatements.begin());
 		arg.curIndent.pop_back();
 
 		if (!ifStatements.empty())
 			mode = MODE_SCOPE_IF_STATEMENT;
 
-		if (bracket || (rightBracket && ifStatements.empty()))
+		if (leftBracket || (rightBracket && ifStatements.empty()))
 			return FOUND_SOMETHING;
 	}
 	else if (mode == MODE_SCOPE_IF_STATEMENT) {
@@ -286,77 +297,68 @@ int HCL::checkModes() {
 }
 
 
-int HCL::checkConditions() {
-	if (useRegex(line, R"(^\s*if\s*(.*)\s*\{$)")) {
-		arg.curIndent += "\t";
-		std::vector params = split(matches.str(1), " ", "\"\"{}");
+int HPL::checkConditions() {
+	if (useRegex(line, R"(^\s*if\s*(.*)\s*$)")) {
+		std::string oldValue = removeFrontAndBackSpaces(matches.str(1));
+		bool rightBracket = false;
 
-		std::string oldValue = matches.str(1);
-		mode = MODE_SCOPE_IF_STATEMENT;
+		if (oldValue.back() == '{') {
+			rightBracket = true;
+			oldValue.pop_back();
+			mode = MODE_SCOPE_IF_STATEMENT;
+		}
+		else
+			mode = MODE_CHECK_IF_STATEMENT;
+
+
+		std::vector params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
+
 		ifStatements.push_back({.startingLine = equalBrackets});
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
+			arg.curIndent += "\t\t";
 			std::cout << arg.curIndent << "LOG: [FOUND][IF-STATEMENT]: " << curFile << ":" << lineCount << ": if (<condition>): if (" << oldValue << ")" << std::endl;
 		}
 
 		std::string _operator;
 		bool failed = true;
-		arg.curIndent += "\t";
 
 		for (int i = 0; i < params.size(); i++) {
 			auto& p = params[i];
-			std::string type = getTypeFromValue(p);
-			p = unstringify(p);
+			p = removeFrontAndBackSpaces(p);
 
-			if (type.empty()) {
-				variable* existingVar = getVarFromName(p);
+			HPL::variable var = {.type = "NO_TYPE"};
+			setCorrectValue(var, p);
+			p = xToStr(var.value);
 
-				// Copy over an existing variable to this new one.
-				if (existingVar != nullptr) {
-					if (!coreTyped(existingVar->type)) // Struct
-						HCL::throwError(true, "Cannot compare a struct in an if-statement");
-					else
-						p = xToStr(existingVar->value);
-
-					type = existingVar->type;
-				}
-				// Check if the value is a function.
-				else if (useRegex(p, R"(\s*([^\s\(]+)\((.*)\)\s*)")) {
-					variable var;
-					assignFuncReturnToVar(&var, matches.str(1), matches.str(2));
-
-					if (coreTyped(var.type))
-						params[i] = p = xToStr(var.value);
-					else
-						HCL::throwError(true, "Cannot compare struct variables in an if-statement (variable '%s' is struct-typed)", p.c_str());
-				}
-				else if (existingVar == nullptr && !isInt(p) && (p != "true" && p != "false") && !(find(p, "\""))) {
-					throwError(true, "You cannot use a variable that doesn't exist in an if-statement (variable '%s' does not exist).", p.c_str());
-				}
-				getValueFromFstring(p, p);
-			}
-
-			if (HCL::arg.debugAll || HCL::arg.debugLog) {
-				std::cout << arg.curIndent << "LOG: [CHECKING][IF-STATEMENT-VALUE]: " << curFile << ":" << lineCount << ": <value> ([type]): " << p << " (" << type << ")" << std::endl;
+			if (HPL::arg.debugAll || HPL::arg.debugLog) {
+				std::cout << arg.curIndent << "LOG: [CHECKING][IF-STATEMENT-VALUE]: " << curFile << ":" << lineCount << ": <value> ([type]): " << p << " (" << var.type << ")" << std::endl;
 			}
 
 			if (p == "false" || p == "0") {
 				for (int x = i; x < params.size(); x++) {
-					if (params[x] == "||") { failed = false; break; }
+					if (params[x] == "||") {
+						failed = false;
+						break;
+					}
 				}
-				if (!failed) { failed = true; continue; }
+
+				if (!failed) {
+					failed = true;
+					continue;
+				}
 
 				ifStatements.back().type = "invalid";
-				mode = MODE_SCOPE_IGNORE_ALL;
-				arg.curIndent.pop_back();
-				arg.curIndent.pop_back();
+				mode = rightBracket ? MODE_SCOPE_IGNORE_ALL : MODE_CHECK_IGNORE_ALL;
 
-				if (HCL::arg.debugAll || HCL::arg.debugLog) {
+				if (HPL::arg.debugAll || HPL::arg.debugLog) {
+					arg.curIndent.pop_back();
+					arg.curIndent.pop_back();
 					std::cout << arg.curIndent << "LOG: [FAILED][IF-STATEMENT]: " << curFile << ":" << lineCount << ": Condition failed, output returned false." << std::endl;
 				}
 				return FOUND_SOMETHING;
 			}
-			if (type == "relational-operator") {
+			if (var.type == "relational-operator") {
 				_operator = p;
 				continue;
 			}
@@ -377,7 +379,7 @@ int HCL::checkConditions() {
 				else if (_operator == "<")
 					res = (params[i - 2] <  p);
 
-				if (HCL::arg.debugAll || HCL::arg.debugLog) {
+				if (HPL::arg.debugAll || HPL::arg.debugLog) {
 					std::cout << arg.curIndent << "LOG: [OPERATOR][RELATION]: " << curFile << ":" << lineCount << ": <value 1> <operator> <value 2>: " << params[i - 2] << " " << _operator << " " <<  p << " (" << (res == true ? "true" : "false") << ")" << std::endl;
 				}
 
@@ -385,14 +387,21 @@ int HCL::checkConditions() {
 
 				if (!res) {
 					for (int x = i; x < params.size(); x++) {
-						if (params[x] == "||") { failed = false; break; }
+						if (params[x] == "||") {
+							failed = false;
+							break;
+						}
 					}
-					if (!failed) { failed = true; continue; }
+
+					if (!failed) {
+						failed = true;
+						continue;
+					}
 
 					ifStatements.back().type = "invalid";
-					mode = MODE_SCOPE_IGNORE_ALL;
+					mode = rightBracket ? MODE_SCOPE_IGNORE_ALL : MODE_CHECK_IGNORE_ALL;
 
-					if (HCL::arg.debugAll || HCL::arg.debugLog) {
+					if (HPL::arg.debugAll || HPL::arg.debugLog) {
 						arg.curIndent.pop_back();
 						std::cout << arg.curIndent << "LOG: [FAILED][IF-STATEMENT]: " << curFile << ":" << lineCount << ": Condition failed, output returned false." << std::endl;
 					}
@@ -410,20 +419,23 @@ int HCL::checkConditions() {
 }
 
 
-int HCL::checkStruct() {
+int HPL::checkStruct() {
 	// 'struct <name> {' Only matches the <name>
-	if (useRegex(line, R"(struct\s+([a-zA-Z]+)\s*\{)")) {
+	if (useRegex(line, R"(struct\s+([a-zA-Z]+))")) {
 		std::string name = removeSpaces(matches.str(1));
 
 		structures.insert(structures.begin(), {name});
-		mode = MODE_SAVE_STRUCT;
+		mode = MODE_CHECK_STRUCT;
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [CREATE][STRUCT]: " << curFile << ":" << lineCount << ": struct <name>: struct " << name << std::endl;
 			arg.curIndent += "\t";
 		}
 
-		return FOUND_SOMETHING;
+		if (find(line, "{")) {
+			mode = MODE_SAVE_STRUCT;
+			return FOUND_SOMETHING;
+		}
 	}
 
 	return FOUND_NOTHING;
@@ -431,13 +443,13 @@ int HCL::checkStruct() {
 
 
 
-int HCL::checkFunctions() {
+int HPL::checkFunctions() {
 	// Match <return type> <name>(<params>) {
-	if (useRegex(line, R"(\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{)")) {
+	if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{?$)") && matches.size() >= 3) {
 		function func = {matches.str(1), matches.str(2)};
 		std::vector<std::string> params = split(matches.str(3), ",", "\"\"");
 
-		for (auto v : params) {
+		for (const auto& v : params) {
 			if (useRegex(v, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
 				variable var = {matches.str(1), matches.str(2)};
 
@@ -449,32 +461,35 @@ int HCL::checkFunctions() {
 				func.params.push_back(var);
 			}
 		}
-		func.file = HCL::curFile;
-		func.startingLine = HCL::lineCount;
+		func.file = HPL::curFile;
+		func.startingLine = HPL::lineCount;
 
 		functions.push_back(func);
-		mode = MODE_SAVE_FUNC;
+		mode = MODE_CHECK_FUNC;
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [CREATE][FUNCTION]: " << curFile << ":" << lineCount << ": <type> <name>(<params>): " << printFunction(func) << std::endl;
 			arg.curIndent += "\t";
 		}
 
+		if (find(line, "{"))
+			mode = MODE_SAVE_FUNC;
+
 		return FOUND_SOMETHING;
 	}
-	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
-		function f; HCL::variable res;
+	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)") && matches.size() == 2) {
+		function f; HPL::variable res;
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
 		}
 
 		return executeFunction(matches.str(1), matches.str(2), f, res);
 	}
-	else if (useRegex(line, R"(\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*)")) {
+	else if (useRegex(line, R"(^\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) {
 		setCorrectValue(functionOutput, matches.str(1));
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [FOUND][RETURN]: " << curFile << ":" << lineCount << ": return <value> (<type>): return " << xToStr(functionOutput.value) << " (" << functionOutput.type << ")" << std::endl;
 		}
 
@@ -485,7 +500,7 @@ int HCL::checkFunctions() {
 }
 
 
-int HCL::checkVariables() {
+int HPL::checkVariables() {
 	// <name> = <value>
 	if (useRegex(line, R"(^\s*([^\s]+)\s*[^\-\+\/\*]=\s*(f?\".*\"|\{.*\}|\w*\(.*\)|[\d\s\+\-\*\/\.]+[^\w]*|[^\s]*)\s*.*$)")) { // Edit a pre-existing variable
 		variable info = {"", matches.str(1), matches.str(2)};
@@ -494,24 +509,23 @@ int HCL::checkVariables() {
 		variable* existingVar = getVarFromName(info.name);
 
 
-		if (existingVar != nullptr) {
+		if (existingVar != nullptr)
 			setCorrectValue(*existingVar, value);
-		}
 		else
-			HCL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
+			HPL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [EDIT][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> = <value>: " << existingVar->name << " = ";
 			print(*existingVar);
 		}
 	}
 	//<int> <operator> [value]
-	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.`
+	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.
 		variable* existingVar = getVarFromName(matches.str(1));
 		double res;
 
 		if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float")) {
-			HCL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
+			HPL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
 		}
 		else if (existingVar != nullptr) {
 			double dec1 = xToType<float>(existingVar->value);
@@ -543,83 +557,93 @@ int HCL::checkVariables() {
 			throwError(true, "Cannot perform any math operations to this variable (Variable '%s' does not exist).", matches.str(1).c_str());
 		}
 
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [MATH][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> <operator> [value]: " << existingVar->name << " " << matches.str(2);
 			if (matches.str(2) != "--" || matches.str(2) != "++") std::cout << " " << res;
 		}
 	}
 	// Matches the type, name and value
-	else if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) { // Declaring a new variable.
-		variable var = {matches.str(1), matches.str(2), matches.str(3)};
-		auto& value = getStr(var.value);
-		structure s;
+	else if (useRegex(line, R"(^\s*([^\s]+)\s+(\b[^=]+\b)\s*=?\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|.*)\s*$)")) { // Declaring (a) new variable(s).
+		auto listOfVarNames = split(matches.str(2), ",");
+		auto listOfVarValues = split(matches.str(3), ",", "(){}\"\"");
+		std::string ogType = matches.str(1);
 
-		if (value.empty())
-			var.reset_value();
 
-		if (!typeIsValid(var.type, &s)) // Type isn't cored or a structure.
-			throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
+		for (int listOfVarIndex = 0; listOfVarIndex < listOfVarNames.size(); listOfVarIndex++) {
+			variable var = {.type = ogType, .name = removeSpaces(listOfVarNames[listOfVarIndex]), .value = std::string{}};
 
-		if (!s.name.empty()) { // The returned type from `typeIsValid` returned a struct
-			if (useRegex(value, R"(\s*([^\s]+)\((.*)\))")) { // Value is a function.
-				if (HCL::arg.debugAll || HCL::arg.debugLog) {
-					std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
-				}
+			if (listOfVarIndex < listOfVarValues.size())
+				var.value = removeFrontAndBackSpaces(listOfVarValues[listOfVarIndex]);
 
-				assignFuncReturnToVar(&var, HCL::matches.str(1), HCL::matches.str(2));
-			}
-			else if (!var.has_value()) { // Nothing is set, meaning it's just the struct's default arguments.
-				std::vector<variable> res = s.value;
-				var.value = res;
-			}
-			else { // Oh god oh fuck it's a custom list.
-				// We don't split the string by the comma if the comma is inside double quotes
-				// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
-				std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
-				std::vector<HCL::variable> result;
+			auto& value = getStr(var.value);
+			structure s;
 
-				if (valueList.size() > s.value.size()) {
-					throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
-				}
+			if (value.empty())
+				var.reset_value();
 
-				// The first unstringify is used to remove any unneeded spaces.
-				// Then the second removes the double quotes if it's a string.
-				for (int i = 0; i < s.value.size(); i++) {
-					if (i < s.value.size() && i < valueList.size()) {
-						result.push_back({s.value[i].type, s.value[i].name, unstringify(unstringify(valueList[i], false, ' '))});
+			if (!typeIsValid(var.type, &s)) // Type isn't cored or a structure.
+				throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
+
+			if (!s.name.empty()) { // The returned type from `typeIsValid` returned a struct
+				if (useRegex(value, R"(\s*([^\s]+)\((.*)\))")) { // Value is a function.
+					if (HPL::arg.debugAll || HPL::arg.debugLog) {
+						std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
 					}
-					else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
-						if (s.value[i].has_value()) {
-							result.push_back(s.value[i]);
+
+					assignFuncReturnToVar(&var, HPL::matches.str(1), HPL::matches.str(2));
+				}
+				else if (!var.has_value()) { // Nothing is set, meaning it's just the struct's default arguments.
+					std::vector<variable> res = s.value;
+					var.value = res;
+				}
+				else { // Oh god oh fuck it's a custom list.
+					// We don't split the string by the comma if the comma is inside double quotes
+					// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
+					std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
+					std::vector<HPL::variable> result;
+
+					if (valueList.size() > s.value.size()) {
+						throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
+					}
+
+					// The first unstringify is used to remove any unneeded spaces.
+					// Then the second removes the double quotes if it's a string.
+					for (int i = 0; i < s.value.size(); i++) {
+						if (i < s.value.size() && i < valueList.size()) {
+							result.push_back({s.value[i].type, s.value[i].name, unstringify(unstringify(valueList[i], false, ' '))});
 						}
-						else if (arg.strict)
-							HCL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
-						else
-							HCL::throwError(true, "Shouldn't happen?");
+						else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
+							if (s.value[i].has_value()) {
+								result.push_back(s.value[i]);
+							}
+							else if (arg.strict)
+								HPL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
+							else
+								HPL::throwError(true, "Shouldn't happen?");
+						}
 					}
+
+					var.value = result;
 				}
+			}
+			else if (!value.empty())
+				setCorrectValue(var, value);
 
-				var.value = result;
+			if (mode == MODE_SAVE_STRUCT) // Save variables inside a struct.
+				structures.begin()->value.push_back(var);
+			else
+				variables.push_back(var);
+
+
+			if (HPL::arg.debugAll || HPL::arg.debugLog) {
+				std::cout << arg.curIndent << "LOG: [CREATE][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = [value]: " << var.type << " " << var.name;
+				if (!value.empty()) {
+					std::cout << " = ";
+					print(var, "");
+				}
+				std::cout << std::endl;
 			}
 		}
-		else if (!value.empty())
-			setCorrectValue(var, value);
-
-		if (mode == MODE_SAVE_STRUCT) // Save variables inside a struct.
-			structures.begin()->value.push_back(var);
-		else
-			variables.push_back(var);
-
-
-		if (HCL::arg.debugAll || HCL::arg.debugLog) {
-			std::cout << arg.curIndent << "LOG: [CREATE][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = [value]: " << var.type << " " << var.name;
-			if (!value.empty()) {
-				std::cout << " = ";
-				print(var, "");
-			}
-			std::cout << std::endl;
-		}
-
 		return FOUND_SOMETHING;
 	}
 
@@ -628,8 +652,8 @@ int HCL::checkVariables() {
 }
 
 
-void HCL::debugMode() {
-	std::cout << colorText("============ DEBUG INFORMATION ============\n", HCL::OUTPUT_PURPLE);
+void HPL::debugMode() {
+	std::cout << colorText("============ DEBUG INFORMATION ============\n", HPL::OUTPUT_PURPLE);
 
 	std::cout << colorText("Variables:\n", OUTPUT_CYAN, true);
 	debugPrintVar(variables);
@@ -640,7 +664,7 @@ void HCL::debugMode() {
 }
 
 
-void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, std::string end/* = "\n"*/) {
+void HPL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, std::string end/* = "\n"*/) {
 	for (int index = 0; index < vars.size(); index++) {  // Regular variables
 		auto& var = vars[index];
 
@@ -658,16 +682,16 @@ void HCL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, 
 }
 
 
-void HCL::debugPrintStruct(std::vector<structure> structList, std::string indent/* = "\t"*/) {
+void HPL::debugPrintStruct(std::vector<structure> structList, std::string indent/* = "\t"*/) {
 	for (auto s : structures) {
-		std::cout << indent << colorText("struct", HCL::OUTPUT_PURPLE) << " " << colorText(s.name, HCL::OUTPUT_YELLOW) << colorText(" {", HCL::OUTPUT_GREEN) << std::endl;
+		std::cout << indent << colorText("struct", HPL::OUTPUT_PURPLE) << " " << colorText(s.name, HPL::OUTPUT_YELLOW) << colorText(" {", HPL::OUTPUT_GREEN) << std::endl;
 		debugPrintVar(s.value, indent + indent);
-		std::cout << colorText("\n" + indent + "}\n", HCL::OUTPUT_GREEN);
+		std::cout << colorText("\n" + indent + "}\n", HPL::OUTPUT_GREEN);
 	}
 }
 
 
-void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"*/) {
+void HPL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"*/) {
 	for (auto f : functions) {
 		RETURN_OUTPUT clr = OUTPUT_PURPLE;
 
@@ -676,17 +700,17 @@ void HCL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"
 		else if (!coreTyped(f.type))
 			clr = OUTPUT_RED;
 
-		std::cout << indent << colorText(f.type, clr) << " " << f.name << "(";
-		debugPrintVar(f.params, "", ", ");
-		std::cout << ") {\n";
+		std::cout << indent << colorText(f.type, clr) << " " << f.name << "("; debugPrintVar(f.params, "", ", "); std::cout << ") {\n";
+
 		for (auto c : f.code)
 			std::cout << indent << c << std::endl;
+
 		std::cout << indent << "}" << std::endl;
 	}
 }
 
 
-void HCL::resetRuntimeInfo() {
+void HPL::resetRuntimeInfo() {
 	curFile.clear();
 	line.clear();
 	functionOutput.reset_value();
@@ -697,11 +721,17 @@ void HCL::resetRuntimeInfo() {
 }
 
 
-void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
+void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 	va_list valist;
 	va_start(valist, text);
-	std::string msg = colorText("Error at ", OUTPUT_RED) + "'" + colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) + "'" + colorText(": ", OUTPUT_RED);
 	bool colorMode = false;
+	
+	#if defined(WINDOWS)
+	std::string msg;
+	std::cout << colorText("Error at ", OUTPUT_RED) << "'" << colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) << "'" << colorText(": ", OUTPUT_RED);
+	#else
+	std::string msg = colorText("Error at ", OUTPUT_RED) + "'" + colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) + "'" + colorText(": ", OUTPUT_RED);
+	#endif
 
 	for (int i = 0; i < text.size(); i++) {
 		auto x = text[i];
@@ -716,20 +746,44 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 
 			switch (text[i + 1]) {
 				case 's':
-					if (colorMode)
+					if (colorMode) {
+						#if defined(WINDOWS)
+						std::cout << msg << colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
+						#else
 						msg += colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
-					else
-						msg += va_arg(valist, const char*);
+						#endif
+						msg.clear();
+					}
+					else {
+						#if defined(WINDOWS)
+						std::cout << msg << va_arg(valist, const char*);
+						msg.clear();
+						#else
+						msg += va_arg(valist, const char*), OUTPUT_YELLOW;
+						#endif
+					}
 
 					break;
 				case 'd':
 				case 'i':
 					num = va_arg(valist, int);
 
-					if (colorMode)
+					if (colorMode) {
+						#if defined(WINDOWS)
+						std::cout << msg << colorText(std::to_string(num), OUTPUT_YELLOW);
+						msg.clear();
+						#else
 						msg += colorText(std::to_string(num), OUTPUT_YELLOW);
-					else
+						#endif
+					}
+					else {
+						#if defined(WINDOWS)
+						std::cout << msg << num;
+						msg.clear();
+						#else
 						msg += std::to_string(num);
+						#endif
+					}
 
 					break;
 
@@ -742,26 +796,44 @@ void HCL::throwError(bool sendRuntimeError, std::string text, ...) {
 	}
 	va_end(valist);
 
-	if ((HCL::arg.debugAll || HCL::arg.debugPrint) && sendRuntimeError)
-		debugMode();
+	if (sendRuntimeError) {
+		#if defined(WINDOWS) // Windows is fucking stupid with colored terminals.
+		std::cout << msg << std::endl;
 
-	if (sendRuntimeError)
+		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
+			debugMode();
+
+		throw std::runtime_error("");
+		#else
 		throw std::runtime_error("\x1B[0m" + msg);
-	else
+		#endif
+	}
+	else {
+		#if !defined(WINDOWS) // Windows is fucking stupid with colored terminals.
+		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
+			debugMode();
+		#endif
+
 		std::printf("\x1B[0m%s\n", msg.c_str());
+
+		#if defined(WINDOWS) // Windows is fucking stupid with colored terminals.
+		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
+			debugMode();
+		#endif
+	}
 }
 
 
-namespace HCL {
+namespace HPL {
 	// Inteperter configs.
-	HCL::configArgs arg;
+	HPL::configArgs arg;
 
 	// Interpreter rules runtime.
 	std::string curFile;
 	std::string line;
 	int lineCount = 0;
 	int mode = 0;
-	HCL::vector matches;
+	HPL::vector matches;
 	int equalBrackets = 0;
 
 	// Defnitions that are saved in memory.
@@ -770,5 +842,5 @@ namespace HCL {
 	std::vector<function> functions;
 	std::vector<function> ifStatements;
 
-	HCL::variable functionOutput;
+	HPL::variable functionOutput;
 }

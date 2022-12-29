@@ -1,7 +1,5 @@
-bool functionTest() {
-    string str = "if statement"
-
-    if 30 > 50 || 30 == 320 || str == "if statement" {
+bool functionTest(string input) {
+    if 30 > 50 || 30 == 320 || input == "if statement" {
         print("This gets printed because str equals to \"if statement\"")
         if true {
             print("This obviously gets printed as true equals to... true")
@@ -16,14 +14,16 @@ bool functionTest() {
 
             if 30 < 40 {
                 print("However, this gets printed!")
-                str = "We also change the value of the variable since we can"
+                input = "We also change the value of the variable since we can"
             }
         }
-        print(f"Output: {str}")
+        print(f"Output: {input}")
+
+        return true
     }
 
-    return true
+    return false
     print("This should not get printed")
 }
 
-print(functionTest())
+print("The function 'functionTest' has outputted a '" + functionTest(input = "if statement") + "', not something else.")

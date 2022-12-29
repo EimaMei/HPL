@@ -1,18 +1,18 @@
 /*
 * Copyright (C) 2021-2022 Eima
-*   
+*
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
 * arising from the use of this software.
-* 
+*
 * Permission is granted to anyone to use this software for any purpose,
 * including commercial applications, and to alter it and redistribute it
 * freely, subject to the following restrictions:
-*   
+*
 * 1. The origin of this software must not be misrepresented; you must not
 *    claim that you wrote the original software. If you use this software
 *    in a product, an acknowledgment in the product documentation would be
-*    appreciated but is not required. 
+*    appreciated but is not required.
 * 2. Altered source versions must be plainly marked as such, and must not be
 *    misrepresented as being the original software.
 * 3. This notice may not be removed or altered from any source distribution.
@@ -28,6 +28,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <cstring>
 
 // Each commit split just keeps getting more and more complex...
 std::vector<std::string> split(std::string str, std::string value, std::string charScope/* = "\0\0"*/) {
@@ -68,7 +69,7 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 		}
 	}
 	if (buf.size() != 0) list.insert(list.end(), buf);
-	
+
 	return list;
 }
 
@@ -76,8 +77,8 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 bool useRegex(std::string str, std::string regexText) {
 	std::smatch matches;
 	bool res = std::regex_search(str, matches, std::regex(regexText));
-	
-	// For some reason after 'useRegex' and 'HCL::matches' is out
+
+	// For some reason after 'useRegex' and 'HPL::matches' is out
 	// of the function scope, the data gets corrupted and spews
 	// out random memory in place of actual strings. Why?
 	// No clue. This issue only appeared on the Windows version
@@ -92,9 +93,9 @@ bool useRegex(std::string str, std::string regexText) {
 	// This also means we'll be using vectors for regex outputs,
 	// which I don't particulary mind as std::vector seems to be
 	// much more reliable than std::smatch.
-	HCL::matches.clear();
+	HPL::matches.clear();
 	for (int i = 1; i < matches.size(); i++)
-		HCL::matches.push_back(matches.str(i));
+		HPL::matches.push_back(matches.str(i));
 
 	return res;
 }
@@ -102,10 +103,10 @@ bool useRegex(std::string str, std::string regexText) {
 
 bool useIterativeRegex(std::string str, std::string regexText) {
 	std::smatch match;
-	HCL::matches.clear();
+	HPL::matches.clear();
 	bool res;
     while ((res = std::regex_search(str, match, std::regex(regexText)))) {
-		HCL::matches.push_back(match.str(1));
+		HPL::matches.push_back(match.str(1));
         str = match.suffix();
     }
 
@@ -115,6 +116,30 @@ bool useIterativeRegex(std::string str, std::string regexText) {
 
 std::string removeSpaces(std::string str) {
 	str.erase(remove(str.begin(), str.end(), ' '), str.end());
+	return str;
+}
+
+
+std::string removeFrontAndBackSpaces(std::string str) {
+	int i = 0, i2 = 0;
+
+	for (const auto& c : str) { // Find the front spaces.
+		if (c == ' ')
+			i++;
+		else
+			break;
+	}
+	str = str.substr(i, str.size()); // Delete the front spaces.
+
+
+	for (i2 = str.size() - 1; 0 < i2; ) { // Find the back spaces.
+		if (str[i2] == ' ')
+			i2--;
+		else
+			break;
+	}
+	str = str.substr(0, i2 + 1); // Delte the back spaces.
+
 	return str;
 }
 
@@ -226,7 +251,7 @@ bool stringToBool(std::string str) {
 	else if (str == "false")
 		return false;
 	else
-		HCL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
+		HPL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
 
 	return false;
 }
@@ -235,96 +260,6 @@ bool stringToBool(std::string str) {
 
 double eval(std::string expr, int& errorCode) {
 	errorCode = 0;
-	// Unfinished code. The code only works with * and / operators,
-	// however this really requires a clean rewrite imo. So for now
-	// I am just keeping this code and eventually I'll finish it.
-	/*int code;
-    expr = replaceAll(expr, " ", "");
-	for (auto x : expr) {
-        if (!std::isdigit(x) && x != '-' && x != '+' && x != '/' && x != '*' && x != '(' && x != ')' && x != '.') {
-            errorCode = -1;
-            return -1;
-        }
-    }
-
-    std::string tok = expr;
-
-    for (int i = 0; i < tok.size(); i++) {
-        if (tok[i] == '+')
-            return eval(tok.substr(0, i), code) + eval(tok.substr(i + 1, tok.size() - i - 1), code);
-        else if (tok[i] == '-')
-            return eval(tok.substr(0, i), code) - eval(tok.substr(i + 1, tok.size()- i - 1), code);
-    }
-	std::string num1, num2;
-	std::string output;
-	char lastSym = '\0';
-
-    for (int i = 0; i < tok.size(); i++) {
-        if (tok[i] == '*' || tok[i] == '/' || tok[i] == '+') {
-			if (!num2.empty()) {
-				if (lastSym == '*') {
-					//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) * std::stod(num2));
-				}
-				else if (lastSym == '/') {
-					//std::cout << num1 << " / " << num2 << " == " << std::stod(num1) / std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) / std::stod(num2));
-				}
-				else if (lastSym == '+') {
-					output += num1 + '+';
-					num1 = num2;
-				}
-
-				num2 = "";
-			}
-			lastSym = tok[i];
-
-		}
-		else if (lastSym == '\0')
-			num1 += tok[i];
-		else
-			num2 += tok[i];
-    }
-	if (lastSym == '*') {
-		num1 = std::to_string(std::stod(num1) * std::stod(num2));
-	}
-	else if (lastSym == '/') {
-		num1 = std::to_string(std::stod(num1) / std::stod(num2));
-	}
-	else if (lastSym == '+') {
-		output += num1 + '+' + num2;
-	}
-
-	num1 = num2 = "";
-	lastSym = '\0';
-	for (auto c : output) {
-		std::cout << c << " " << output << " | " << num1 << " " << num2 << std::endl;
-        if (c == '+' || c == '-') {
-			if (!num2.empty()) {
-				if (lastSym == '+') {
-					//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) + std::stod(num2));
-				}
-				else if (lastSym == '-') {
-					//std::cout << num1 << " / " << num2 << " == " << std::stod(num1) / std::stod(num2) << std::endl;
-					num1 = std::to_string(std::stod(num1) - std::stod(num2));
-				}
-				num2 = "";
-			}
-			lastSym = c;
-		}
-		else if (lastSym == '\0')
-			num1 += c;
-		else
-			num2 += c;
-	}
-	if (lastSym == '+') {
-		//std::cout << num1 << " * " << num2 << " == " << std::stod(num1) * std::stod(num2) << std::endl;
-		num1 = std::to_string(std::stod(num1) + std::stod(num2));
-	}
-
-
-    return std::stod(num1);*/
 	return 0;
 }
 
@@ -342,9 +277,9 @@ std::string xToStr(allowedTypes val) {
 	else if (std::holds_alternative<bool>(val))
 		return std::get<bool>(val) == true ? "true" : "false";
 
-	else if (std::holds_alternative<std::vector<HCL::variable>>(val)) {
+	else if (std::holds_alternative<std::vector<HPL::variable>>(val)) {
 		std::string result = "{";
-		auto& _struct = std::get<std::vector<HCL::variable>>(val);
+		auto& _struct = std::get<std::vector<HPL::variable>>(val);
 
 		for (int i = 0; i < _struct.size(); i++) {
 			auto& member = _struct[i];
@@ -366,12 +301,12 @@ std::string xToStr(allowedTypes val) {
 }
 
 
-bool typeIsValid(std::string type, HCL::structure* info/* = NULL*/) {
+bool typeIsValid(std::string type, HPL::structure* info/* = NULL*/) {
 	if (coreTyped(type))
 		return true;
 
 	// Didn't find a core type, maybe it'll find a struct instead.
-	for (auto s : HCL::structures) {
+	for (auto s : HPL::structures) {
 		if (type == s.name) {
 			if (info != nullptr) {
 				info->name = s.name;
@@ -389,7 +324,7 @@ bool coreTyped(std::string type) {
 	for (auto coreType : coreTypes) {
 		if (type == coreType) return true;
 	}
-	
+
 	return false;
 }
 
@@ -413,14 +348,14 @@ std::string getTypeFromValue(std::string value) {
 	return "";
 }
 
-bool setCorrectValue(HCL::variable& var, std::string value) {
-	HCL::variable* existingVar = getVarFromName(value);
+
+bool setCorrectValue(HPL::variable& var, std::string value) {
+	HPL::variable* existingVar = getVarFromName(value);
 
 	if ((var.type.empty() || var.type == "NO_TYPE") && existingVar == nullptr)
 		var.type = getTypeFromValue(value);
 
 	if (existingVar != nullptr) {
-
 		if (var.type == "NO_TYPE") {
 			var = *existingVar;
 			return true;
@@ -434,7 +369,24 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 
 	if (var.type == "string" && isStr(value)) {
 		getValueFromFstring(value, value);
-		var.value = convertBackslashes(unstringify(value));
+
+		auto plusShenanigans = split(value, "+", "\"\"(){}"); // C's '+' strike again! We gotta organize everything ffs.
+		std::string res;
+
+		for (const auto& sentence : plusShenanigans) {
+			std::string output = removeFrontAndBackSpaces(sentence);
+
+			if (!isStr(output)) {
+				HPL::variable uselessVar = {.type = "NO_TYPE"};
+
+				setCorrectValue(uselessVar, output);
+				output = xToStr(uselessVar.value);
+			}
+
+			res += unstringify(output);
+		}
+
+		var.value = convertBackslashes(res);
 		return true;
 	}
 
@@ -455,11 +407,12 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 
 	else if (var.type == "struct" || (value.front() == '{' && value.back() == '}')) {
 		useIterativeRegex(unstringify(value, true), R"(([^\,\s]+))");
-		std::vector<HCL::variable> output;
-		HCL::variable coreTypedVariable;
+		std::vector<HPL::variable> output;
+		HPL::variable coreTypedVariable;
+		auto oldMatches = HPL::matches.value;
 
-		for (auto& v : HCL::matches.value) {
-			HCL::variable* var = getVarFromName(v);
+		for (auto& v : oldMatches) {
+			HPL::variable* var = getVarFromName(v);
 			coreTypedVariable.reset_all();
 
 			if (var != nullptr)
@@ -467,9 +420,12 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 
 			else if (setCorrectValue(coreTypedVariable, v))
 				output.push_back(coreTypedVariable);
+			
+			else if (v.empty())
+				output.push_back({});
 
 			else
-				HCL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
+				HPL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
 		}
 		var.value = output;
 
@@ -480,32 +436,29 @@ bool setCorrectValue(HCL::variable& var, std::string value) {
 		return true;
 	}
 	else if (useRegex(value, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
-		assignFuncReturnToVar(&var, HCL::matches.str(1), HCL::matches.str(2));
+		assignFuncReturnToVar(&var, HPL::matches.str(1), HPL::matches.str(2));
 		return true;
 	}
 	/*else if (!(res = extractMathFromValue(value, existingVar)).empty()) // A math expression.
 		value = res;*/
-	else {
-		if (existingVar == nullptr)
-			HCL::throwError(true, "Variable '%s' doesn't exist (Can't copy a variable that doesn't exist)", value.c_str());
 
+	else if (var.type == "relational-operator" || var.type == "logical-operator") {
+		var.value = value;
 		return true;
 	}
-
-	HCL::throwError(true, "Internal error: %s", value.c_str());
 
 	return false;
 }
 
 
-HCL::variable* getVarFromName(std::string varName) {
-	for (auto& v : HCL::variables) {
+HPL::variable* getVarFromName(std::string varName) {
+	for (auto& v : HPL::variables) {
 		if (v.name == varName) {
 			return &v;
 		}
 
 		if (find(varName, v.name + ".")) { // A custom type
-			HCL::structure* s = getStructFromName(v.type);
+			HPL::structure* s = getStructFromName(v.type);
 			auto& varValues = getVars(v.value);
 
 			for (int i = 0; i < varValues.size(); i++) {
@@ -522,8 +475,8 @@ HCL::variable* getVarFromName(std::string varName) {
 }
 
 
-HCL::structure* getStructFromName(std::string name) {
-	for (auto& s : HCL::structures) {
+HPL::structure* getStructFromName(std::string name) {
+	for (auto& s : HPL::structures) {
 		if (s.name == name)
 			return &s;
 	}
@@ -533,24 +486,25 @@ HCL::structure* getStructFromName(std::string name) {
 
 
 int getValueFromFstring(std::string ogValue, std::string& output) {
-	// Checks if the string is even an f-string
+	// Checks if the string is even an f-string.
 	if (ogValue.front() == 'f' && ogValue[1] == '\"' && ogValue.back() == '\"') {
-		// Get every match of {words inside curly brackets}
-		useIterativeRegex(ogValue, R"(\{([\w\.]+)\})");
+		// Get every match of {words inside curly brackets}.
+		useIterativeRegex(ogValue, R"(\{([\w\(\)\[\]\.]+)\})");
 		ogValue.erase(0, 1); // Remove the F letter.
-		for (auto value : HCL::matches.value) {
-			HCL::variable* var = getVarFromName(value);
 
-			if (var == NULL) { // Can't use f-string without providing a variable obviously...
-				HCL::throwError(true, "Variable '%s' doesn't exist (Can't get the value from a variable that doesn't exist)", value.c_str());
-			}
+
+		for (auto value : HPL::matches.value) {
+			HPL::variable var = {.type = "NO_TYPE"};
+			bool res = setCorrectValue(var, value);
+
+			if (!res) // Can't use f-string without providing any valid value obviously...
+				HPL::throwError(true, "Argument '%s' is invalid (Either it's a variable that doesn't exist or something else entirely)", value.c_str());
 			else {
 				value = "{" + value + "}";
-				ogValue = replaceOnce(ogValue, value, xToStr(var->value));
+				ogValue = replaceOnce(ogValue, value, xToStr(var.value));
 			}
 		}
-		output = unstringify(ogValue);
-
+		output = ogValue;
 
 		return 0;
 	}
@@ -558,7 +512,7 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 }
 
 
-std::string extractMathFromValue(std::string expr, HCL::variable* var) {
+std::string extractMathFromValue(std::string expr, HPL::variable* var) {
 	int mathError;
 	double res = eval(expr, mathError);
 
@@ -573,7 +527,7 @@ std::string extractMathFromValue(std::string expr, HCL::variable* var) {
 }
 
 
-std::string printFunction(HCL::function func) {
+std::string printFunction(HPL::function func) {
 	std::string str = func.type + " " + func.name + "(";
 
 	for (int i = 0; i < func.params.size(); i++) {

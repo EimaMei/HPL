@@ -1,0 +1,3 @@
+#include "libmod.hpl"
+#include "libcountry.hpl"
+#include "libevent.hpl"

@@ -12,35 +12,35 @@ int main(int argc, char** argv) {
 		std::string arg = (std::string)argv[i];
 		bool output = false;
 
-		checkArgs({"help", "h"}, arg, HCL::arg.help, output);
-		checkArgs({"debug", "g"}, arg, HCL::arg.debugAll, output); // Debug all
-		checkArgs({"strict", "s"}, arg, HCL::arg.strict, output);
-		checkArgs({"log", "l"}, arg, HCL::arg.debugLog, output);
-		checkArgs({"breakpoint", "b"}, arg, HCL::arg.breakpoint, output);
+		checkArgs({"help", "h"}, arg, HPL::arg.help, output);
+		checkArgs({"debug", "g"}, arg, HPL::arg.debugAll, output); // Debug all
+		checkArgs({"strict", "s"}, arg, HPL::arg.strict, output);
+		checkArgs({"log", "l"}, arg, HPL::arg.debugLog, output);
+		checkArgs({"breakpoint", "b"}, arg, HPL::arg.breakpoint, output);
 
-		if (HCL::arg.breakpoint && find(arg, ":") && HCL::arg.breakpointValues.first.empty()) {
+		if (HPL::arg.breakpoint && find(arg, ":") && HPL::arg.breakpointValues.first.empty()) {
 			std::vector<std::string> input = split(arg, ":"); // [0] - file, [1] - line.
 
-			HCL::arg.breakpointValues = std::make_pair(input[0], std::stoi(input[1]));
+			HPL::arg.breakpointValues = std::make_pair(input[0], std::stoi(input[1]));
 		}
 		else if (!output)
 			filename = arg;
 	}
 
-	if (HCL::arg.help) {
+	if (HPL::arg.help) {
 		printHelp();
 		return 0;
 	}
 	else if (filename.empty()) {
-		std::cout << HCL::colorText("Error",  HCL::OUTPUT_RED) << ": No input files were provided" << std::endl;
+		std::cout << HPL::colorText("Error",  HPL::OUTPUT_RED) << ": No input files were provided" << std::endl;
 		return -1;
 	}
 
 
-	HCL::interpreteFile(filename);
+	HPL::interpreteFile(filename);
 
-	if (HCL::arg.debugAll)
-		HCL::debugMode();
+	if (HPL::arg.debugAll)
+		HPL::debugMode();
 
 	return 0;
 }
