@@ -160,12 +160,14 @@ newOption(someEventVar, "da title 2") = {
 
 ```
 ARGS:
-        <FILE>                     Selected file to be interpreted.
+        <FILE>                                                          Selected file to be interpreted.
 OPTIONS:
-        -help, -h                  Prints the available CLI options as well as the the version, authors, compiler and OS of the HPL executable.
-        -debug, -g                 Enables all debug procedures (logging and printing debug information).
-        -log, -l                   Logs and prints every noteworthy event that the interpreter has got.
-        -strict, -s                Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented).
+        -help, -h                                                       Prints the available CLI options as well as the the version, authors, compiler and OS of the HPL executable.
+        -debug, -g                                                      Enables all debug procedures (logging and printing debug information).
+        -log, -l                                                        Logs and prints every noteworthy event that the interpreter has got.
+        -strict, -s                                                     Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented).
+        -breakpoint, -b <FILE>:<LINE>                                   Sets a breakpoint at a specific file and line where if the interpreter reaches it, it stops interpreting everything.
+        -dumpJson, -d                                                   Dumps the entire project's information (mod name, version, variables, functions etc.) into a JSON format. Used for creating other tools with HPL.
 ```
 
 # Final notes

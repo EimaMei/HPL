@@ -74,6 +74,8 @@ namespace HPL {
 		bool debugLog;
 		bool breakpoint; std::pair<std::string, int> breakpointValues;
 
+		bool dumpJson;
+
 		std::string curIndent;
 	};
 	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, double, std::vector<HPL::variable>>

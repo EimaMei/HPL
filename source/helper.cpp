@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2021-2022 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -26,7 +26,6 @@
 #include <core.hpp>
 #include <helper.hpp>
 
-#include <cstring>
 #include <iostream>
 #include <cstring>
 
@@ -82,7 +81,7 @@ bool useRegex(std::string str, std::string regexText) {
 	// of the function scope, the data gets corrupted and spews
 	// out random memory in place of actual strings. Why?
 	// No clue. This issue only appeared on the Windows version
-	// of Clange (15.0.3, 15.0.2 and 14.0.0 has the same issue).
+	// of Clang (15.0.3, 15.0.2 and 14.0.0 has the same issue).
 	// Strangely enough, Apple Clang 14 has 0 issues with
 	// std::smatch so... win for Apple?
 	//
@@ -250,8 +249,15 @@ bool stringToBool(std::string str) {
 		return false;
 	else if (str == "false")
 		return false;
-	else
-		HPL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
+	else {
+		HPL::variable var;
+		bool b = setCorrectValue(var, str);
+
+		if (!b)
+			HPL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
+
+		return xToType<bool>(var.value);
+	}
 
 	return false;
 }
@@ -406,27 +412,44 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 	}
 
 	else if (var.type == "struct" || (value.front() == '{' && value.back() == '}')) {
-		useIterativeRegex(unstringify(value, true), R"(([^\,\s]+))");
+		useIterativeRegex(unstringify(value, true), R"(([^\,\s]+))"); // get the members.
+
+		HPL::structure* _struct = getStructFromName(var.type);
 		std::vector<HPL::variable> output;
 		HPL::variable coreTypedVariable;
 		auto oldMatches = HPL::matches.value;
+		int index = 0;
 
 		for (auto& v : oldMatches) {
 			HPL::variable* var = getVarFromName(v);
 			coreTypedVariable.reset_all();
+			if (_struct != nullptr)
+				coreTypedVariable = _struct->value[index];
 
 			if (var != nullptr)
 				output.push_back(*var);
 
 			else if (setCorrectValue(coreTypedVariable, v))
 				output.push_back(coreTypedVariable);
+
+			else if (v.empty() && _struct != nullptr)
+				output.push_back(_struct->value[index]);
 			
 			else if (v.empty())
 				output.push_back({});
 
 			else
 				HPL::throwError(true, "Variable '%s' doesn't exist (Cannot set a member to something that doesn't exist)", v.c_str());
+
+			index++;
 		}
+
+		if (_struct != nullptr && _struct->value.size() > index + 1) {
+			for (int i = index; i < _struct->value.size(); i++) {
+				output.push_back(_struct->value[i]);
+			}
+		}
+
 		var.value = output;
 
 		if (var.type.empty() || var.type == "NO_TYPE") {
@@ -459,6 +482,10 @@ HPL::variable* getVarFromName(std::string varName) {
 
 		if (find(varName, v.name + ".")) { // A custom type
 			HPL::structure* s = getStructFromName(v.type);
+
+			if (s == nullptr) // Was a false-positive after all, goddamn...
+				return nullptr;
+
 			auto& varValues = getVars(v.value);
 
 			for (int i = 0; i < varValues.size(); i++) {
@@ -471,6 +498,7 @@ HPL::variable* getVarFromName(std::string varName) {
 			}
 		}
 	}
+
 	return nullptr;
 }
 

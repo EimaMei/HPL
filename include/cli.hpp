@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2021-2022 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#define VERSION "HPL 0.2.0"
+#define VERSION "HPL 0.2.1"
 #define AUTHORS "Created by EimaMei/Sacode"
 
 #if defined(__clang__)
@@ -48,38 +48,12 @@
 	#define OS "Linux"
 #endif
 
-void checkArg(std::string arg, std::string input, bool& config, bool& res) {
-	if (input == ("-" + arg)) {
-		config = true;
-		res = true;
-	}
-	else if (input == ("-no" + arg)) {
-		config = false;
-		res = true;
-	}
-}
 
-
-void checkArgs(std::vector<std::string> args, std::string input, bool& config, bool& res) {
-	for (auto& a : args) {
-		checkArg(a, input, config, res);
-		if (res)
-			break;
-	}
-}
-
-
-void printHelp() {
-	std::cout << HPL::colorText(VERSION, HPL::OUTPUT_GREEN) << std::endl
-			  << AUTHORS << std::endl
-			  << COMPILER << " on " << OS << std::endl
-			  << HPL::colorText("ARGS:", HPL::OUTPUT_YELLOW) << "\n\t"
-			  		<< HPL::colorText("<FILE>", HPL::OUTPUT_GREEN)                                                             << "								Selected file to be interpreted." << "\n"
-			  << HPL::colorText("OPTIONS:", HPL::OUTPUT_YELLOW) << "\n\t"
-			  		<< HPL::colorText("-help", HPL::OUTPUT_GREEN) << ", " << HPL::colorText("-h                    ", HPL::OUTPUT_GREEN) << "					Prints the available CLI options as well as the the version, authors, compiler and OS of the HPL executable." << "\n\t"
-			  		<< HPL::colorText("-debug", HPL::OUTPUT_GREEN) << ", " << HPL::colorText("-g                   ", HPL::OUTPUT_GREEN) << "					Enables all debug procedures (logging and printing debug information)." << "\n\t"
-					<< HPL::colorText("-log", HPL::OUTPUT_GREEN) << ", " << HPL::colorText("-l                     ", HPL::OUTPUT_GREEN) << "					Logs and prints every noteworthy event that the interpreter has got." << "\n\t"
-			  		<< HPL::colorText("-strict", HPL::OUTPUT_GREEN) << ", " << HPL::colorText("-s                  ", HPL::OUTPUT_GREEN) << "					Enables a strict mode, where you have a limited amount of available features to make less confusing code/massive mistakes (Barely implemented)." << "\n\t"
-					<< HPL::colorText("-breakpoint", HPL::OUTPUT_GREEN) << ", " << HPL::colorText("-b <FILE>:<LINE>", HPL::OUTPUT_GREEN) << "					Sets a breakpoint at a specific file and line where if the interpreter reaches it, it stops interpreting everything.";
-
-}
+// Checks if the input equals to the CLI argument.
+void checkArg(std::string arg, std::string input, bool& config, bool& res);
+// Checks if the input equals to the CLI arguments.
+void checkArgs(std::vector<std::string> args, std::string input, bool& config, bool& res);
+// Prints the help.
+void printHelp();
+// Dumps the entire project's JSON.
+void dumpJson();

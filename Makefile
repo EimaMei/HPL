@@ -42,6 +42,9 @@ runLogs: $(EXE)
 runDebug: $(EXE)
 	./$(EXE) -g $(HPL-INPUT)
 
+runJson: $(EXE)
+	./$(EXE) -dumpJson $(HPL-INPUT)
+
 clean:
 	rm -rf build/**
 

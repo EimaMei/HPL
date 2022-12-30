@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2021-2022 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -309,6 +309,8 @@ int HPL::checkConditions() {
 		}
 		else
 			mode = MODE_CHECK_IF_STATEMENT;
+
+		oldValue = removeFrontAndBackSpaces(oldValue);
 
 
 		auto params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
