@@ -311,7 +311,7 @@ int HPL::checkConditions() {
 			mode = MODE_CHECK_IF_STATEMENT;
 
 
-		std::vector params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
+		auto params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
 
 		ifStatements.push_back({.startingLine = equalBrackets});
 
@@ -524,9 +524,18 @@ int HPL::checkVariables() {
 		variable* existingVar = getVarFromName(matches.str(1));
 		double res;
 
-		if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float")) {
-			HPL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
+		if (existingVar != nullptr && existingVar->type == "string" && matches.str(2) == "+=") {
+			HPL::variable var;
+			setCorrectValue(var, matches.str(3));
+			if (var.type == "struct" || var.type == "scope") {
+				HPL::throwError(true, "Cannot append a %s type to a string (Value '%s' is a %s-type).", var.type.c_str(), xToStr(var.value).c_str(), var.type.c_str());
+			}
+			existingVar->value = xToStr(existingVar->value) + xToStr(var.value);
 		}
+
+		else if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float"))
+			HPL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
+
 		else if (existingVar != nullptr) {
 			double dec1 = xToType<float>(existingVar->value);
 			double dec2 = std::stod(matches.str(3));
@@ -606,11 +615,10 @@ int HPL::checkVariables() {
 						throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
 					}
 
-					// The first unstringify is used to remove any unneeded spaces.
-					// Then the second removes the double quotes if it's a string.
+					// The first removes the spaces, then the double quotes.
 					for (int i = 0; i < s.value.size(); i++) {
 						if (i < s.value.size() && i < valueList.size()) {
-							result.push_back({s.value[i].type, s.value[i].name, unstringify(unstringify(valueList[i], false, ' '))});
+							result.push_back({s.value[i].type, s.value[i].name, unstringify(removeFrontAndBackSpaces(valueList[i]))});
 						}
 						else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
 							if (s.value[i].has_value()) {

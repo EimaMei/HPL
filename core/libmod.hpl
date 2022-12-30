@@ -1,8 +1,21 @@
 #read once
 
 struct modTags {
+    bool alternativeHistory = false
+    bool balance = false
+    bool events = false
+    bool fixes = false
     bool gameplay = false
+    bool graphics = false
     bool historical = false
+    bool ideologies = false
+    bool map = false
+    bool military = false
+    bool nationalFocuses = false
+    bool sound = false
+    bool technologies = false
+    bool translation = false
+    bool utilities = false
 }
 
 struct mod {
