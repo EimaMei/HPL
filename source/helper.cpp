@@ -26,6 +26,7 @@
 #include <core.hpp>
 #include <helper.hpp>
 
+#include <cstring>
 #include <iostream>
 #include <cstring>
 
