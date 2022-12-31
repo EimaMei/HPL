@@ -132,7 +132,7 @@ int HPL::interpreteLine(std::string str) {
 
 	line = str;
 
-	if (arg.breakpoint) { // A breakpoint was set.
+	if (arg.breakpoint && mode != MODE_SAVE_FUNC) { // A breakpoint was set.
 		if (curFile == arg.breakpointValues.first && lineCount == arg.breakpointValues.second) {
 			std::cout << "Breakpoint reached at " << curFile << ":" << lineCount << std::endl;
 			arg.interprete = false;
@@ -329,8 +329,8 @@ int HPL::checkConditions() {
 			auto& p = params[i];
 			p = removeFrontAndBackSpaces(p);
 
-			HPL::variable var = {.type = "NO_TYPE"};
-			setCorrectValue(var, p);
+			HPL::variable var;
+			setCorrectValue(var, p, false);
 			p = xToStr(var.value);
 
 			if (HPL::arg.debugAll || HPL::arg.debugLog) {
@@ -489,7 +489,7 @@ int HPL::checkFunctions() {
 		return executeFunction(matches.str(1), matches.str(2), f, res);
 	}
 	else if (useRegex(line, R"(^\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) {
-		setCorrectValue(functionOutput, matches.str(1));
+		setCorrectValue(functionOutput, matches.str(1), false);
 
 		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [FOUND][RETURN]: " << curFile << ":" << lineCount << ": return <value> (<type>): return " << xToStr(functionOutput.value) << " (" << functionOutput.type << ")" << std::endl;
@@ -508,39 +508,45 @@ int HPL::checkVariables() {
 		variable info = {"", matches.str(1), matches.str(2)};
 		auto& value = getStr(info.value);
 
-		variable* existingVar = getVarFromName(info.name);
+		HPL::variable* existingVar = getVarFromName(info.name);
 
-
-		if (existingVar != nullptr)
-			setCorrectValue(*existingVar, value);
-		else
+		if (existingVar == nullptr)
 			HPL::throwError(true, "Variable '%s' doesn't exist (Can't edit a variable that doesn't exist)", info.name.c_str());
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
-			std::cout << arg.curIndent << "LOG: [EDIT][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> = <value>: " << existingVar->name << " = ";
-			print(*existingVar);
-		}
+		setCorrectValue(*existingVar, value, true);
+
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
+			std::cout << arg.curIndent << "LOG: [EDIT][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = <value>: " << printVar(*existingVar) << std::endl;
 	}
-	//<int> <operator> [value]
+	//<int/float/string> <operator> [value]
 	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.
 		variable* existingVar = getVarFromName(matches.str(1));
+		std::string value = matches.str(3);
 		double res;
 
-		if (existingVar != nullptr && existingVar->type == "string" && matches.str(2) == "+=") {
+
+		if (existingVar == nullptr)
+			throwError(true, "Cannot perform any math operations to this variable (Variable '%s' does not exist).", matches.str(1).c_str());
+
+		if (!(existingVar->type == "int" || existingVar->type == "float" || existingVar->type == "string"))
+			HPL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float/string-typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
+
+		if (existingVar->type == "string" && matches.str(2) == "+=") {
 			HPL::variable var;
-			setCorrectValue(var, matches.str(3));
-			if (var.type == "struct" || var.type == "scope") {
+			setCorrectValue(var, value, false);
+
+			if (var.type == "struct" || var.type == "scope")
 				HPL::throwError(true, "Cannot append a %s type to a string (Value '%s' is a %s-type).", var.type.c_str(), xToStr(var.value).c_str(), var.type.c_str());
-			}
-			existingVar->value = xToStr(existingVar->value) + xToStr(var.value);
+
+
+			existingVar->value = getStr((*existingVar).value).c_str() + xToStr(var.value); // for some reason we have to get the const char* to append the text, smh.
+
+			return FOUND_SOMETHING;
 		}
 
-		else if (existingVar != nullptr && !(existingVar->type == "int" || existingVar->type == "float"))
-			HPL::throwError(true, "Cannot perform any math operations to a non-int variable (Variable '%s' isn't int/float typed, can't operate to a '%s' type).", existingVar->name.c_str(), existingVar->type.c_str());
-
-		else if (existingVar != nullptr) {
+		else {
 			double dec1 = xToType<float>(existingVar->value);
-			double dec2 = std::stod(matches.str(3));
+			double dec2 = std::stod(value);
 
 			if (matches.str(2) == "++")
 				res = dec1 + 1;
@@ -564,13 +570,12 @@ int HPL::checkVariables() {
 				existingVar->value = (float)res;
 			}
 		}
-		else {
-			throwError(true, "Cannot perform any math operations to this variable (Variable '%s' does not exist).", matches.str(1).c_str());
-		}
 
 		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [MATH][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> <operator> [value]: " << existingVar->name << " " << matches.str(2);
-			if (matches.str(2) != "--" || matches.str(2) != "++") std::cout << " " << res;
+			if (matches.str(2) != "--" || matches.str(2) != "++")
+				std::cout << " " << res;
+			std::cout << std::endl;
 		}
 	}
 	// Matches the type, name and value
@@ -587,57 +592,14 @@ int HPL::checkVariables() {
 				var.value = removeFrontAndBackSpaces(listOfVarValues[listOfVarIndex]);
 
 			auto& value = getStr(var.value);
-			structure s;
 
 			if (value.empty())
 				var.reset_value();
 
-			if (!typeIsValid(var.type, &s)) // Type isn't cored or a structure.
+			if (!typeIsValid(var.type)) // Type isn't cored or a structure.
 				throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
 
-			if (!s.name.empty()) { // The returned type from `typeIsValid` returned a struct
-				if (useRegex(value, R"(\s*([^\s]+)\((.*)\))")) { // Value is a function.
-					if (HPL::arg.debugAll || HPL::arg.debugLog) {
-						std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
-					}
-
-					assignFuncReturnToVar(&var, HPL::matches.str(1), HPL::matches.str(2));
-				}
-				else if (!var.has_value()) { // Nothing is set, meaning it's just the struct's default arguments.
-					std::vector<variable> res = s.value;
-					var.value = res;
-				}
-				else { // Oh god oh fuck it's a custom list.
-					// We don't split the string by the comma if the comma is inside double quotes
-					// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
-					std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
-					std::vector<HPL::variable> result;
-
-					if (valueList.size() > s.value.size()) {
-						throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s.value.size());
-					}
-
-					// The first removes the spaces, then the double quotes.
-					for (int i = 0; i < s.value.size(); i++) {
-						if (i < s.value.size() && i < valueList.size()) {
-							result.push_back({s.value[i].type, s.value[i].name, unstringify(removeFrontAndBackSpaces(valueList[i]))});
-						}
-						else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
-							if (s.value[i].has_value()) {
-								result.push_back(s.value[i]);
-							}
-							else if (arg.strict)
-								HPL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s.value.size());
-							else
-								HPL::throwError(true, "Shouldn't happen?");
-						}
-					}
-
-					var.value = result;
-				}
-			}
-			else if (!value.empty())
-				setCorrectValue(var, value);
+			setCorrectValue(var, value, true);
 
 			if (mode == MODE_SAVE_STRUCT) // Save variables inside a struct.
 				structures.begin()->value.push_back(var);

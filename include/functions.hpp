@@ -35,23 +35,23 @@
 // put a space between 'print' and 'createFolder').
 
 // Prints something out in the terminal.
-// void print(var msg, string end = "\n")
+// void print(auto msg, string end = "\n")
 void print(HPL::variable msg, std::string end = "\n");
 
 // Converts value to str.
-// string str(var value)
+// string str(auto value)
 std::string func_str(HPL::variable value);
 // Converts value to int`.
-// int int(var value)
+// int int(auto value)
 int func_int(HPL::variable value);
 // Converts value to float.
-// float float(var value)
+// float float(auto value)
 float func_float(HPL::variable value);
 // Converts value to bool.
-// bool bool(var value)
+// bool bool(auto value)
 bool func_bool(HPL::variable value);
 // Gets the length of the value
-// int len(var value)
+// int len(auto value)
 int len(HPL::variable value);
 
 // Creates a folder.

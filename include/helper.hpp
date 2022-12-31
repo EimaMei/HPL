@@ -95,7 +95,7 @@ std::string getTypeFromValue(std::string value);
 // `.type` being the value's original type, and the `.value` being
 // the inputed value in a correct type. (eg. "3" would output
 // {.type = "int", .value = 3}).
-bool setCorrectValue(HPL::variable& var, std::string value);
+bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue);
 // Gets the variable's value by its name and returns a pointer of it.
 // If the `varName` is a struct member, then regardlessly it'll look
 // for said member's type and values.
@@ -108,3 +108,5 @@ HPL::structure* getStructFromName(std::string name);
 std::string extractMathFromValue(std::string expr, HPL::variable* var);
 // Returns a string "<type> <name>(<params>)"
 std::string printFunction(HPL::function func);
+// Returns a string "<type> <name> = [value]"
+std::string printVar(HPL::variable var);

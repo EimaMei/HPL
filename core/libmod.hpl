@@ -28,7 +28,7 @@ struct mod {
 mod HPL_currentMod
 
 int newMod(string path, string name, string supportedVersion, modTags tags = {}) {
-    HPL_currentMod = {name, supportedVersion, {}, f"{path}/{name}"}
+    HPL_currentMod = {name, supportedVersion, tags, f"{path}/{name}"}
     removeFolder(path)
     createFolder(HPL_currentMod.path)
 
@@ -36,7 +36,8 @@ int newMod(string path, string name, string supportedVersion, modTags tags = {})
     // if tags.alternativeHistory {
     //     descriptor += "\n\t\"Gameplay\""
     // }
-    descriptor += "}\npath = \"mod/{name}\" "
+    descriptor += f"}\npath = \"mod/{name}\""
+
 
 
     createFile(f"{path}/{name}.mod", descriptor)

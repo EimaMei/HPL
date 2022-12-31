@@ -9,7 +9,7 @@ OBJ = $(addprefix $(OUTPUT)/,$(addsuffix .o,$(notdir $(SRC))))
 FLAGS = -std=c++17 -O2 -Wall -Wpedantic
 LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
-HPL-INPUT = examples/general/main.hpl
+INPUT = general
 
 ifeq ($(OS),Windows_NT)
     PLATFORM = windows
@@ -34,16 +34,16 @@ $(EXE): $(OBJ) main.cpp
 	$(CC) $(FLAGS) $(INCLUDE) $(OBJ) main.cpp $(LIBS) -o $@
 
 run: $(EXE)
-	./$(EXE) $(HPL-INPUT)
+	./$(EXE) examples/$(INPUT)/main.hpl
 
 runLogs: $(EXE)
-	./$(EXE) -log $(HPL-INPUT)
+	./$(EXE) -l examples/$(INPUT)/main.hpl
 
 runDebug: $(EXE)
-	./$(EXE) -g $(HPL-INPUT)
+	./$(EXE) -g  examples/$(INPUT)/main.hpl
 
 runJson: $(EXE)
-	./$(EXE) -dumpJson $(HPL-INPUT)
+	./$(EXE) -dumpJson examples/$(INPUT)/main.hpl
 
 clean:
 	rm -rf build/**

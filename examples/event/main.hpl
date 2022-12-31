@@ -10,7 +10,7 @@
 // removeFolder("build/output")
 
 
-newMod("build/output", "Test mod", "1.12.*")
+newMod("build/output", "Test mod", "1.12.*", {true})
 
 event alithronEvent = newEvent(namespace = "hpl_events", id = 56, title = "Alithron is back", description = "After 10 years of sufferage, the bri ish man himself Alithron has announced recently that he shall return in the coming weeks, no doubt to cause major tomfoolery and bring back Unser Kampf.", imagePath = "examples/event/res/literal_evil.png")
 newEventOption(e = alithronEvent, title = "Fuck.")

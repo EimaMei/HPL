@@ -251,7 +251,7 @@ bool stringToBool(std::string str) {
 		return false;
 	else {
 		HPL::variable var;
-		bool b = setCorrectValue(var, str);
+		bool b = setCorrectValue(var, str, false);
 
 		if (!b)
 			HPL::throwError(true, "Cannot convert '%s' to a bool", str.c_str());
@@ -355,22 +355,63 @@ std::string getTypeFromValue(std::string value) {
 }
 
 
-bool setCorrectValue(HPL::variable& var, std::string value) {
+bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue) {
 	HPL::variable* existingVar = getVarFromName(value);
 
-	if ((var.type.empty() || var.type == "NO_TYPE") && existingVar == nullptr)
+	if (var.type.empty() && existingVar == nullptr)
 		var.type = getTypeFromValue(value);
+	if (value.empty() && existingVar == nullptr)
+		return false;
 
 	if (existingVar != nullptr) {
-		if (var.type == "NO_TYPE") {
+		HPL::structure* s = getStructFromName(var.type);
+		//std::cout << printVar(*existingVar) << " " << onlyChangeValue << " 0x" << s << std::endl;
+
+		if (!onlyChangeValue)
 			var = *existingVar;
-			return true;
+		else
+			var.value = existingVar->value;
+
+		if (s != nullptr) { // The returned type from `typeIsValid` returned a struct
+			if (value.empty()) { // Nothing is set, meaning it's just the struct's default arguments.
+				std::vector<HPL::variable> res = s->value;
+				var.value = res;
+
+				return true;
+			}
+			else if (value.front() == '{' && value.back() == '}') { // Oh god oh fuck it's a custom list.
+				// We don't split the string by the comma if the comma is inside double quotes
+				// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
+				std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
+				std::vector<HPL::variable> result;
+
+				if (valueList.size() > s->value.size()) {
+					HPL::throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s->value.size());
+				}
+
+				// The first removes the spaces, then the double quotes.
+				for (int i = 0; i < s->value.size(); i++) {
+					if (i < s->value.size() && i < valueList.size()) {
+						HPL::variable var;
+						setCorrectValue(var, removeFrontAndBackSpaces(valueList[i]), true);
+
+						result.push_back(var);
+					}
+					else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
+						if (s->value[i].has_value()) {
+							result.push_back(s->value[i]);
+						}
+						else if (HPL::arg.strict)
+							HPL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s->value.size());
+						else
+							HPL::throwError(true, "Shouldn't happen?");
+					}
+				}
+				var.value = result;
+			}
 		}
 
-		if (existingVar->type == "string")
-			value = '\"' + xToStr(existingVar->value) + '\"';
-		else
-			value = xToStr(existingVar->value);
+		return true;
 	}
 
 	if (var.type == "string" && isStr(value)) {
@@ -383,9 +424,9 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 			std::string output = removeFrontAndBackSpaces(sentence);
 
 			if (!isStr(output)) {
-				HPL::variable uselessVar = {.type = "NO_TYPE"};
+				HPL::variable uselessVar;
 
-				setCorrectValue(uselessVar, output);
+				setCorrectValue(uselessVar, output, false);
 				output = xToStr(uselessVar.value);
 			}
 
@@ -416,20 +457,20 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 
 		HPL::structure* _struct = getStructFromName(var.type);
 		std::vector<HPL::variable> output;
-		HPL::variable coreTypedVariable;
 		auto oldMatches = HPL::matches.value;
 		int index = 0;
 
 		for (auto& v : oldMatches) {
 			HPL::variable* var = getVarFromName(v);
-			coreTypedVariable.reset_all();
+			HPL::variable coreTypedVariable;
+
 			if (_struct != nullptr)
 				coreTypedVariable = _struct->value[index];
 
 			if (var != nullptr)
 				output.push_back(*var);
 
-			else if (setCorrectValue(coreTypedVariable, v))
+			else if (setCorrectValue(coreTypedVariable, v, false))
 				output.push_back(coreTypedVariable);
 
 			else if (v.empty() && _struct != nullptr)
@@ -452,7 +493,7 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 
 		var.value = output;
 
-		if (var.type.empty() || var.type == "NO_TYPE") {
+		if (var.type.empty()) {
 			var.type = "struct"; // We'll deal with this later in the code.
 		}
 
@@ -477,8 +518,17 @@ bool setCorrectValue(HPL::variable& var, std::string value) {
 HPL::variable* getVarFromName(std::string varName) {
 	for (auto& v : HPL::variables) {
 		if (v.name == varName) {
+			auto value = xToStr(v.value);
+
+			if (value == "{}") {
+				HPL::structure* s = getStructFromName(v.type);
+				if (s != nullptr)
+					v.value = s->value;
+			}
+
 			return &v;
 		}
+		//std::cout << "\tBro: " << varName << " | " << v.name << ". | " << v.type << std::endl;
 
 		if (find(varName, v.name + ".")) { // A custom type
 			HPL::structure* s = getStructFromName(v.type);
@@ -486,14 +536,38 @@ HPL::variable* getVarFromName(std::string varName) {
 			if (s == nullptr) // Was a false-positive after all, goddamn...
 				return nullptr;
 
+			auto listOfMembers = split(varName, ".", "()\"\"{}");
 			auto& varValues = getVars(v.value);
+			auto pointer = &v.value;
 
-			for (int i = 0; i < varValues.size(); i++) {
-				auto& member = s->value[i];
+			std::string baseName;
+			std::string baseType, oldBaseType = v.type;
 
-				if (varName == (v.name + "." + member.name)) {
-					varValues[i].name = member.name;
-					return &varValues[i];
+			for (int memberIndex = 0; memberIndex < listOfMembers.size(); memberIndex++) {
+				baseName += listOfMembers[memberIndex] + ".";
+
+				for (int varIndex = 0; varIndex < varValues.size(); varIndex++) {
+					auto& member = s->value[varIndex];
+					baseType = member.type;
+
+					if (find(varName, (baseName + member.name))) {
+						if (varName == (baseName + member.name)) {
+							auto& values = getVars(*pointer);
+							auto value = xToStr(values[varIndex].value);
+
+							values[varIndex].name = member.name;
+
+							if (value == "{}")
+								values[varIndex].value = s->value[varIndex].value;
+
+							return &values[varIndex];
+						}
+						else {
+							s = getStructFromName(member.type);
+							pointer = &varValues[varIndex].value;
+							varIndex = 0;
+						}
+					}
 				}
 			}
 		}
@@ -522,8 +596,8 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 
 
 		for (auto value : HPL::matches.value) {
-			HPL::variable var = {.type = "NO_TYPE"};
-			bool res = setCorrectValue(var, value);
+			HPL::variable var;
+			bool res = setCorrectValue(var, value, false);
 
 			if (!res) // Can't use f-string without providing any valid value obviously...
 				HPL::throwError(true, "Argument '%s' is invalid (Either it's a variable that doesn't exist or something else entirely)", value.c_str());
@@ -573,6 +647,16 @@ std::string printFunction(HPL::function func) {
 			str += ", ";
 	}
 	str += ")";
+
+	return str;
+}
+
+
+std::string printVar(HPL::variable var) {
+	std::string str = var.type + " " + var.name;
+
+	if (var.has_value())
+		str += " = " + xToStr(var.value);
 
 	return str;
 }

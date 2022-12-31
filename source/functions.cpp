@@ -80,6 +80,7 @@ std::string func_str(HPL::variable value) { return xToStr(value.value); }
 int func_int(HPL::variable value) { return xToType<int>(value.value); }
 float func_float(HPL::variable value) { return xToType<float>(value.value); }
 bool func_bool(HPL::variable value) { return xToType<bool>(value.value); }
+int len(HPL::variable value) { return xToStr(value.value).size(); }
 
 
 int createFolder(std::string path) {

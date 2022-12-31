@@ -79,7 +79,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 		HPL::arg.curIndent += "\t";
 
 	for (auto& p : values) {
-		HPL::variable var = {"NO_TYPE", "NO_NAME"};
+		HPL::variable var;
 
 		// Removing the spaces and quotes from match.
 		std::string oldMatch = removeFrontAndBackSpaces(p); // In case the match is actually a string.
@@ -148,7 +148,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			}
 		}
 		else {
-			bool res = setCorrectValue(var, oldMatch);
+			bool res = setCorrectValue(var, oldMatch, false);
 
 			if (!res)
 				HPL::throwError(true, "Variable '%s' doesn't exist (Cannot use a variable that doesn't exist).", p.c_str());
@@ -262,21 +262,23 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams) {
 	bool organize = false;
+	int size = sentUserParams.size();
 
 	if (!sentUserParams.empty() && sentUserParams.back().type == "IS_OOO") {
-		sentUserParams.pop_back();
+		size--;
 		organize = true;
 	}
 
-	if (func.name == globalFunction.name && func.params.size() < sentUserParams.size())
-		HPL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.params.size());
-	if (func.name == globalFunction.name && func.minParamCount > sentUserParams.size())
-		HPL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.minParamCount);
+	if (func.name == globalFunction.name && func.params.size() < size)
+		HPL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", size, func.name.c_str(), func.params.size());
+	if (func.name == globalFunction.name && func.minParamCount > size)
+		HPL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", size, func.name.c_str(), func.minParamCount);
 
 
 	if (func.name == globalFunction.name) {
 		if (organize) { // If there are any out of order arguments.
 			HPL::function* outOfOrderFunc = &func; // The function.
+			sentUserParams.pop_back();
 
 			std::vector<HPL::variable> organizedParams = sentUserParams;
 			std::string buf;
@@ -455,6 +457,9 @@ allowedTypes coreFunctions(std::vector<HPL::variable> params) {
 
 	else if (useFunction({.type = "string", .name = "replaceAll", .params = {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
 		return replaceAll(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
+
+	else if (useFunction({.type = "int", .name = "len", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
+		return len(params[0]);
 
 
 	return {};
