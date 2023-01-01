@@ -84,7 +84,8 @@ void HPL::interpreteFile(std::string file) {
 	curFile = file;
 	FILE* fp = fopen(curFile.c_str(), "r");
 	bool alreadyRead = false;
-	for (auto readFile : alreadyReadFiles) {
+
+	for (const auto& readFile : alreadyReadFiles) {
 		if (readFile == file) {
 			alreadyRead = true;
 			break;
@@ -112,7 +113,8 @@ void HPL::interpreteFile(std::string file) {
 
 			interpreteLine(line);
 		}
-		if (!alreadyRead) std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
+		if (!alreadyRead)
+			std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
 	}
 	else
 		std::cout << HPL::colorText("Error: ", HPL::OUTPUT_RED) << HPL::colorText(curFile, HPL::OUTPUT_RED) << ": No such file or directory" << std::endl;
@@ -739,7 +741,7 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 						std::cout << msg << va_arg(valist, const char*);
 						msg.clear();
 						#else
-						msg += va_arg(valist, const char*), OUTPUT_YELLOW;
+						msg += va_arg(valist, const char*);
 						#endif
 					}
 

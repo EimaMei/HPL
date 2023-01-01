@@ -180,11 +180,11 @@ Here is my developer environment that I'll be using for most of the HPL work:
 OS: macOS 12.6
 Compiler: Apple clang version 14.0.0 (clang-1400.0.29.102)
 Architecture: x86_64
-C++ standard: c++17
+C++ standard: c++20
 ```
 In case I use Windows:
 ```
-OS: Windows 10 (OS Build 19045.2251)
+OS: Windows 10 (OS Build 19045.2364)
 Compiler: Clang 15.0.3
 Architecture: x86_64
 C++ standard: c++20
