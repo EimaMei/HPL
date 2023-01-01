@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 EimaMei/Sacode
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -208,6 +208,9 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 					var.value = params[i].value;
 
 				HPL::variables.push_back(var);
+
+				if (HPL::arg.dumpJson)
+					HPL::cachedVariables.push_back(var);
 			}
 
 			for (auto& line : func.code) {
@@ -226,7 +229,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 			// If a global variable was edited in the function, save the changes.
 			for (auto& oldV : oldVars) {
-				for (auto newV : HPL::variables) {
+				for (auto& newV : HPL::variables) {
 					if (oldV.name == newV.name)
 						oldV.value = newV.value;
 				}

@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 EimaMei/Sacode
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#define VERSION "HPL 0.2.2"
+#define VERSION "HPL 0.2.3"
 #define AUTHORS "Created by EimaMei/Sacode"
 
 #if defined(__clang__)

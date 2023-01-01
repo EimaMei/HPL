@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 EimaMei/Sacode
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -256,17 +256,25 @@ int HPL::checkModes() {
 
 		HPL::lineCount -= ifStatements.front().code.size();
 
-		for (auto line : ifStatements.front().code) {
+		for (const auto& line : ifStatements.front().code) {
 			HPL::lineCount++;
 			HPL::interpreteLine(line);
 		}
 
 		// If a global variable was edited in the function, save the changes.
-		for (auto& oldV : oldVars) {
-			for (auto newV : HPL::variables) {
-				if (oldV.name == newV.name)
+		for (auto& newV : HPL::variables) {
+			bool found = false;
+
+			for (auto& oldV : oldVars) {
+				if (oldV.name == newV.name) {
 					oldV.value = newV.value;
+					found = true;
+					break;
+				}
 			}
+
+			if (!found && HPL::arg.dumpJson)
+				HPL::cachedVariables.push_back(newV);
 		}
 		HPL::variables = oldVars;
 		ifStatements.erase(ifStatements.begin());
@@ -813,6 +821,8 @@ namespace HPL {
 	std::vector<structure> structures;
 	std::vector<function> functions;
 	std::vector<function> ifStatements;
+
+	std::vector<variable> cachedVariables;
 
 	HPL::variable functionOutput;
 }

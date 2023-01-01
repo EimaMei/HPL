@@ -34,7 +34,7 @@ $(EXE): $(OBJ) main.cpp
 	$(CC) $(FLAGS) $(INCLUDE) $(OBJ) main.cpp $(LIBS) -o $@
 
 run: $(EXE)
-	./$(EXE) examples/$(INPUT)/main.hpl
+	./$(EXE) -d examples/$(INPUT)/main.hpl
 
 runLogs: $(EXE)
 	./$(EXE) -l examples/$(INPUT)/main.hpl

@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 EimaMei/Sacode
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -60,34 +60,122 @@ void printHelp() {
 }
 
 
-void dumpJson() {
-	auto mod = getVars(getVarFromName("HPL_currentMod")->value);
+void dumpJsonVariables(std::string& buffer, std::vector<HPL::variable>& vars, std::string tabs) {
+	std::string lesserTab = tabs;
+	lesserTab.pop_back();
 	int i = 0;
+
+	for (auto const& var : vars) {
+		std::string value = xToStr(var.value);
+		if (var.type == "string" && !value.empty())
+			value = "\"" + value + "\"";
+		else if (value.empty())
+			value = "null";
+		else if (value.front() == '{' && value.back() == '}')
+			value = replaceAll(replaceAll(value, "{", "["), "}", "]");
+
+		buffer += "\n" + lesserTab +
+		"\"" + var.name + "\" : {\n" + tabs +
+			"\"type\" : \"" + var.type + "\",\n" + tabs +
+			"\"value\" : " + value + "\n" + lesserTab +
+		"}";
+
+		if (i + 1 < vars.size())
+			buffer += ",";
+
+		i++;
+	}
+}
+
+
+void dumpJsonStructures(std::string& buffer, std::vector<HPL::structure>& structures, std::string tabs) {
+	std::string lesserTab = tabs;
+	lesserTab.pop_back();
+	std::string varTab = tabs + "\t\t";
+	int i = 0;
+
+	for (auto& s : structures) {
+		buffer += "\n" + lesserTab +
+		"\"" + s.name + "\" : {\n" + tabs +
+			"\"params\" : {";
+				dumpJsonVariables(buffer, s.value, varTab); buffer += "\n" + tabs +
+			"}\n" + lesserTab +
+		"}";
+
+		if (i + 1 < structures.size())
+			buffer += ",";
+
+		i++;
+	}
+}
+
+
+void dumpJsonFunctions(std::string& buffer, std::vector<HPL::function>& funcs, std::string tabs) {
+	std::string lesserTab = tabs;
+	lesserTab.pop_back();
+	std::string varTab = tabs + "\t\t";
+	int i = 0;
+
+	for (auto& func : funcs) {
+		buffer += "\n" + lesserTab +
+		"\"" + func.name + "\" : {\n" + tabs +
+			"\"type\" : \"" + func.type + "\",\n" + tabs +
+			"\"params\" : {";
+				dumpJsonVariables(buffer, func.params, varTab); buffer += "\n" + tabs +
+			"}\n" + lesserTab +
+		"}";
+
+		if (i + 1 < funcs.size())
+			buffer += ",";
+
+		i++;
+	}
+}
+
+
+void dumpJson() {
+	auto modPointer = getVarFromName("HPL_currentMod");
+	std::string name, version, path;
+
+	if (modPointer == nullptr) {
+		name = "null";
+		version = "null";
+		path = "null";
+	}
+	else {
+		auto mod = getVars(getVarFromName("HPL_currentMod")->value);
+
+		name = "\"" + xToStr(mod[0].value) + "\"";
+		version = "\"" + xToStr(mod[1].value) + "\"";
+		path = "\"" + xToStr(mod[3].value) + "\"";
+	}
+
 
 	std::string buffer =
 	"{\n\t"
 		"\"mod\" : {\n\t\t"
-			"\"name\" : \"" + xToStr(mod[0].value) + "\"," + "\n\t\t"
-			"\"version\" \"" + xToStr(mod[1].value) + "\"," + "\n\t\t"
-			"\"path\" : \"" + xToStr(mod[3].value) + "\"," + "\n\t"
+			"\"name\" : " + name + ",\n\t\t"
+			"\"version\" " + version + ",\n\t\t"
+			"\"path\" : " + path + "\n\t"
 		"},\n\t"
 
-		"\"variables\" : {\n\t\t";
-			for (auto const& var : HPL::variables) {
-			buffer +=
-			"\"" + var.name + "\" : {\n\t\t\t"
-				"\"type\" : \"" + var.type + "\",\n\t\t\t"
-				"\"value\" : \"" + xToStr(var.value) + "\",\n\t\t" +
-			"}";
+		"\"variables\" : {";
+			dumpJsonVariables(buffer, HPL::variables, "\t\t\t"); buffer += "\n\t"
+		"},\n\t"
 
-			if (i + 1 < HPL::variables.size())
-				buffer += ",";
-			buffer += "\n\t\t";
+		"\"cachedVariables\" : {";
+			dumpJsonVariables(buffer, HPL::cachedVariables, "\t\t\t"); buffer += "\n\t"
+		"},\n\t"
 
-			i++;
-			} buffer +=
-		"\n\t}\n"
-	"}";
+		"\"functions\" : {";
+			dumpJsonFunctions(buffer, HPL::functions, "\t\t\t"); buffer += "\n\t"
+		"},\n\t"
+
+		"\"structures\" : {";
+			dumpJsonStructures(buffer, HPL::structures, "\t\t\t"); buffer += "\n\t"
+		"}\n";
+
+	buffer += "}";
 
 	std::printf("%s", buffer.c_str());
 }

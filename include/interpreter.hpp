@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -136,6 +136,8 @@ namespace HPL {
 	extern std::vector<function> functions;
 	extern std::vector<function> ifStatements;
 	extern HPL::variable functionOutput;
+
+	extern std::vector<variable> cachedVariables; // Out of scoped variables for the JSON dumper.
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);
