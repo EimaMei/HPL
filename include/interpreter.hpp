@@ -37,13 +37,15 @@
 
 #define MODE_SAVE_STRUCT          0x0001
 #define MODE_SAVE_FUNC            0x0002
-#define MODE_SCOPE_IF_STATEMENT   0x0004
-#define MODE_SCOPE_IGNORE_ALL     0x0006
+#define MODE_SAVE_SCOPE           0x0004
+#define MODE_SCOPE_IF_STATEMENT   0x0006
+#define MODE_SCOPE_IGNORE_ALL     0x0008
 
-#define MODE_CHECK_STRUCT         0x0100
+#define MODE_CHECK_STRUCT         0x0101
 #define MODE_CHECK_FUNC           0x0102
-#define MODE_CHECK_IGNORE_ALL     0x0104
+#define MODE_CHECK_SCOPE          0x0104
 #define MODE_CHECK_IF_STATEMENT   0x0106
+#define MODE_CHECK_IGNORE_ALL     0x0108
 
 // Outputs returns.
 #define FOUND_NOTHING 0
@@ -78,7 +80,7 @@ namespace HPL {
 
 		std::string curIndent;
 	};
-	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, double, std::vector<HPL::variable>>
+	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, std::vector<HPL::variable>>
 
 	struct variable {
 		std::string type;
@@ -129,6 +131,8 @@ namespace HPL {
 	extern int mode;
 	extern HPL::vector matches;
 	extern int equalBrackets;
+	extern int scopeIndex;
+	extern int oldMode;
 
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;
@@ -173,4 +177,6 @@ namespace HPL {
 
 	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%i' are supported.
 	void throwError(bool sendRuntimeError, std::string text, ...);
+	//
+	std::string getModeName();
 }

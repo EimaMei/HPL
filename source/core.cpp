@@ -26,6 +26,7 @@
 
 #include <iostream>
 
+
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string.
 	"int",    // Regular int.
@@ -34,35 +35,7 @@ std::vector<std::string> coreTypes = {
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"auto"    // Generic type.
 };
-std::vector<std::string> coreFunctionList = {
-	// Misc.
-	"print",
-	"str",
-	"bool",
-	"int",
-	"float",
-	// Folders.
-	"createFolder",
-	"removeFolder",
-	// Files.
-	"createFile",
-	"readFile",
-	"writeFile",
-	"writeToLine",
-	"writeToMultipleLines",
-	"removeFile"
-	"copyFile",
-	// Localisation.
-	"writeLocalisation",
-	// Image related.
-	"convertToDds",
-	// Path related.
-	"pathExists",
-	"getFilenameFromPath",
-	// General string functions.
-	"find",
-	"replaceAll"
-};
+
 
 bool foundFunction = false; // If we found the function.
 int startOrgAt = 0; // At which index we should start the organization. NOTE: A possible bug exists, where the first few params are in order, but then afterwards the defines out of order arguments have the same first few param names, ending in shenanigans. Needs fixing.
@@ -161,10 +134,8 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 		params.push_back(var);
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
-			std::cout << HPL::arg.curIndent << "LOG: [FIND][PARAM]: " << HPL::curFile << ":" << HPL::lineCount << ": <type> <name> = <value>: " << var.type << " " << var.name << " = ";
-			print(var);
-		}
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
+			std::cout << HPL::arg.curIndent << "LOG: [FIND][PARAM]: " << HPL::curFile << ":" << HPL::lineCount << ": <type> <name> = <value>: " << printVar(var) << std::endl;
 	}
 	foundFunction = false;
 	globalFunction.name = name;
@@ -195,11 +166,11 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			auto oldLineCount = HPL::lineCount;
 			auto oldVars = HPL::variables;
 			auto oldMode = HPL::mode;
+			auto oldEqualBrackets = HPL::equalBrackets;
 
 			HPL::resetRuntimeInfo();
 			HPL::curFile = func.file;
 			HPL::lineCount = func.startingLine;
-			//HPL::equalBrackets
 
 			for (int i = 0; i < func.params.size(); i++) {
 				auto var = func.params[i];
@@ -213,12 +184,14 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 					HPL::cachedVariables.push_back(var);
 			}
 
-			for (auto& line : func.code) {
+			for (const auto& line : func.code) {
 				HPL::lineCount++;
 				HPL::interpreteLine(line);
 
 				if (HPL::functionOutput.has_value()) // If the function returned something, exit.
 					break;
+				if (!HPL::arg.interprete)
+					return FOUND_NOTHING;
 			}
 
 			// Set the output value and type.
@@ -230,8 +203,10 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			// If a global variable was edited in the function, save the changes.
 			for (auto& oldV : oldVars) {
 				for (auto& newV : HPL::variables) {
-					if (oldV.name == newV.name)
+					if (oldV.name == newV.name) {
 						oldV.value = newV.value;
+						break;
+					}
 				}
 			}
 
@@ -240,6 +215,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			HPL::curFile = oldCurFile;
 			HPL::lineCount = oldLineCount;
 			HPL::mode = oldMode;
+			HPL::equalBrackets = oldEqualBrackets;
 
 			globalFunction = func;
 			foundFunction = true;
@@ -342,8 +318,11 @@ bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams)
 					HPL::throwError(true, "Cannot input a '%s' type to a %s-only parameter (param '%s' is %s-only)", sentUserParams[i].type.c_str(), func.params[i].type.c_str(), func.params[i].name.c_str(), func.params[i].type.c_str());
 			}
 
-			if (func.params[i].has_value() && (i + 1) > sentUserParams.size())
-				sentUserParams.push_back(func.params[i]);
+			if (func.params[i].has_value() && (i + 1) > sentUserParams.size()) {// If the function has default parameters that weren't covered
+				auto var = func.params[i];
+				setCorrectValue(var, xToStr(var.value), true);
+				sentUserParams.push_back(var);
+			}
 		}
 
 		foundFunction = true;
@@ -464,6 +443,8 @@ allowedTypes coreFunctions(std::vector<HPL::variable> params) {
 	else if (useFunction({.type = "int", .name = "len", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
 		return len(params[0]);
 
+	else if (useFunction({.type = "void", .name = "HPL_throwError", .params = {{"string", "messsage"}}, .minParamCount = 1}, params))
+		HPL::throwError(true, getStr(params[0].value));
 
 	return {};
 }

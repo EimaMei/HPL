@@ -27,6 +27,7 @@
 #include <helper.hpp>
 
 #include <iostream>
+#include <sstream>
 #include <cstring>
 
 // Each commit split just keeps getting more and more complex...
@@ -123,7 +124,7 @@ std::string removeFrontAndBackSpaces(std::string str) {
 	int i = 0, i2 = 0;
 
 	for (const auto& c : str) { // Find the front spaces.
-		if (c == ' ')
+		if (c == ' ' || c == '\t')
 			i++;
 		else
 			break;
@@ -181,11 +182,16 @@ bool isStr(std::string str) {
 
 
 std::string replaceAll(std::string str, std::string oldString, std::string newString) {
-	size_t pos = 0;
-	while ((pos = str.find(oldString, pos)) != std::string::npos) {
-		str.replace(pos, oldString.length(), newString);
-		pos += newString.length();
-	}
+	for( size_t pos = 0; ; pos += newString.length() ) {
+        // Locate the substring to newString
+        pos = str.find( oldString, pos );
+        if( pos == std::string::npos ) break;
+        // Replace by erasing and inserting
+        str.erase( pos, oldString.length() );
+        str.insert( pos, newString );
+
+    }
+
 	return str;
 }
 
@@ -199,21 +205,17 @@ std::string replaceOnce(std::string str, std::string oldString, std::string newS
 
 
 std::string convertBackslashes(std::string str) {
-	char* here = (char*)str.c_str();
-	size_t len = str.size();
-	int num;
-	int numlen;
+	size_t pos = 0;
 
-	while (NULL != (here = strchr(here, '\\'))) {
-		numlen = 1;
-		switch (here[1]) {
-			case '\\': *here = '\\'; break;
-			case '\"': *here = '\"'; break;
-			case 'r':  *here = '\r'; break;
-			case 'n':  *here = '\n'; break;
-			case 't':  *here = '\t'; break;
-			case 'v':  *here = '\v'; break;
-			case 'a':  *here = '\a'; break;
+	while ((pos = str.find('\\', pos)) != std::string::npos) {
+		switch (str[pos + 1]) {
+			case '\\': str.replace(pos, 2, "\\"); break;
+			case '\"': str.replace(pos, 2, "\""); break;
+			case 'r':  str.replace(pos, 2, "\r"); break;
+			case 'n':  str.replace(pos, 2, "\n"); break;
+			case 't':  str.replace(pos, 2, "\t"); break;
+			case 'v':  str.replace(pos, 2, "\v"); break;
+			case 'a':  str.replace(pos, 2, "\a"); break;
 
 			case '0':
 			case '1':
@@ -223,18 +225,12 @@ std::string convertBackslashes(std::string str) {
 			case '5':
 			case '6':
 			case '7':
-				numlen = sscanf(here, "%o", &num);
-				*here = (char)num;
-				break;
-
-			case 'x':
-				numlen = sscanf(here, "%x", &num);
-				*here = (char)num;
+				int num;
+				sscanf(str.c_str(), "%o", &num);
+				str.replace(pos, 2, (&"\\"[num]));
 				break;
 		}
-		num = here - str.c_str() + numlen;
-		here++;
-		memmove(here, here + numlen, len - num);
+		pos++;
 	}
 	return str;
 }
@@ -277,8 +273,12 @@ std::string xToStr(allowedTypes val) {
 	else if (std::holds_alternative<int>(val))
 		return std::to_string(std::get<int>(val));
 
-	else if (std::holds_alternative<float>(val))
-		return std::to_string(std::get<float>(val));
+	else if (std::holds_alternative<float>(val)) {
+		std::ostringstream ss;
+		ss << std::get<float>(val);
+
+		return ss.str();
+	}
 
 	else if (std::holds_alternative<bool>(val))
 		return std::get<bool>(val) == true ? "true" : "false";
@@ -303,7 +303,7 @@ std::string xToStr(allowedTypes val) {
 		return result;
 	}
 
-	return std::string();
+	return std::string{};
 }
 
 
@@ -360,12 +360,11 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 
 	if (var.type.empty() && existingVar == nullptr)
 		var.type = getTypeFromValue(value);
-	if (value.empty() && existingVar == nullptr)
+	if (value.empty() && existingVar == nullptr && var.type != "scope")
 		return false;
 
 	if (existingVar != nullptr) {
 		HPL::structure* s = getStructFromName(var.type);
-		//std::cout << printVar(*existingVar) << " " << onlyChangeValue << " 0x" << s << std::endl;
 
 		if (!onlyChangeValue)
 			var = *existingVar;
@@ -414,7 +413,19 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		return true;
 	}
 
-	if (var.type == "string" && isStr(value)) {
+	if (var.type == "scope") {
+		var.reset_value();
+
+		if (value == "{}" || value.empty()) // Empty hoi4 scope.
+			return true;
+
+		HPL::mode = (value == "{" ? MODE_SAVE_SCOPE : MODE_CHECK_SCOPE);
+		HPL::variables[0].value = true; // Scope mode is ON!
+
+		return true;
+	}
+
+	else if (var.type == "string" && isStr(value)) {
 		getValueFromFstring(value, value);
 
 		auto plusShenanigans = split(value, "+", "\"\"(){}"); // C's '+' strike again! We gotta organize everything ffs.
@@ -437,14 +448,16 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		return true;
 	}
 
-	else if (var.type == "int") {
-		var.value = xToType<int>(value);
-		return true;
-	}
+	else if (isInt(value)) {
+		if (var.type == "int") {
+			var.value = xToType<int>(value);
+			return true;
+		}
 
-	else if (var.type == "float") {
-		var.value = xToType<float>(value);
-		return true;
+		else if (var.type == "float") {
+			var.value = xToType<float>(value);
+			return true;
+		}
 	}
 
 	else if (var.type == "bool") {
@@ -528,7 +541,6 @@ HPL::variable* getVarFromName(std::string varName) {
 
 			return &v;
 		}
-		//std::cout << "\tBro: " << varName << " | " << v.name << ". | " << v.type << std::endl;
 
 		if (find(varName, v.name + ".")) { // A custom type
 			HPL::structure* s = getStructFromName(v.type);
@@ -546,21 +558,30 @@ HPL::variable* getVarFromName(std::string varName) {
 			for (int memberIndex = 0; memberIndex < listOfMembers.size(); memberIndex++) {
 				baseName += listOfMembers[memberIndex] + ".";
 
-				for (int varIndex = 0; varIndex < varValues.size(); varIndex++) {
+				for (int varIndex = 0; varIndex < s->value.size(); varIndex++) {
 					auto& member = s->value[varIndex];
 					baseType = member.type;
+
 
 					if (find(varName, (baseName + member.name))) {
 						if (varName == (baseName + member.name)) {
 							auto& values = getVars(*pointer);
-							auto value = xToStr(values[varIndex].value);
+							HPL::variable* valueLocation;
+							std::string value;
 
-							values[varIndex].name = member.name;
+							if (varIndex < values.size())
+								valueLocation = &values[varIndex];
+							else
+								valueLocation = &s->value[varIndex];
+
+							value = xToStr(valueLocation->value);
+
+							valueLocation->name = member.name;
 
 							if (value == "{}")
-								values[varIndex].value = s->value[varIndex].value;
+								valueLocation->value = s->value[varIndex].value;
 
-							return &values[varIndex];
+							return valueLocation;
 						}
 						else {
 							s = getStructFromName(member.type);
@@ -603,7 +624,7 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 				HPL::throwError(true, "Argument '%s' is invalid (Either it's a variable that doesn't exist or something else entirely)", value.c_str());
 			else {
 				value = "{" + value + "}";
-				ogValue = replaceOnce(ogValue, value, xToStr(var.value));
+				ogValue = replaceOnce(ogValue, value, xToStr(var.value).c_str());
 			}
 		}
 		output = ogValue;
@@ -655,8 +676,13 @@ std::string printFunction(HPL::function func) {
 std::string printVar(HPL::variable var) {
 	std::string str = var.type + " " + var.name;
 
-	if (var.has_value())
-		str += " = " + xToStr(var.value);
+	if (var.has_value()) {
+		str += " = ";
+		if (var.type == "string")
+			str += "\"" + xToStr(var.value) + "\"";
+		else
+			str += xToStr(var.value);
+	}
 
 	return str;
 }

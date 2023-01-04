@@ -1,9 +1,5 @@
 #include "libmod.hpl"
 
-struct option {
-	string title
-	scope results
-}
 
 struct event {
 	string namespace
@@ -15,7 +11,6 @@ struct event {
 	bool isTriggeredOnly = true
 	bool isNewsEvent = false
 
-	// Read-only
 	bool init = false
 	int options = 0
 }
@@ -50,15 +45,16 @@ event newEvent(string namespace, int id, string title, string description, strin
 }
 
 
-int newEventOption(event e, string title) {
+int newEventOption(event e, string title, scope result = {}) {
 	string path = HPL_currentMod.path
+	string scopeResult = replaceAll(str(result), "\n", "\n\t\t")
 
 	string locPath = f"{path}/localisation/hpl_events_l_english.yml"
 	string eventPath = f"{path}/events/{e.namespace}.txt"
 
-	writeToLine(eventPath, 9, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1\n\t}")
+	writeToLine(eventPath, 9, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1\n\t\t{scopeResult}\n\t}")
 	writeLocalisation(locPath, f"{e.namespace}.{e.id}.1", title)
-	//e.options++
+	e.options++
 
 	return 0
 }

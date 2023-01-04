@@ -27,6 +27,8 @@
 #include <helper.hpp>
 #include <functions.hpp>
 
+#include <scope/hoi4scripting.hpp>
+
 #include <iostream>
 #include <string.h>
 #include <math.h>
@@ -111,7 +113,7 @@ void HPL::interpreteFile(std::string file) {
 			else if (find(line, "#read once"))
 				continue; // Ignore this line, otherwise an error will appear.
 
-			interpreteLine(line);
+			HPL::interpreteLine(line);
 		}
 		if (!alreadyRead)
 			std::cout << colorText("Finished interpreting " +std::to_string(lineCount)+ " lines from ", OUTPUT_GREEN) << "'" << colorText(curFile, OUTPUT_YELLOW) << "'" << colorText(" successfully", OUTPUT_GREEN) << std::endl;
@@ -134,7 +136,7 @@ int HPL::interpreteLine(std::string str) {
 
 	line = str;
 
-	if (arg.breakpoint && mode != MODE_SAVE_FUNC) { // A breakpoint was set.
+	if (arg.breakpoint && (mode != MODE_SAVE_FUNC && mode != MODE_SAVE_STRUCT)) { // A breakpoint was set.
 		if (curFile == arg.breakpointValues.first && lineCount == arg.breakpointValues.second) {
 			std::cout << "Breakpoint reached at " << curFile << ":" << lineCount << std::endl;
 			arg.interprete = false;
@@ -168,9 +170,9 @@ int HPL::checkIncludes() {
 		else if (find(line, "\"")) // Some library '#include "../somelib.hpl"'
 			match = getPathFromFilename(oldFile) + "/" + match;
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
 			std::cout << arg.curIndent << "LOG: [INCLUDE][FILE]: " << curFile << ":" << lineCount << ": #include <file>: #include \"" << match << "\"" << std::endl;
-		}
+
 		interpreteFile(match);
 
 		curFile = oldFile;
@@ -184,6 +186,11 @@ int HPL::checkIncludes() {
 int HPL::checkModes() {
 	bool leftBracket = useRegex(line, R"(^\s*(\})\s*$)");
 	bool rightBracket = useRegex(line, R"(^.*\s*\{\s*$)");
+
+	if ((HPL::arg.debugAll || HPL::arg.debugLog) && mode != oldMode) {
+		std::cout << arg.curIndent << colorText("LOG: [CURRENT][MODE]: ", HPL::OUTPUT_RED) << curFile << ":" << lineCount << ": <name of the mode>: " << getModeName() << std::endl;
+		oldMode = mode;
+	}
 
 	if (find(line, "{") && (mode >= 0x100 && mode <= 0x1000)) {
 		switch (mode) {
@@ -199,6 +206,15 @@ int HPL::checkModes() {
 		equalBrackets--;
 	if (useRegex(line, R"(^.*\s*\{\s*$)"))
 		equalBrackets++;
+
+	if (mode == MODE_SAVE_SCOPE) {
+		variables[scopeIndex].value = xToStr(variables[scopeIndex].value) + HSM::interpreteLine(line);
+
+		if (mode == MODE_DEFAULT)
+			HPL::scopeIndex = -1;
+
+		return FOUND_SOMETHING;
+	}
 
 
 	if (leftBracket && mode == MODE_SAVE_STRUCT) {
@@ -224,10 +240,6 @@ int HPL::checkModes() {
 	else if (mode == MODE_SAVE_FUNC) {
 		functions.back().code.push_back(line);
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
-			//std::cout << arg.curIndent << "LOG: [ADDED][LINE]: " << curFile << ":" << lineCount << ": <line>: " << line << std::endl;
-		}
-
 		return FOUND_SOMETHING;
 	}
 	else if (mode == MODE_SCOPE_IGNORE_ALL) {
@@ -236,6 +248,8 @@ int HPL::checkModes() {
 				mode = MODE_SCOPE_IF_STATEMENT;
 			else
 				mode = MODE_DEFAULT;
+
+			ifStatements.pop_back();
 		}
 		return FOUND_SOMETHING;
 	}
@@ -264,7 +278,7 @@ int HPL::checkModes() {
 		}
 
 		// If a global variable was edited in the function, save the changes.
-		for (auto& newV : HPL::variables) {
+		for (const auto& newV : HPL::variables) {
 			bool found = false;
 
 			for (auto& oldV : oldVars) {
@@ -333,7 +347,7 @@ int HPL::checkConditions() {
 		}
 
 		std::string _operator;
-		bool failed = true;
+		bool failed = false;
 
 		for (int i = 0; i < params.size(); i++) {
 			auto& p = params[i];
@@ -347,9 +361,11 @@ int HPL::checkConditions() {
 				std::cout << arg.curIndent << "LOG: [CHECKING][IF-STATEMENT-VALUE]: " << curFile << ":" << lineCount << ": <value> ([type]): " << p << " (" << var.type << ")" << std::endl;
 			}
 
-			if (p == "false" || p == "0") {
+			if ((p == "false" || p == "0") && _operator.empty()) {
+				failed = true;
+
 				for (int x = i; x < params.size(); x++) {
-					if (params[x] == "||") {
+					if (params[x] == "||" || params[x] == "==" || params[x] == "!=") {
 						failed = false;
 						break;
 					}
@@ -400,13 +416,13 @@ int HPL::checkConditions() {
 				if (!res) {
 					for (int x = i; x < params.size(); x++) {
 						if (params[x] == "||") {
-							failed = false;
+							res = true;
 							break;
 						}
 					}
 
-					if (!failed) {
-						failed = true;
+					if (res) {
+						failed = false;
 						continue;
 					}
 
@@ -422,7 +438,8 @@ int HPL::checkConditions() {
 				}
 			}
 		}
-		arg.curIndent.pop_back();
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
+			arg.curIndent.pop_back();
 
 		return FOUND_SOMETHING;
 	}
@@ -532,8 +549,7 @@ int HPL::checkVariables() {
 	else if (useRegex(line, R"(^\s*([^\s\-\+]+)\s*([\+\-\*\/\=]+)\s*(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*.*$)")) { // A math operator.
 		variable* existingVar = getVarFromName(matches.str(1));
 		std::string value = matches.str(3);
-		double res;
-
+		float res;
 
 		if (existingVar == nullptr)
 			throwError(true, "Cannot perform any math operations to this variable (Variable '%s' does not exist).", matches.str(1).c_str());
@@ -555,8 +571,17 @@ int HPL::checkVariables() {
 		}
 
 		else {
-			double dec1 = xToType<float>(existingVar->value);
-			double dec2 = std::stod(value);
+			float dec1, dec2;
+
+			if (existingVar->type == "int")
+				dec1 = xToType<int>(existingVar->value);
+			else
+				dec1 = xToType<float>(existingVar->value);
+
+
+			if (!value.empty())
+				dec2 = std::stof(value);
+
 
 			if (matches.str(2) == "++")
 				res = dec1 + 1;
@@ -573,18 +598,16 @@ int HPL::checkVariables() {
 			else if (matches.str(2) == "%=")
 				res = fmod(dec1, dec2);
 
-			if (existingVar->type == "int") {
+			if (existingVar->type == "int")
 				existingVar->value = (int)res;
-			}
-			else if (existingVar->type == "float") {
+			else if (existingVar->type == "float")
 				existingVar->value = (float)res;
-			}
 		}
 
 		if (HPL::arg.debugAll || HPL::arg.debugLog) {
 			std::cout << arg.curIndent << "LOG: [MATH][VARIABLE]: " << curFile << ":" << lineCount << ": <variable> <operator> [value]: " << existingVar->name << " " << matches.str(2);
 			if (matches.str(2) != "--" || matches.str(2) != "++")
-				std::cout << " " << res;
+				std::cout << " " << matches.str(3);
 			std::cout << std::endl;
 		}
 	}
@@ -609,22 +632,22 @@ int HPL::checkVariables() {
 			if (!typeIsValid(var.type)) // Type isn't cored or a structure.
 				throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
 
-			setCorrectValue(var, value, true);
+			if (!setCorrectValue(var, value, true) && !value.empty())
+				throwError(true, "Variable '%s' doesn't exist (Cannot copy value from something that doesn't exist).", value.c_str());
+
+			auto pointerToOutput = &variables;
+
 
 			if (mode == MODE_SAVE_STRUCT) // Save variables inside a struct.
-				structures.begin()->value.push_back(var);
-			else
-				variables.push_back(var);
+				pointerToOutput = &structures.begin()->value;
 
+			pointerToOutput->push_back(var);
 
-			if (HPL::arg.debugAll || HPL::arg.debugLog) {
-				std::cout << arg.curIndent << "LOG: [CREATE][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = [value]: " << var.type << " " << var.name;
-				if (!value.empty()) {
-					std::cout << " = ";
-					print(var, "");
-				}
-				std::cout << std::endl;
-			}
+			if (var.type == "scope")
+				scopeIndex = pointerToOutput->size() - 1;
+
+			if (HPL::arg.debugAll || HPL::arg.debugLog)
+				std::cout << arg.curIndent << "LOG: [CREATE][VARIABLE]: " << curFile << ":" << lineCount << ": <type> <variable> = [value]: " << printVar(var) << std::endl;
 		}
 		return FOUND_SOMETHING;
 	}
@@ -665,7 +688,7 @@ void HPL::debugPrintVar(std::vector<variable> vars, std::string tabs/* = "	"*/, 
 
 
 void HPL::debugPrintStruct(std::vector<structure> structList, std::string indent/* = "\t"*/) {
-	for (auto s : structures) {
+	for (const auto& s : structures) {
 		std::cout << indent << colorText("struct", HPL::OUTPUT_PURPLE) << " " << colorText(s.name, HPL::OUTPUT_YELLOW) << colorText(" {", HPL::OUTPUT_GREEN) << std::endl;
 		debugPrintVar(s.value, indent + indent);
 		std::cout << colorText("\n" + indent + "}\n", HPL::OUTPUT_GREEN);
@@ -674,7 +697,7 @@ void HPL::debugPrintStruct(std::vector<structure> structList, std::string indent
 
 
 void HPL::debugPrintFunc(std::vector<function> func, std::string indent/* = "\t"*/) {
-	for (auto f : functions) {
+	for (const auto& f : functions) {
 		RETURN_OUTPUT clr = OUTPUT_PURPLE;
 
 		if (f.type == "scope")
@@ -707,7 +730,7 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 	va_list valist;
 	va_start(valist, text);
 	bool colorMode = false;
-	
+
 	#if defined(WINDOWS)
 	std::string msg;
 	std::cout << colorText("Error at ", OUTPUT_RED) << "'" << colorText(curFile + ":" + std::to_string(lineCount), OUTPUT_YELLOW) << "'" << colorText(": ", OUTPUT_RED);
@@ -806,6 +829,27 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 }
 
 
+std::string HPL::getModeName() {
+	switch (mode) {
+		case MODE_DEFAULT: return "MODE_DEFAULT";
+
+		case MODE_SAVE_STRUCT: return "MODE_SAVE_STRUCT";
+		case MODE_SAVE_FUNC: return "MODE_SAVE_FUNC";
+		case MODE_SAVE_SCOPE: return "MODE_SAVE_SCOPE";
+		case MODE_SCOPE_IF_STATEMENT: return "MODE_SCOPE_IF_STATEMENT";
+		case MODE_SCOPE_IGNORE_ALL: return "MODE_SCOPE_IGNORE_ALL";
+
+
+		case MODE_CHECK_STRUCT: return "MODE_CHECK_STRUCT";
+		case MODE_CHECK_FUNC: return "MODE_CHECK_FUNC";
+		case MODE_CHECK_SCOPE: return "MODE_CHECK_SCOPE";
+		case MODE_CHECK_IF_STATEMENT: return "MODE_CHECK_IF_STATEMENT";
+		case MODE_CHECK_IGNORE_ALL: return "MODE_CHECK_IGNORE_ALL";
+		default: return "N/A";
+	}
+}
+
+
 namespace HPL {
 	// Inteperter configs.
 	HPL::configArgs arg;
@@ -817,9 +861,11 @@ namespace HPL {
 	int mode = 0;
 	HPL::vector matches;
 	int equalBrackets = 0;
+	int scopeIndex = -1;
+	int oldMode = -1;
 
 	// Defnitions that are saved in memory.
-	std::vector<variable> variables;
+	std::vector<variable> variables = {{"bool", "HPL_SCOPE_MODE", false}};
 	std::vector<structure> structures;
 	std::vector<function> functions;
 	std::vector<function> ifStatements;

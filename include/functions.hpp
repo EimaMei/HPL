@@ -107,3 +107,7 @@ std::string getFilenameFromPath(std::string path);
 // Replaces all instances of 'oldString' with 'newString' in 'str'
 // string replaceAll(string input, string oldString, string newString);
 // (Check helper.hpp for the C++ definition)
+
+// Throws an error and stops the interpreter from continuing to run.
+// void HPL_throwError(string message)
+// (Check interpreter.hpp for the C++ definition)

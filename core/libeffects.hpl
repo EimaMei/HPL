@@ -1,0 +1,21 @@
+string addWarSupport(string tag, int value) {
+    float res = value
+    res /= 100
+
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"{tag} = { add_war_support = {res} }"
+}
+
+string addStability(string tag, int value) {
+    float res = value
+    res /= 100
+
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"{tag} = { add_stability  = {res} }"
+}
