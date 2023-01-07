@@ -307,17 +307,15 @@ std::string xToStr(allowedTypes val) {
 }
 
 
-bool typeIsValid(std::string type, HPL::structure* info/* = NULL*/) {
+bool typeIsValid(std::string type, HPL::structure*& info/* = NULL*/) {
 	if (coreTyped(type))
 		return true;
 
 	// Didn't find a core type, maybe it'll find a struct instead.
 	for (auto s : HPL::structures) {
 		if (type == s.name) {
-			if (info != nullptr) {
-				info->name = s.name;
-				info->value = s.value;
-			}
+			if (info != nullptr)
+				info = &s;
 			return true;
 		}
 	}
@@ -351,78 +349,100 @@ std::string getTypeFromValue(std::string value) {
 	else if (value == "&&" || value == "||")
 		return "logical-operator";
 
-	return "";
+	return std::string{};
 }
 
 
 bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue) {
 	HPL::variable* existingVar = getVarFromName(value);
+	HPL::structure* s = nullptr;
+	bool result = false;
+
+	/*
+	MAJOR NOTE: Fix the issue when the first word isn's a string, even though there's a plus behind it (eg. 343243 + "bfdjsgdfg")
+
+	if (!value.empty()) {
+		if (find(value, "+")) {
+			auto findStr = split(value, "+", "\"\"{}()");
+			std::string buffer;
+
+			for (auto& str : findStr) {
+				str = removeFrontAndBackSpaces(str);
+				if (isStr(str)) {
+					setCorrectValue(var, str, true);
+					buffer += xToStr(var.value);
+					break;
+				}
+				else
+					buffer +=
+			}
+		}
+	}*/
 
 	if (var.type.empty() && existingVar == nullptr)
 		var.type = getTypeFromValue(value);
-	if (value.empty() && existingVar == nullptr && var.type != "scope")
+
+	if (value.empty() && existingVar == nullptr && var.type != "scope" && typeIsValid(var.type, s))
 		return false;
 
 	if (existingVar != nullptr) {
-		HPL::structure* s = getStructFromName(var.type);
-
 		if (!onlyChangeValue)
 			var = *existingVar;
 		else
 			var.value = existingVar->value;
-
-		if (s != nullptr) { // The returned type from `typeIsValid` returned a struct
-			if (value.empty()) { // Nothing is set, meaning it's just the struct's default arguments.
-				std::vector<HPL::variable> res = s->value;
-				var.value = res;
-
-				return true;
-			}
-			else if (value.front() == '{' && value.back() == '}') { // Oh god oh fuck it's a custom list.
-				// We don't split the string by the comma if the comma is inside double quotes
-				// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
-				std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
-				std::vector<HPL::variable> result;
-
-				if (valueList.size() > s->value.size()) {
-					HPL::throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s->value.size());
-				}
-
-				// The first removes the spaces, then the double quotes.
-				for (int i = 0; i < s->value.size(); i++) {
-					if (i < s->value.size() && i < valueList.size()) {
-						HPL::variable var;
-						setCorrectValue(var, removeFrontAndBackSpaces(valueList[i]), true);
-
-						result.push_back(var);
-					}
-					else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
-						if (s->value[i].has_value()) {
-							result.push_back(s->value[i]);
-						}
-						else if (HPL::arg.strict)
-							HPL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s->value.size());
-						else
-							HPL::throwError(true, "Shouldn't happen?");
-					}
-				}
-				var.value = result;
-			}
-		}
-
-		return true;
 	}
 
-	if (var.type == "scope") {
+	if (s != nullptr) { // The returned type from `typeIsValid` returned a struct
+		if (value.empty()) { // Nothing is set, meaning it's just the struct's default arguments.
+			std::vector<HPL::variable> res = s->value;
+			var.value = res;
+
+			result = true;
+		}
+		else if (value.front() == '{' && value.back() == '}') { // Oh god oh fuck it's a custom list.
+			// We don't split the string by the comma if the comma is inside double quotes
+			// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
+			std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
+			std::vector<HPL::variable> result;
+
+			if (valueList.size() > s->value.size()) {
+				HPL::throwError(true, "Too many values are provided when declaring the variable '%s' (you provided '%i' arguments when struct type '%s' has only '%i' members).", var.name.c_str(), valueList.size(), var.type.c_str(), s->value.size());
+			}
+
+			// The first removes the spaces, then the double quotes.
+			for (int i = 0; i < s->value.size(); i++) {
+				if (i < s->value.size() && i < valueList.size()) {
+					HPL::variable var;
+					setCorrectValue(var, removeFrontAndBackSpaces(valueList[i]), true);
+
+					result.push_back(var);
+				}
+				else { // Looks like the user didn't provide the entire argument list. That's fine, though we must check for any default options.
+					if (s->value[i].has_value()) {
+						result.push_back(s->value[i]);
+					}
+					else if (HPL::arg.strict)
+						HPL::throwError(true, "Too few values are provided to fully initialize a struct (you provided '%i' arguments when struct type '%s' has '%i' members).", valueList.size(), var.type.c_str(), s->value.size());
+					else
+						HPL::throwError(true, "Shouldn't happen?");
+				}
+			}
+			var.value = result;
+		}
+	}
+
+	if (s != nullptr || existingVar != nullptr) {
+		result = true;
+	}
+	else if (var.type == "scope") {
 		var.reset_value();
 
-		if (value == "{}" || value.empty()) // Empty hoi4 scope.
-			return true;
+		if (!(value == "{}" || value.empty())) {
+			HPL::mode = (value == "{" ? MODE_SAVE_SCOPE : MODE_CHECK_SCOPE);
+			HPL::variables[0].value = true; // Scope mode is ON!
+		}
 
-		HPL::mode = (value == "{" ? MODE_SAVE_SCOPE : MODE_CHECK_SCOPE);
-		HPL::variables[0].value = true; // Scope mode is ON!
-
-		return true;
+		result = true;
 	}
 
 	else if (var.type == "string" && isStr(value)) {
@@ -445,24 +465,24 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		}
 
 		var.value = convertBackslashes(res);
-		return true;
+		result = true;
 	}
 
 	else if (isInt(value)) {
 		if (var.type == "int") {
 			var.value = xToType<int>(value);
-			return true;
+			result = true;
 		}
 
 		else if (var.type == "float") {
 			var.value = xToType<float>(value);
-			return true;
+			result = true;
 		}
 	}
 
 	else if (var.type == "bool") {
 		var.value = stringToBool(value);
-		return true;
+		result = true;
 	}
 
 	else if (var.type == "struct" || (value.front() == '{' && value.back() == '}')) {
@@ -506,25 +526,34 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 
 		var.value = output;
 
-		if (var.type.empty()) {
+		if (var.type.empty())
 			var.type = "struct"; // We'll deal with this later in the code.
-		}
 
-		return true;
+		result = true;
 	}
 	else if (useRegex(value, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
 		assignFuncReturnToVar(&var, HPL::matches.str(1), HPL::matches.str(2));
-		return true;
+		result = true;
 	}
-	/*else if (!(res = extractMathFromValue(value, existingVar)).empty()) // A math expression.
-		value = res;*/
+	/*else if (!(result = extractMathFromValue(value, existingVar)).empty()) // A math expresultsion.
+		value = result;*/
 
 	else if (var.type == "relational-operator" || var.type == "logical-operator") {
 		var.value = value;
-		return true;
+		result = true;
 	}
 
-	return false;
+	if (HPL::arg.debugAll || HPL::arg.debugLog) {
+		std::string buffer;
+		if (existingVar)
+			buffer = printVar(*existingVar) + " (" + (result ? "true" : "false") + ", " + (s != nullptr ? "true" : "false") + ", true)";
+		else
+			buffer = printVar(var) + " (" + (result ? "true" : "false") + ", " + (s != nullptr ? "true" : "false") + ", false)";
+
+		std::cout << HPL::arg.curIndent  << HPL::colorText("LOG: [FUNCTION][SET-CORRECT-VALUE]: ", HPL::OUTPUT_PURPLE) << HPL::curFile << ":" << HPL::lineCount << ": <value> = <info> (<is set>, <is struct>, <is variable>): " << value << " = " << buffer << std::endl;
+	}
+
+	return result;
 }
 
 
@@ -549,7 +578,6 @@ HPL::variable* getVarFromName(std::string varName) {
 				return nullptr;
 
 			auto listOfMembers = split(varName, ".", "()\"\"{}");
-			auto& varValues = getVars(v.value);
 			auto pointer = &v.value;
 
 			std::string baseName;
@@ -565,27 +593,43 @@ HPL::variable* getVarFromName(std::string varName) {
 
 					if (find(varName, (baseName + member.name))) {
 						if (varName == (baseName + member.name)) {
-							auto& values = getVars(*pointer);
-							HPL::variable* valueLocation;
-							std::string value;
+							if (v.has_value()) {
+								auto& values = getVars(*pointer);
+								HPL::variable* valueLocation;
+								std::string value;
 
-							if (varIndex < values.size())
-								valueLocation = &values[varIndex];
-							else
-								valueLocation = &s->value[varIndex];
+								if (varIndex < values.size())
+									valueLocation = &values[varIndex];
+								else
+									valueLocation = &s->value[varIndex];
 
-							value = xToStr(valueLocation->value);
+								value = xToStr(valueLocation->value);
 
-							valueLocation->name = member.name;
+								valueLocation->name = member.name;
 
-							if (value == "{}")
-								valueLocation->value = s->value[varIndex].value;
+								if (value == "{}")
+									valueLocation->value = s->value[varIndex].value;
 
-							return valueLocation;
+								return valueLocation;
+							}
+							else {
+								auto* valueLocation = &s->value[varIndex];
+								valueLocation->name = member.name;
+
+								return valueLocation;
+							}
 						}
 						else {
 							s = getStructFromName(member.type);
-							pointer = &varValues[varIndex].value;
+							if (v.has_value()) {
+								std::vector<HPL::variable>& varValues = getVars(v.value);
+								pointer = &varValues[varIndex].value;
+							}
+							else {
+								v.value = std::vector<HPL::variable>{};
+								std::vector<HPL::variable>& varValues = getVars(v.value);
+								pointer = &varValues[varIndex].value;
+							}
 							varIndex = 0;
 						}
 					}
@@ -624,7 +668,7 @@ int getValueFromFstring(std::string ogValue, std::string& output) {
 				HPL::throwError(true, "Argument '%s' is invalid (Either it's a variable that doesn't exist or something else entirely)", value.c_str());
 			else {
 				value = "{" + value + "}";
-				ogValue = replaceOnce(ogValue, value, xToStr(var.value).c_str());
+				ogValue = replaceOnce(ogValue, value, xToStr(var.value));
 			}
 		}
 		output = ogValue;

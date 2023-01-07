@@ -177,6 +177,6 @@ namespace HPL {
 
 	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%i' are supported.
 	void throwError(bool sendRuntimeError, std::string text, ...);
-	//
+	// Gets the current mode's name.
 	std::string getModeName();
 }

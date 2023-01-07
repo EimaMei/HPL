@@ -31,9 +31,7 @@
 
 std::string HSM::interpreteLine(std::string str) {
     std::string buffer;
-
-	if (find(str, "//")) // Ignore comments
-		str = split(str, "//", "\"\"")[0];
+	std::string tabs;
 
     if (find(str, "#")) // Ignore comments
 		str = split(str, "#", "\"\"")[0];
@@ -41,11 +39,15 @@ std::string HSM::interpreteLine(std::string str) {
 	line = str;
 
 	bool leftBracket = useRegex(line, R"(^\s*(\})\s*$)");
-	bool rightBracket = useRegex(line, R"(^.*\s*\{\s*$)");
+	bool rightBracket = useRegex(line, R"(^.*\s*\=\s*\{\s*$)");
 
 
 	if (leftBracket)
 		equalBrackets--;
+
+	for (int i = 1; i < equalBrackets; i++)
+		tabs += '\t';
+
 	if (rightBracket)
 		equalBrackets++;
 
@@ -73,7 +75,8 @@ std::string HSM::interpreteLine(std::string str) {
 	}
 	else
 		buffer += "\n";
-	buffer = removeFrontAndBackSpaces(buffer);
+
+	buffer = tabs + removeFrontAndBackSpaces(buffer);
 
 
 	return buffer;

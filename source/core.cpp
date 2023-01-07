@@ -292,7 +292,11 @@ bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams)
 			}
 
 			sentUserParams = organizedParams;
+
+			if (HPL::arg.debugAll || HPL::arg.debugLog)
+				std::cout << HPL::arg.curIndent << HPL::colorText("LOG: [FIX][FUNCTION-OOO]: ", HPL::OUTPUT_BLUE) << HPL::curFile << ":" << HPL::lineCount << ": Fixed the out of order initializations." << std::endl;
 		}
+
 		startOrgAt = 0; // Reset out of order initialization organization.
 
 		for (int i = 0; i < func.params.size(); i++) {
@@ -320,7 +324,11 @@ bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams)
 
 			if (func.params[i].has_value() && (i + 1) > sentUserParams.size()) {// If the function has default parameters that weren't covered
 				auto var = func.params[i];
-				setCorrectValue(var, xToStr(var.value), true);
+
+				std::string value = xToStr(var.value);
+				if (value == "{}")
+					setCorrectValue(var, xToStr(var.value), true);
+
 				sentUserParams.push_back(var);
 			}
 		}

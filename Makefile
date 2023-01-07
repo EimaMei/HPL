@@ -44,7 +44,11 @@ runJson: $(EXE)
 	./$(EXE) -dumpJson examples/$(INPUT)/main.hpl
 
 clean:
-	rm -rf build/**
+ifeq ($(PLATFORM),windows)
+	rd -r "$(OUTPUT)/*"
+else
+	rm -rf $(OUTPUT)/**
+endif
 
 debug: $(EXE)
 	lldb ./$(EXE)

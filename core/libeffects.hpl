@@ -1,3 +1,7 @@
+#include <libmod.hpl>
+
+int HPL_effectLocalisationCount = 0
+
 string addWarSupport(string tag, int value) {
     float res = value
     res /= 100
@@ -18,4 +22,29 @@ string addStability(string tag, int value) {
     }
 
     return f"{tag} = { add_stability  = {res} }"
+}
+
+
+string addThreat(int threat = 0, string title = "") {
+    bool named = len(title)
+    string res = f"add_threat = {threat}"
+
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    if len(HPL_currentMod.path) == 0 {
+        HPL_throwError("Must initialize a mod via 'newMod' before using this function (path to the mod is requested to create files).")
+    }
+
+    if named {
+        createFolder(f"{HPL_currentMod.path}/localisation")
+        createFile(f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", "l_english:", true)
+        writeFile(path = f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", content = f"\n\tEFFECT_{HPL_effectLocalisationCount}:0 \"{title}\"", mode = "a")
+        res = f"add_named_threat = { threat = {threat} name = EFFECT_{HPL_effectLocalisationCount} }"
+
+        HPL_effectLocalisationCount++
+    }
+
+    return res
 }

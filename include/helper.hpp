@@ -85,7 +85,7 @@ T xToType(allowedTypes val) {
 
 // If a type exists. If the type is a struct, then `info` becomes
 // the pointer to the struct.
-bool typeIsValid(std::string type, HPL::structure* info = NULL);
+bool typeIsValid(std::string type, HPL::structure*& info);
 // If a type is a core type.
 bool coreTyped(std::string type);
 // Gets the core type from value. If it cannot determine the type,

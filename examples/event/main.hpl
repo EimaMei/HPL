@@ -12,11 +12,55 @@
 
 newMod("build/output", "Event Modding", "1.12.*", {true, false, true})
 
-scope savedCode = { // Now we can use this scope variable anywhere we want.
-	addWarSupport(tag = "ROOT", value = 10) // Scope only functions that only work in scopes.
-	addStability(tag = "ROOT", value = -10)
-	SOV = { add_war_support = 0.1 } // Allowed HOI4 scripting cross-compatibility.
+//scope savedCode = { // We declared a scope variable, entering HSM mode.
+//    addWarSupport(tag = "ROOT", value = 10) // Scope only functions that only work in scopes.
+//    addStability(tag = "ROOT", value = -10)
+//    SOV = { add_war_support = 0.1 } // Allowed old HOI4 code.
+//}
+//
+//event alithronEvent = newEvent(namespace = "hpl_events", id = 56, title = "Alithron is back", description = "After 10 years of sufferage, the bri ish man himself Alithron has announced recently that he shall return in the coming weeks, no doubt to cause major tomfoolery and bring back Unser Kampf.", imagePath = "examples/event/res/literal_evil.png")
+//newEventOption(e = alithronEvent, title = "Fuck.", result = savedCode)
+//
+
+scope anschlussScope = {
+    hidden_effect = {
+        addThreat(25, "Anschluss")
+    }
 }
 
-event alithronEvent = newEvent(namespace = "hpl_events", id = 56, title = "Alithron is back", description = "After 10 years of sufferage, the bri ish man himself Alithron has announced recently that he shall return in the coming weeks, no doubt to cause major tomfoolery and bring back Unser Kampf.", imagePath = "examples/event/res/literal_evil.png")
-newEventOption(e = alithronEvent, title = "Fuck.", result = savedCode)
+scope results = {
+    4 = {
+		if = {
+			limit = { is_owned_by = AUS }
+			add_core_of = GER
+		}
+	}
+	152 = {
+		if = {
+			limit = { is_owned_by = AUS }
+			add_core_of = GER
+		}
+	}
+	153 = {
+		if = {
+			limit = { is_owned_by = AUS }
+			add_core_of = GER
+		}
+	}
+	848 = {
+		if = {
+			limit = { is_owned_by = AUS }
+			add_core_of = GER
+		}
+	}
+	AUS = {
+		every_unit_leader = {
+			set_nationality = GER
+		}
+	}
+}
+
+print(results)
+
+event anschluss = newEvent(namespace = "germany", id = 0, title = "Anschluss", description = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest.", imagePath = "", isTriggeredOnly = true, immediate = anschlussScope)
+newEventOption(e = anschluss, title = "How can anyone say that Austria is not German?!", result = results)

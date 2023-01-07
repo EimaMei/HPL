@@ -19,19 +19,25 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] `
 
 If (-Not $isAdmin) { # Just in case we check if we DON'T have admin permissions.
     Write-Host "Please run this installer with administrator permissions to set the environment variable for HPL."
-    Write-Host -NoNewLine 'Press any key to continue...';
-    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+    Write-Host -NoNewLine "Press any key to continue..."
+    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
     Exit
 }
 
 
-if (Test-Path $path) { # If HPL was already installed, delete everything.
-    Remove-Item $path -Recurse
+if (Test-Path $path) { # If HPL is already installed, ask if the user wants to reinstall
+    $answer = Read-Host -Prompt "Do you wish to reinstall HPL (y/n)?"
+    if ($answer -eq "y") {
+		Remove-Item $path -Recurse
+	}
+	else {
+		Exit
+	}
 }
 
 
 New-Item -Path $path -ItemType Directory # Create the folder
-Move-Item $curPath\hpl.exe $path # Move hpl.exe and core
+Move-Item $curPath\build\hpl.exe $path # Move hpl.exe and core
 Move-Item $curPath\core $path
 Copy-Item $curPath\LICENSE $path # Copy LICENSE and examples
 Copy-Item $curPath\examples $path

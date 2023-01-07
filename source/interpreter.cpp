@@ -184,13 +184,24 @@ int HPL::checkIncludes() {
 
 
 int HPL::checkModes() {
-	bool leftBracket = useRegex(line, R"(^\s*(\})\s*$)");
-	bool rightBracket = useRegex(line, R"(^.*\s*\{\s*$)");
-
 	if ((HPL::arg.debugAll || HPL::arg.debugLog) && mode != oldMode) {
 		std::cout << arg.curIndent << colorText("LOG: [CURRENT][MODE]: ", HPL::OUTPUT_RED) << curFile << ":" << lineCount << ": <name of the mode>: " << getModeName() << std::endl;
 		oldMode = mode;
 	}
+
+	if (mode == MODE_SAVE_SCOPE) {
+		variables[scopeIndex].value = xToStr(variables[scopeIndex].value) + HSM::interpreteLine(line);
+
+		if (mode == MODE_DEFAULT) {
+			HPL::scopeIndex = -1;
+			HSM::equalBrackets = 1;
+		}
+
+		return FOUND_SOMETHING;
+	}
+
+	bool leftBracket = useRegex(line, R"(^\s*(\})\s*$)");
+	bool rightBracket = useRegex(line, R"(^.*\s*\{\s*$)");
 
 	if (find(line, "{") && (mode >= 0x100 && mode <= 0x1000)) {
 		switch (mode) {
@@ -204,17 +215,8 @@ int HPL::checkModes() {
 
 	if (leftBracket)
 		equalBrackets--;
-	if (useRegex(line, R"(^.*\s*\{\s*$)"))
+	if (rightBracket)
 		equalBrackets++;
-
-	if (mode == MODE_SAVE_SCOPE) {
-		variables[scopeIndex].value = xToStr(variables[scopeIndex].value) + HSM::interpreteLine(line);
-
-		if (mode == MODE_DEFAULT)
-			HPL::scopeIndex = -1;
-
-		return FOUND_SOMETHING;
-	}
 
 
 	if (leftBracket && mode == MODE_SAVE_STRUCT) {
@@ -620,6 +622,7 @@ int HPL::checkVariables() {
 
 		for (int listOfVarIndex = 0; listOfVarIndex < listOfVarNames.size(); listOfVarIndex++) {
 			variable var = {.type = ogType, .name = removeSpaces(listOfVarNames[listOfVarIndex]), .value = std::string{}};
+			structure* s;
 
 			if (listOfVarIndex < listOfVarValues.size())
 				var.value = removeFrontAndBackSpaces(listOfVarValues[listOfVarIndex]);
@@ -629,7 +632,7 @@ int HPL::checkVariables() {
 			if (value.empty())
 				var.reset_value();
 
-			if (!typeIsValid(var.type)) // Type isn't cored or a structure.
+			if (!typeIsValid(var.type, s)) // Type isn't cored or a structure.
 				throwError(true, "Type '%s' doesn't exist (Cannot init a variable without valid type).", var.type.c_str());
 
 			if (!setCorrectValue(var, value, true) && !value.empty())
@@ -754,10 +757,10 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 					if (colorMode) {
 						#if defined(WINDOWS)
 						std::cout << msg << colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
+						msg.clear();
 						#else
 						msg += colorText(va_arg(valist, const char*), OUTPUT_YELLOW);
 						#endif
-						msg.clear();
 					}
 					else {
 						#if defined(WINDOWS)
@@ -807,11 +810,11 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 
 		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)
 			debugMode();
+		#else
+		std::cout << "\x1B[0m" << msg << std::endl;
+		#endif
 
 		throw std::runtime_error("");
-		#else
-		throw std::runtime_error("\x1B[0m" + msg);
-		#endif
 	}
 	else {
 		#if !defined(WINDOWS) // Windows is fucking stupid with colored terminals.
@@ -819,7 +822,7 @@ void HPL::throwError(bool sendRuntimeError, std::string text, ...) {
 			debugMode();
 		#endif
 
-		std::printf("\x1B[0m%s\n", msg.c_str());
+		std::cout << "\x1B[0m" << msg << std::endl;
 
 		#if defined(WINDOWS) // Windows is fucking stupid with colored terminals.
 		if ((HPL::arg.debugAll || HPL::arg.debugPrint) && sendRuntimeError)

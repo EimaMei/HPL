@@ -32,7 +32,7 @@ int newMod(string path, string name, string supportedVersion, modTags tags = {})
     removeFolder(path)
     createFolder(HPL_currentMod.path)
 
-    string descriptor =  f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {"
+    string descriptor = f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {"
     if tags.alternativeHistory {
         descriptor += "\n\t\"Gameplay\""
     }
