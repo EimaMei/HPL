@@ -31,4 +31,12 @@ namespace HSM { // HOI4 Scripting+ Mode
 
 	// Interpretes a single line.
 	std::string interpreteLine(std::string line);
+
+	// Checks for any conditions.
+	int checkConditions(std::string& buffer);
+	// Checks for any functions.
+	int checkFunctions(std::string& buffer);
+
+	// Resets the interpreter's runtime information.
+	void resetRuntimeInfo();
 }

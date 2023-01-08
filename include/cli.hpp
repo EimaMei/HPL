@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#define VERSION "HPL 0.2.5"
+#define VERSION "HPL 0.2.6"
 #define AUTHORS "Created by EimaMei/Sacode"
 
 #if defined(__clang__)
