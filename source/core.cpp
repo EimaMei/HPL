@@ -259,11 +259,11 @@ bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams)
 			HPL::function* outOfOrderFunc = &func; // The function.
 			sentUserParams.pop_back();
 
-			std::vector<HPL::variable> organizedParams = sentUserParams;
+			std::vector<HPL::variable> organizedParams = outOfOrderFunc->params;
 			std::string buf;
 			int num = 0;
 
-			for (const auto& outOfOrderParam : sentUserParams) {
+			for (const auto& outOfOrderParam : sentUserParams) { // Iterate through user inputted params.
 				bool paramExist = false;
 				int paramIndex = 0;
 				num++;
@@ -366,16 +366,28 @@ int assignFuncReturnToVar(HPL::variable* existingVar, std::string funcName, std:
 		if (func.type != output.type)
 			HPL::throwError(true, "Cannot return a '%s' type (the return type for '%s' is '%s', not '%s')", output.type.c_str(), funcName.c_str(), func.type.c_str(), output.type.c_str());
 
-		existingVar->type = func.type;
+		std::string value = xToStr(output.value);
 
-		if (func.type == "string")
-			existingVar->value = getStr(output.value);
-		else if (func.type == "int")
-			existingVar->value = getInt(output.value);
-		else if (func.type == "bool")
-			existingVar->value = getBool(output.value);
-		else if (func.type == "float")
-			existingVar->value = getFloat(output.value);
+		if (existingVar->type == "string")
+			existingVar->value = value;
+		else if (existingVar->type == "int")
+			existingVar->value = (int)stringToFloat(value);
+		else if (existingVar->type == "bool")
+			existingVar->value = stringToBool(value);
+		else if (existingVar->type == "float")
+			existingVar->value = stringToFloat(value);
+		else {
+			if (func.type == "string")
+				existingVar->value = getStr(output.value);
+			else if (func.type == "int")
+				existingVar->value = getInt(output.value);
+			else if (func.type == "bool")
+				existingVar->value = getBool(output.value);
+			else if (func.type == "float")
+				existingVar->value = getFloat(output.value);
+
+			existingVar->type = func.type;
+		}
 	}
 	else {
 		existingVar->reset_value();

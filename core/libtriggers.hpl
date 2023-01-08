@@ -1,0 +1,34 @@
+string isOwnedBy(auto subScope, string tag) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"{subScope} = { is_owned_by = {tag} }"
+}
+
+
+string hasDlc(string dlc) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"has_dlc = \"{dlc}\""
+}
+
+
+string countryExists(string tag) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"country_exists = {tag}"
+}
+
+
+string hasWar(string tag) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"{tag} = { has_war = yes }"
+}

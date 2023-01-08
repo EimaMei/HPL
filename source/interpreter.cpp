@@ -195,6 +195,10 @@ int HPL::checkModes() {
 		if (mode == MODE_DEFAULT) {
 			HPL::scopeIndex = -1;
 			HSM::equalBrackets = 1;
+			if ((HPL::arg.debugAll || HPL::arg.debugLog)) {
+				std::cout << arg.curIndent << colorText("LOG: [HSM][OFF]: ", HPL::OUTPUT_CYAN, true) << curFile << ":" << lineCount << ": HSM mode turned off, back to HPL." << std::endl;
+			}
+
 		}
 
 		return FOUND_SOMETHING;
@@ -339,13 +343,13 @@ int HPL::checkConditions() {
 		oldValue = removeFrontAndBackSpaces(oldValue);
 
 
-		auto params = split(oldValue, " ", "\"\"{}"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
+		auto params = split(oldValue, " ", "\"\"{}()"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
 
 		ifStatements.push_back({.startingLine = equalBrackets});
 
 		if (HPL::arg.debugAll || HPL::arg.debugLog) {
-			arg.curIndent += "\t\t";
 			std::cout << arg.curIndent << "LOG: [FOUND][IF-STATEMENT]: " << curFile << ":" << lineCount << ": if (<condition>): if (" << oldValue << ")" << std::endl;
+			arg.curIndent += "\t";
 		}
 
 		std::string _operator;
@@ -356,7 +360,8 @@ int HPL::checkConditions() {
 			p = removeFrontAndBackSpaces(p);
 
 			HPL::variable var;
-			setCorrectValue(var, p, false);
+			if (!setCorrectValue(var, p, false))
+				throwError(true, "Variable '%s' doesn't exist (Cannot check the value from something that doesn't exist).", p.c_str());
 			p = xToStr(var.value);
 
 			if (HPL::arg.debugAll || HPL::arg.debugLog) {
@@ -382,7 +387,6 @@ int HPL::checkConditions() {
 				mode = rightBracket ? MODE_SCOPE_IGNORE_ALL : MODE_CHECK_IGNORE_ALL;
 
 				if (HPL::arg.debugAll || HPL::arg.debugLog) {
-					arg.curIndent.pop_back();
 					arg.curIndent.pop_back();
 					std::cout << arg.curIndent << "LOG: [FAILED][IF-STATEMENT]: " << curFile << ":" << lineCount << ": Condition failed, output returned false." << std::endl;
 				}
@@ -440,8 +444,6 @@ int HPL::checkConditions() {
 				}
 			}
 		}
-		if (HPL::arg.debugAll || HPL::arg.debugLog)
-			arg.curIndent.pop_back();
 
 		return FOUND_SOMETHING;
 	}
@@ -511,18 +513,16 @@ int HPL::checkFunctions() {
 	else if (useRegex(line, R"(^\s*([^\s\(]+)\((.*)\)\s*$)") && matches.size() == 2) {
 		function f; HPL::variable res;
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
 			std::cout << arg.curIndent << "LOG: [USE][FUNCTION]: " << curFile << ":" << lineCount << ": <name>(<params>): " << matches.str(1) << "(" << matches.str(2) << ")" << std::endl;
-		}
 
 		return executeFunction(matches.str(1), matches.str(2), f, res);
 	}
 	else if (useRegex(line, R"(^\s*return\s+(f?\".*\"|\{.*\}|[^\s]+\(.*\)|[^\s]*)\s*$)")) {
 		setCorrectValue(functionOutput, matches.str(1), false);
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
 			std::cout << arg.curIndent << "LOG: [FOUND][RETURN]: " << curFile << ":" << lineCount << ": return <value> (<type>): return " << xToStr(functionOutput.value) << " (" << functionOutput.type << ")" << std::endl;
-		}
 
 		return FOUND_SOMETHING;
 	}
@@ -567,7 +567,7 @@ int HPL::checkVariables() {
 				HPL::throwError(true, "Cannot append a %s type to a string (Value '%s' is a %s-type).", var.type.c_str(), xToStr(var.value).c_str(), var.type.c_str());
 
 
-			existingVar->value = getStr((*existingVar).value).c_str() + xToStr(var.value); // for some reason we have to get the const char* to append the text, smh.
+			existingVar->value = xToStr(existingVar->value) + xToStr(var.value); // for some reason we have to get the const char* to append the text, smh.
 
 			return FOUND_SOMETHING;
 		}

@@ -259,6 +259,18 @@ bool stringToBool(std::string str) {
 }
 
 
+float stringToFloat(std::string str) {
+	if (str == "true")
+		return 1;
+	else if (str == "false")
+		return 0;
+	else
+		return std::stof(str);
+
+	return 1991;
+}
+
+
 
 double eval(std::string expr, int& errorCode) {
 	errorCode = 0;
@@ -379,7 +391,7 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		}
 	}*/
 
-	if (var.type.empty() && existingVar == nullptr)
+	if ((var.type.empty() || var.type == "auto") && existingVar == nullptr)
 		var.type = getTypeFromValue(value);
 
 	if (value.empty() && existingVar == nullptr && var.type != "scope" && typeIsValid(var.type, s))
@@ -546,11 +558,11 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 	if (HPL::arg.debugAll || HPL::arg.debugLog) {
 		std::string buffer;
 		if (existingVar)
-			buffer = printVar(*existingVar) + " (" + (result ? "true" : "false") + ", " + (s != nullptr ? "true" : "false") + ", true)";
+			buffer = printVar(*existingVar) + " (" + (result ? "true" : "false") + ")";
 		else
-			buffer = printVar(var) + " (" + (result ? "true" : "false") + ", " + (s != nullptr ? "true" : "false") + ", false)";
+			buffer = printVar(var) + " (" + (result ? "true" : "false") + ")";
 
-		std::cout << HPL::arg.curIndent  << HPL::colorText("LOG: [FUNCTION][SET-CORRECT-VALUE]: ", HPL::OUTPUT_PURPLE) << HPL::curFile << ":" << HPL::lineCount << ": <value> = <info> (<is set>, <is struct>, <is variable>): " << value << " = " << buffer << std::endl;
+		std::cout << HPL::arg.curIndent  << HPL::colorText("LOG: [FUNCTION][SET-CORRECT-VALUE]: ", HPL::OUTPUT_PURPLE) << HPL::curFile << ":" << HPL::lineCount << ": <og value> = <info> (<is set>): " << value << " = " << buffer << std::endl;
 	}
 
 	return result;
@@ -723,9 +735,9 @@ std::string printVar(HPL::variable var) {
 	if (var.has_value()) {
 		str += " = ";
 		if (var.type == "string")
-			str += "\"" + xToStr(var.value) + "\"";
+			str += "\"" + replaceAll(xToStr(var.value), R"(\)", "\\") + "\"";
 		else
-			str += xToStr(var.value);
+			str += replaceAll(xToStr(var.value), R"(\)", "\\");
 	}
 
 	return str;

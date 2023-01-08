@@ -52,6 +52,8 @@ std::string replaceAll(std::string str, std::string oldString, std::string newSt
 std::string replaceOnce(std::string, std::string oldString, std::string newString);
 // Converts a string to a bool.
 bool stringToBool(std::string str);
+// Converts a string to a float.
+float stringToFloat(std::string str);
 // Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
 std::string convertBackslashes(std::string str);
 // Converts a math operation to a single double (UNFINISHED, NEEDS REFINING).

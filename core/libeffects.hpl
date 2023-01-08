@@ -1,6 +1,14 @@
 #include <libmod.hpl>
 
-int HPL_effectLocalisationCount = 0
+
+string addPoliticalPower(string tag, int value) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"{tag} = { add_political_power = {value} }"
+}
+
 
 string addWarSupport(string tag, int value) {
     float res = value
@@ -40,11 +48,111 @@ string addThreat(int threat = 0, string title = "") {
     if named {
         createFolder(f"{HPL_currentMod.path}/localisation")
         createFile(f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", "l_english:", true)
-        writeFile(path = f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", content = f"\n\tEFFECT_{HPL_effectLocalisationCount}:0 \"{title}\"", mode = "a")
-        res = f"add_named_threat = { threat = {threat} name = EFFECT_{HPL_effectLocalisationCount} }"
+        writeFile(path = f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", content = f"\n\tEFFECT_{HPL_locCount}:0 \"{title}\"", mode = "a")
+        res = f"add_named_threat = { threat = {threat} name = EFFECT_{HPL_locCount} }"
 
-        HPL_effectLocalisationCount++
+        HPL_locCount++
     }
 
     return res
+}
+
+
+string addCoreOf(int stateId, string tag) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    return f"{stateId} = { add_core_of = {tag} }"
+}
+
+
+string annexCountry(string tag, bool transferTroops = false) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    string value = "no"
+    if transferTroops == true {
+        value = "yes"
+    }
+
+    return f"annex_country = { target  = {tag} transfer_troops = {value} }"
+}
+
+
+string countryEvent(string id, int days = -1, int hours = -1, int randomHours = -1, int randomDays = -1) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    string buffer = f"country_event = { id = {id} "
+    if days > -1 {
+        buffer += f"days = {days} "
+    }
+    if hours > -1 {
+        buffer += f"hours = {hours} "
+    }
+    if randomHours > -1 {
+        buffer += f"random_hours = {randomHours} "
+    }
+    if randomDays > -1 {
+        buffer += f"random_days = {randomDays} "
+    }
+    buffer += "}"
+
+    return buffer
+}
+
+
+string newsEvent(string id, int days = -1, int hours = -1, int randomHours = -1, int randomDays = -1) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    string buffer = countryEvent(id, days, hours, randomHours, randomDays)
+    buffer = replaceAll(buffer, "country_event", "news_event")
+
+    return buffer
+}
+
+
+string customEffectTooltip(string text) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+
+    if len(HPL_currentMod.path) == 0 {
+        HPL_throwError("Must initialize a mod via 'newMod' before using this function (path to the mod is requested to create files).")
+    }
+
+    createFolder(f"{HPL_currentMod.path}/localisation")
+    createFile(f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", "l_english:", true)
+    writeFile(path = f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", content = f"\n\tEFFECT_{HPL_locCount}:0 \"{text}\"", mode = "a")
+
+    HPL_locCount++
+
+    return f"custom_effect_tooltip = EFFECT_{HPL_locCount}"
+}
+
+
+string setCountryFlag(string flag, int days = -1, int value = -1) {
+    if HPL_SCOPE_MODE == false {
+        HPL_throwError("Cannot use a scope function in non-scope mode.")
+    }
+    string buffer = f"set_country_flag = {flag}"
+
+    if days > 0 || value > 0 {
+        buffer = f"set_country_flag = { flag = {flag} "
+
+        if days > 0 {
+            buffer += f"days = {days} "
+        }
+        if value > 0 {
+            bufer += f"value = {value} "
+        }
+        buffer += "}"
+    }
+
+    return buffer
 }
