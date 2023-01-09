@@ -4,6 +4,7 @@ build/**
 source/test
 games/
 res
+hpl-vscode/
 
 # Files 
 *.exe
@@ -12,3 +13,5 @@ res
 *.ttf
 .DS_Store
 test.cpp
+*.7z
+*.zip

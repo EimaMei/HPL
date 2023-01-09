@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +26,7 @@
 
 #include <iostream>
 
+
 std::vector<std::string> coreTypes = {
 	"string", // Works just like std::string.
 	"int",    // Regular int.
@@ -34,35 +35,7 @@ std::vector<std::string> coreTypes = {
 	"scope",  // A scope variable, meaning HOI4 code can be executed inside of it.
 	"auto"    // Generic type.
 };
-std::vector<std::string> coreFunctionList = {
-	// Misc.
-	"print",
-	"str",
-	"bool",
-	"int",
-	"float",
-	// Folders.
-	"createFolder",
-	"removeFolder",
-	// Files.
-	"createFile",
-	"readFile",
-	"writeFile",
-	"writeToLine",
-	"writeToMultipleLines",
-	"removeFile"
-	"copyFile",
-	// Localisation.
-	"writeLocalisation",
-	// Image related.
-	"convertToDds",
-	// Path related.
-	"pathExists",
-	"getFilenameFromPath",
-	// General string functions.
-	"find",
-	"replaceAll"
-};
+
 
 bool foundFunction = false; // If we found the function.
 int startOrgAt = 0; // At which index we should start the organization. NOTE: A possible bug exists, where the first few params are in order, but then afterwards the defines out of order arguments have the same first few param names, ending in shenanigans. Needs fixing.
@@ -79,10 +52,10 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 		HPL::arg.curIndent += "\t";
 
 	for (auto& p : values) {
-		HPL::variable var = {"NO_TYPE", "NO_NAME"};
+		HPL::variable var;
 
 		// Removing the spaces and quotes from match.
-		std::string oldMatch = unstringify(p, false, ' '); // In case the match is actually a string.
+		std::string oldMatch = removeFrontAndBackSpaces(p); // In case the match is actually a string.
 		p = unstringify(oldMatch);
 
 		// Out of order initialization settings.
@@ -148,7 +121,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			}
 		}
 		else {
-			bool res = setCorrectValue(var, oldMatch);
+			bool res = setCorrectValue(var, oldMatch, false);
 
 			if (!res)
 				HPL::throwError(true, "Variable '%s' doesn't exist (Cannot use a variable that doesn't exist).", p.c_str());
@@ -161,10 +134,8 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 		params.push_back(var);
 
-		if (HPL::arg.debugAll || HPL::arg.debugLog) {
-			std::cout << HPL::arg.curIndent << "LOG: [FIND][PARAM]: " << HPL::curFile << ":" << HPL::lineCount << ": <type> <name> = <value>: " << var.type << " " << var.name << " = ";
-			print(var);
-		}
+		if (HPL::arg.debugAll || HPL::arg.debugLog)
+			std::cout << HPL::arg.curIndent << "LOG: [FIND][PARAM]: " << HPL::curFile << ":" << HPL::lineCount << ": <type> <name> = <value>: " << printVar(var) << std::endl;
 	}
 	foundFunction = false;
 	globalFunction.name = name;
@@ -195,11 +166,11 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			auto oldLineCount = HPL::lineCount;
 			auto oldVars = HPL::variables;
 			auto oldMode = HPL::mode;
+			auto oldEqualBrackets = HPL::equalBrackets;
 
 			HPL::resetRuntimeInfo();
 			HPL::curFile = func.file;
 			HPL::lineCount = func.startingLine;
-			//HPL::equalBrackets
 
 			for (int i = 0; i < func.params.size(); i++) {
 				auto var = func.params[i];
@@ -208,14 +179,19 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 					var.value = params[i].value;
 
 				HPL::variables.push_back(var);
+
+				if (HPL::arg.dumpJson)
+					HPL::cachedVariables.push_back(var);
 			}
 
-			for (auto& line : func.code) {
+			for (const auto& line : func.code) {
 				HPL::lineCount++;
 				HPL::interpreteLine(line);
 
 				if (HPL::functionOutput.has_value()) // If the function returned something, exit.
 					break;
+				if (!HPL::arg.interprete)
+					return FOUND_NOTHING;
 			}
 
 			// Set the output value and type.
@@ -226,9 +202,11 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 			// If a global variable was edited in the function, save the changes.
 			for (auto& oldV : oldVars) {
-				for (auto newV : HPL::variables) {
-					if (oldV.name == newV.name)
+				for (auto& newV : HPL::variables) {
+					if (oldV.name == newV.name) {
 						oldV.value = newV.value;
+						break;
+					}
 				}
 			}
 
@@ -237,6 +215,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 			HPL::curFile = oldCurFile;
 			HPL::lineCount = oldLineCount;
 			HPL::mode = oldMode;
+			HPL::equalBrackets = oldEqualBrackets;
 
 			globalFunction = func;
 			foundFunction = true;
@@ -262,27 +241,29 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams) {
 	bool organize = false;
+	int size = sentUserParams.size();
 
 	if (!sentUserParams.empty() && sentUserParams.back().type == "IS_OOO") {
-		sentUserParams.pop_back();
+		size--;
 		organize = true;
 	}
 
-	if (func.name == globalFunction.name && func.params.size() < sentUserParams.size())
-		HPL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.params.size());
-	if (func.name == globalFunction.name && func.minParamCount > sentUserParams.size())
-		HPL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", sentUserParams.size(), func.name.c_str(), func.minParamCount);
+	if (func.name == globalFunction.name && func.params.size() < size)
+		HPL::throwError(true, "Too many parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", size, func.name.c_str(), func.params.size());
+	if (func.name == globalFunction.name && func.minParamCount > size)
+		HPL::throwError(true, "Too few parameters were provided (you provided '%i' arguments when function '%s' requires at least '%i' arguments)", size, func.name.c_str(), func.minParamCount);
 
 
 	if (func.name == globalFunction.name) {
 		if (organize) { // If there are any out of order arguments.
 			HPL::function* outOfOrderFunc = &func; // The function.
+			sentUserParams.pop_back();
 
-			std::vector<HPL::variable> organizedParams = sentUserParams;
+			std::vector<HPL::variable> organizedParams = outOfOrderFunc->params;
 			std::string buf;
 			int num = 0;
 
-			for (const auto& outOfOrderParam : sentUserParams) {
+			for (const auto& outOfOrderParam : sentUserParams) { // Iterate through user inputted params.
 				bool paramExist = false;
 				int paramIndex = 0;
 				num++;
@@ -311,7 +292,11 @@ bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams)
 			}
 
 			sentUserParams = organizedParams;
+
+			if (HPL::arg.debugAll || HPL::arg.debugLog)
+				std::cout << HPL::arg.curIndent << HPL::colorText("LOG: [FIX][FUNCTION-OOO]: ", HPL::OUTPUT_BLUE) << HPL::curFile << ":" << HPL::lineCount << ": Fixed the out of order initializations." << std::endl;
 		}
+
 		startOrgAt = 0; // Reset out of order initialization organization.
 
 		for (int i = 0; i < func.params.size(); i++) {
@@ -337,8 +322,15 @@ bool useFunction(HPL::function func, std::vector<HPL::variable>& sentUserParams)
 					HPL::throwError(true, "Cannot input a '%s' type to a %s-only parameter (param '%s' is %s-only)", sentUserParams[i].type.c_str(), func.params[i].type.c_str(), func.params[i].name.c_str(), func.params[i].type.c_str());
 			}
 
-			if (func.params[i].has_value() && (i + 1) > sentUserParams.size())
-				sentUserParams.push_back(func.params[i]);
+			if (func.params[i].has_value() && (i + 1) > sentUserParams.size()) {// If the function has default parameters that weren't covered
+				auto var = func.params[i];
+
+				std::string value = xToStr(var.value);
+				if (value == "{}")
+					setCorrectValue(var, xToStr(var.value), true);
+
+				sentUserParams.push_back(var);
+			}
 		}
 
 		foundFunction = true;
@@ -374,16 +366,28 @@ int assignFuncReturnToVar(HPL::variable* existingVar, std::string funcName, std:
 		if (func.type != output.type)
 			HPL::throwError(true, "Cannot return a '%s' type (the return type for '%s' is '%s', not '%s')", output.type.c_str(), funcName.c_str(), func.type.c_str(), output.type.c_str());
 
-		existingVar->type = func.type;
+		std::string value = xToStr(output.value);
 
-		if (func.type == "string")
-			existingVar->value = getStr(output.value);
-		else if (func.type == "int")
-			existingVar->value = getInt(output.value);
-		else if (func.type == "bool")
-			existingVar->value = getBool(output.value);
-		else if (func.type == "float")
-			existingVar->value = getFloat(output.value);
+		if (existingVar->type == "string")
+			existingVar->value = value;
+		else if (existingVar->type == "int")
+			existingVar->value = (int)stringToFloat(value);
+		else if (existingVar->type == "bool")
+			existingVar->value = stringToBool(value);
+		else if (existingVar->type == "float")
+			existingVar->value = stringToFloat(value);
+		else {
+			if (func.type == "string")
+				existingVar->value = getStr(output.value);
+			else if (func.type == "int")
+				existingVar->value = getInt(output.value);
+			else if (func.type == "bool")
+				existingVar->value = getBool(output.value);
+			else if (func.type == "float")
+				existingVar->value = getFloat(output.value);
+
+			existingVar->type = func.type;
+		}
 	}
 	else {
 		existingVar->reset_value();
@@ -456,6 +460,11 @@ allowedTypes coreFunctions(std::vector<HPL::variable> params) {
 	else if (useFunction({.type = "string", .name = "replaceAll", .params = {{"string", "str"}, {"string", "oldString"}, {"string", "newString"}}, .minParamCount = 3}, params))
 		return replaceAll(getStr(params[0].value), getStr(params[1].value), getStr(params[2].value));
 
+	else if (useFunction({.type = "int", .name = "len", .params = {{"auto", "value"}}, .minParamCount = 1}, params))
+		return len(params[0]);
+
+	else if (useFunction({.type = "void", .name = "HPL_throwError", .params = {{"string", "messsage"}}, .minParamCount = 1}, params))
+		HPL::throwError(true, getStr(params[0].value));
 
 	return {};
 }

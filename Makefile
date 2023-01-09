@@ -6,16 +6,14 @@ PLATFORM = nothing
 SRC = $(basename $(wildcard source/*.cpp))
 OBJ = $(addprefix $(OUTPUT)/,$(addsuffix .o,$(notdir $(SRC))))
 
-FLAGS = -std=c++17 -O2 -Wall -Wpedantic
+FLAGS = -std=c++20 -O2 -Wall -Wpedantic
 LIBS = -L"source/deps/$(PLATFORM)" -lSOIL2
 INCLUDE = -I"include"
-HPL-INPUT = examples/general/main.hpl
+INPUT = general
 
 ifeq ($(OS),Windows_NT)
     PLATFORM = windows
 	EXE := $(EXE).exe
-	FLAGS = -std=c++20 -O2 -Wall -Wpedantic
-# For whatever reason, Windows clang requires C++20
 else
     PLATFORM := $(shell uname -s | tr [:upper:] [:lower:])
 endif
@@ -34,16 +32,23 @@ $(EXE): $(OBJ) main.cpp
 	$(CC) $(FLAGS) $(INCLUDE) $(OBJ) main.cpp $(LIBS) -o $@
 
 run: $(EXE)
-	./$(EXE) $(HPL-INPUT)
+	./$(EXE) examples/$(INPUT)/main.hpl
 
 runLogs: $(EXE)
-	./$(EXE) -log $(HPL-INPUT)
+	./$(EXE) -l examples/$(INPUT)/main.hpl
 
 runDebug: $(EXE)
-	./$(EXE) -g $(HPL-INPUT)
+	./$(EXE) -g  examples/$(INPUT)/main.hpl
+
+runJson: $(EXE)
+	./$(EXE) -dumpJson examples/$(INPUT)/main.hpl
 
 clean:
-	rm -rf build/**
+ifeq ($(PLATFORM),windows)
+	rd -r "$(OUTPUT)/*"
+else
+	rm -rf $(OUTPUT)/**
+endif
 
 debug: $(EXE)
 	lldb ./$(EXE)

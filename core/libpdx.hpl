@@ -1,3 +1,10 @@
+// Mod structure.
 #include "libmod.hpl"
+
+// General functions in scopes.
+#include "libeffects.hpl"
+#include "libtriggers.hpl"
+
+// Separate modding implementations.
 #include "libcountry.hpl"
 #include "libevent.hpl"

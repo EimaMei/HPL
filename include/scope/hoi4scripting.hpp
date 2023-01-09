@@ -19,22 +19,24 @@
 *
 *
 */
+
+#pragma once
+
 #include <interpreter.hpp>
 
-#include <string>
-#include <vector>
+namespace HSM { // HOI4 Scripting+ Mode
+	// Interpreter runtime information.
+	extern std::string line;
+	extern int equalBrackets;
 
+	// Interpretes a single line.
+	std::string interpreteLine(std::string line);
 
-// The core types of the language.
-extern std::vector<std::string> coreTypes;
+	// Checks for any conditions.
+	int checkConditions(std::string& buffer);
+	// Checks for any functions.
+	int checkFunctions(std::string& buffer);
 
-// Reformats the params to be turned into variables.
-// Afterwards, check what function the user specified
-// and execute it.
-int executeFunction(std::string name, std::string params, HPL::function& func, HPL::variable& output, bool dontCheck = false);
-// Checks if the specific function got used.
-bool useFunction(HPL::function func, std::vector<HPL::variable>& userParams);
-// Defines the core functions and returns the function's return if successful.
-allowedTypes coreFunctions(std::vector<HPL::variable> params);
-// Sets the variable's value to the return of specified function.
-int assignFuncReturnToVar(HPL::variable* existingVar, std::string funcName, std::string funcParam, bool dontCheck = false);
+	// Resets the interpreter's runtime information.
+	void resetRuntimeInfo();
+}

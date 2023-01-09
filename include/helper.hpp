@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -52,6 +52,8 @@ std::string replaceAll(std::string str, std::string oldString, std::string newSt
 std::string replaceOnce(std::string, std::string oldString, std::string newString);
 // Converts a string to a bool.
 bool stringToBool(std::string str);
+// Converts a string to a float.
+float stringToFloat(std::string str);
 // Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
 std::string convertBackslashes(std::string str);
 // Converts a math operation to a single double (UNFINISHED, NEEDS REFINING).
@@ -85,7 +87,7 @@ T xToType(allowedTypes val) {
 
 // If a type exists. If the type is a struct, then `info` becomes
 // the pointer to the struct.
-bool typeIsValid(std::string type, HPL::structure* info = NULL);
+bool typeIsValid(std::string type, HPL::structure*& info);
 // If a type is a core type.
 bool coreTyped(std::string type);
 // Gets the core type from value. If it cannot determine the type,
@@ -95,7 +97,7 @@ std::string getTypeFromValue(std::string value);
 // `.type` being the value's original type, and the `.value` being
 // the inputed value in a correct type. (eg. "3" would output
 // {.type = "int", .value = 3}).
-bool setCorrectValue(HPL::variable& var, std::string value);
+bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue);
 // Gets the variable's value by its name and returns a pointer of it.
 // If the `varName` is a struct member, then regardlessly it'll look
 // for said member's type and values.
@@ -108,3 +110,5 @@ HPL::structure* getStructFromName(std::string name);
 std::string extractMathFromValue(std::string expr, HPL::variable* var);
 // Returns a string "<type> <name>(<params>)"
 std::string printFunction(HPL::function func);
+// Returns a string "<type> <name> = [value]"
+std::string printVar(HPL::variable var);

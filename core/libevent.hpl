@@ -1,9 +1,5 @@
 #include "libmod.hpl"
 
-struct option {
-	string title
-	scope results
-}
 
 struct event {
 	string namespace
@@ -12,22 +8,30 @@ struct event {
 	string title
 	string description
 	string picture
-	bool isTriggeredOnly = true
-	bool isNewsEvent = false
+	bool isTriggeredOnly
+	bool isNewsEvent
 
-	// Read-only
 	bool init = false
 	int options = 0
 }
 
 
-event newEvent(string namespace, int id, string title, string description, string imagePath) {
+event newEvent(string namespace, int id, string title, string description, string imagePath, bool isTriggeredOnly = true, scope immediate = {}) {
 	string path = HPL_currentMod.path
 
 	string locPath = f"{path}/localisation/hpl_events_l_english.yml"
 	string eventPath = f"{path}/events/{namespace}.txt"
 	string gfxName = replaceAll(replaceAll(getFilenameFromPath(imagePath), ".", "_"), "/", "_")
 	string ddsName = replaceAll(replaceAll(getFilenameFromPath(imagePath), ".jpg", ".dds"), ".png", ".dds")
+
+	string eventContent = f"\n\n# \"{title}\" event\ncountry_event = {\n\tid = {namespace}.{id}\n\ttitle = {namespace}.{id}.t\n\tdesc = {namespace}.{id}.d\n\tpicture = GFX_{gfxName}"
+	if isTriggeredOnly {
+		eventContent += "\n\n\tis_triggered_only = yes"
+	}
+	if len(immediate) != 0 {
+		string scopeResult = replaceAll(str(immediate), "\n", "\n\t\t")
+		eventContent += f"\n\n\timmediate = {\n\t\t{scopeResult}\n\t}"
+	}
 
 	createFolder(f"{path}/events")
 	createFolder(f"{path}/localisation")
@@ -38,7 +42,7 @@ event newEvent(string namespace, int id, string title, string description, strin
 	createFile(locPath, "l_english:", true)
 	createFile(f"{path}/interface/hpl_eventpictures.gfx", "spriteTypes = {")
 
-	writeFile(eventPath, f"\n\n# \"{title}\" event\ncountry_event = {\n\tid = {namespace}.{id}\n\ttitle = {namespace}.{id}.t\n\tdesc = {namespace}.{id}.d\n\tpicture = GFX_{gfxName}\n\t\n\n}", "a")
+	writeFile(eventPath, f"{eventContent}\n\t\n\n}", "a")
 
 	writeLocalisation(locPath, f"{namespace}.{id}.t", title)
 	writeLocalisation(locPath, f"{namespace}.{id}.d", description)
@@ -50,15 +54,21 @@ event newEvent(string namespace, int id, string title, string description, strin
 }
 
 
-int newEventOption(event e, string title) {
+int newEventOption(event e, string title, scope result = {}) {
 	string path = HPL_currentMod.path
+	string scopeResult
+
+	if len(result) != 0 {
+		scopeResult += "\n\t\t"
+		scopeResult += replaceAll(str(result), "\n", "\n\t\t")
+	}
 
 	string locPath = f"{path}/localisation/hpl_events_l_english.yml"
 	string eventPath = f"{path}/events/{e.namespace}.txt"
 
-	writeToLine(eventPath, 9, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1\n\t}")
+	writeToLine(eventPath, -3, f"\n\toption = {\n\t\tname = {e.namespace}.{e.id}.1{scopeResult}\n\t}")
 	writeLocalisation(locPath, f"{e.namespace}.{e.id}.1", title)
-	//e.options++
+	e.options++
 
 	return 0
 }

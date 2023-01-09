@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -37,13 +37,15 @@
 
 #define MODE_SAVE_STRUCT          0x0001
 #define MODE_SAVE_FUNC            0x0002
-#define MODE_SCOPE_IF_STATEMENT   0x0004
-#define MODE_SCOPE_IGNORE_ALL     0x0006
+#define MODE_SAVE_SCOPE           0x0004
+#define MODE_SCOPE_IF_STATEMENT   0x0006
+#define MODE_SCOPE_IGNORE_ALL     0x0008
 
-#define MODE_CHECK_STRUCT         0x0100
+#define MODE_CHECK_STRUCT         0x0101
 #define MODE_CHECK_FUNC           0x0102
-#define MODE_CHECK_IGNORE_ALL     0x0104
+#define MODE_CHECK_SCOPE          0x0104
 #define MODE_CHECK_IF_STATEMENT   0x0106
+#define MODE_CHECK_IGNORE_ALL     0x0108
 
 // Outputs returns.
 #define FOUND_NOTHING 0
@@ -74,9 +76,11 @@ namespace HPL {
 		bool debugLog;
 		bool breakpoint; std::pair<std::string, int> breakpointValues;
 
+		bool dumpJson;
+
 		std::string curIndent;
 	};
-	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, double, std::vector<HPL::variable>>
+	#define allowedTypes std::variant<std::monostate, std::string, int, float, bool, std::vector<HPL::variable>>
 
 	struct variable {
 		std::string type;
@@ -127,6 +131,8 @@ namespace HPL {
 	extern int mode;
 	extern HPL::vector matches;
 	extern int equalBrackets;
+	extern int scopeIndex;
+	extern int oldMode;
 
 	// Definitions that are saved in memory.
 	extern std::vector<variable> variables;
@@ -134,6 +140,8 @@ namespace HPL {
 	extern std::vector<function> functions;
 	extern std::vector<function> ifStatements;
 	extern HPL::variable functionOutput;
+
+	extern std::vector<variable> cachedVariables; // Out of scoped variables for the JSON dumper.
 
 	// Sets the color for the text that'll get printed.
 	std::string colorText(std::string txt, RETURN_OUTPUT type, bool light = false);
@@ -169,4 +177,6 @@ namespace HPL {
 
 	// Throws an intepreter error if something is wrong. This is very similar to 'printf', however as of now only '%s' and '%i' are supported.
 	void throwError(bool sendRuntimeError, std::string text, ...);
+	// Gets the current mode's name.
+	std::string getModeName();
 }

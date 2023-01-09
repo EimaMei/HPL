@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2021-2022 Eima
+* Copyright (C) 2022-2023 EimaMei/Sacode
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -32,6 +32,8 @@
 #include <helper.hpp>
 
 #include <sys/stat.h>
+#include <filesystem>
+
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
@@ -80,6 +82,7 @@ std::string func_str(HPL::variable value) { return xToStr(value.value); }
 int func_int(HPL::variable value) { return xToType<int>(value.value); }
 float func_float(HPL::variable value) { return xToType<float>(value.value); }
 bool func_bool(HPL::variable value) { return xToType<bool>(value.value); }
+int len(HPL::variable value) { return xToStr(value.value).size(); }
 
 
 int createFolder(std::string path) {
@@ -87,7 +90,7 @@ int createFolder(std::string path) {
 	std::string fullPath;
 	std::vector<std::string> folders = split(path, "/");
 
-	for (auto folder : folders) {
+	for (const auto& folder : folders) {
 		fullPath += folder;
 		check = mkdir(fullPath.c_str(), 0777);
 		fullPath += "/";
@@ -98,9 +101,7 @@ int createFolder(std::string path) {
 
 
 int removeFolder(std::string path) {
-	int check = system(std::string("rm -rf " + path).c_str()); // Fuck windows gidjsflkjdalfksjdafiowolfif
-
-    return check;
+	return std::filesystem::remove_all(path);
 }
 
 
@@ -109,13 +110,17 @@ int createFile(std::string path, std::string content/* = ""*/, bool useUtf8BOM/*
 
 	if (f == NULL) {
 		f = fopen(path.c_str(), "w");
+
 		if (!content.empty() && f != NULL) {
-			if (useUtf8BOM) fprintf(f, "\xEF\xBB\xBF");
+			if (useUtf8BOM)
+				fprintf(f, "\xEF\xBB\xBF");
 			fprintf(f, "%s", content.c_str());
 		}
-		else if (f == NULL) { return -1; }
+		else if (f == NULL)
+			return -1;
 	}
-	else { return -1; }
+	else
+		return -1;
     fclose(f);
 
 	return 0;
@@ -162,12 +167,12 @@ int writeFile(std::string path, std::string content, std::string mode/* = "w"*/)
 
 
 int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::string content, std::string mode/* = "w"*/) {
-	std::string buffer = "";
-	int lineCount = 0;
 	FILE* f = fopen(path.c_str(), "r");
-	FILE* fw = fopen("replace.tmp", "w");
 
 	if (f != NULL) {
+		FILE* fw = fopen("replace.tmp", "w");
+		int lineCount = 0;
+
 		fseek(f, 0, SEEK_END);
 		long size = ftell(f);
 		fseek(f, 0, SEEK_SET);
@@ -184,9 +189,9 @@ int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::stri
 					entireCount++;
 			}
 
-			if (lineBegin > 0)
+			if (lineBegin < 0)
 				lineBegin += entireCount + 2;
-			if (lineEnd > 0)
+			if (lineEnd < 0)
 				lineEnd += entireCount + 2;
 
 			free(tempBuf);
@@ -216,9 +221,8 @@ int writeToMultipleLines(std::string path, int lineBegin, int lineEnd, std::stri
 		remove(path.c_str());
 		rename("replace.tmp", path.c_str());
 	}
-	else {
+	else
 		return -1;
-	}
 
 	return 0;
 }

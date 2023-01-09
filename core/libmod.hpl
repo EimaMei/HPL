@@ -1,8 +1,21 @@
 #read once
 
 struct modTags {
+    bool alternativeHistory = false
+    bool balance = false
+    bool events = false
+    bool fixes = false
     bool gameplay = false
+    bool graphics = false
     bool historical = false
+    bool ideologies = false
+    bool map = false
+    bool military = false
+    bool nationalFocuses = false
+    bool sound = false
+    bool technologies = false
+    bool translation = false
+    bool utilities = false
 }
 
 struct mod {
@@ -13,16 +26,33 @@ struct mod {
 }
 
 mod HPL_currentMod
+int HPL_locCount = 0
 
-int newMod(string path, string name, string supportedVersion) {
-    HPL_currentMod = {name, supportedVersion, {}, f"{path}/{name}"}
+int newMod(string path, string name, string supportedVersion, modTags tags = {}) {
+    HPL_currentMod = {name, supportedVersion, tags, f"{path}/{name}"}
     removeFolder(path)
     createFolder(HPL_currentMod.path)
 
+    string descriptor = f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntags = {"
+    if tags.alternativeHistory {
+        descriptor += "\n\t\"Gameplay\""
+    }
+    if tags.balance {
+        descriptor += "\n\t\"Balance\""
+    }
+    if tags.events {
+        descriptor += "\n\t\"Events\""
+    }
+    descriptor += "\n}"
+    string modDescriptor = f"{descriptor}\npath = \"mod/{name}\""
 
-    createFile(f"{path}/{name}.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}\npath = \"mod/{name}\" ")
-    createFile(f"{path}/{name}/descriptor.mod", f"name = \"{name}\"\nsupported_version = \"{supportedVersion}\"\ntag = {\n\t\"Gameplay\"\n\t\"Historical\"\n}")
-
+    createFile(f"{path}/{name}.mod", modDescriptor)
+    createFile(f"{path}/{name}/descriptor.mod", descriptor)
 
     return 0
 }
+
+
+//int moveToModsFolder(mod m) {
+//
+//}

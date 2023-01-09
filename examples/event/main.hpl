@@ -1,5 +1,4 @@
 #include <libpdx.hpl>
-
 // string desc = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest."
 //  Later on, multiple languages will be supported. An example of how it would look:
 //  string desc = {
@@ -10,9 +9,66 @@
 // removeFolder("build/output")
 
 
-newMod("build/output", "Test mod", "1.12.*")
+newMod("build/output", "Event Modding", "1.12.*", {true, false, true})
 
-event alithronEvent = newEvent(namespace = "hpl_events", id = 56, title = "Alithron is back", description = "After 10 years of sufferage, the bri ish man himself Alithron has announced recently that he shall return in the coming weeks, no doubt to cause major tomfoolery and bring back Unser Kampf.", imagePath = "examples/event/res/literal_evil.png")
-newEventOption(e = alithronEvent, title = "Fuck.")
+//scope savedCode = { // We declared a scope variable, entering HSM mode.
+//    addWarSupport(tag = "ROOT", value = 10) // Scope only functions that only work in scopes.
+//    addStability(tag = "ROOT", value = -10)
+//    SOV = { add_war_support = 0.1 } // Allowed old HOI4 code.
+//}
+//
+//event alithronEvent = newEvent(namespace = "hpl_events", id = 56, title = "Alithron is back", description = "After 10 years of sufferage, the bri ish man himself Alithron has announced recently that he shall return in the coming weeks, no doubt to cause major tomfoolery and bring back Unser Kampf.", imagePath = "examples/event/res/literal_evil.png")
+//newEventOption(e = alithronEvent, title = "Fuck.", result = savedCode)
+//
 
-print(alithronEvent) // Prints out the alithron even
+scope anschlussScope = {
+    hidden_effect = {
+        addThreat(25, "Anschluss")
+    }
+}
+
+scope results = {
+	if isOwnedBy(4, "AUS") {
+		addCoreOf(4, "GER")
+	}
+	if isOwnedBy(152, "AUS") {
+		addCoreOf(152, "GER")
+	}
+	if isOwnedBy(153, "AUS") {
+		addCoreOf(153, "GER")
+	}
+	if isOwnedBy(848, "AUS") {
+		addCoreOf(848, "GER")
+	}
+	AUS = {
+		every_unit_leader = {
+			set_nationality = GER
+		}
+	}
+	annexCountry("AUS", true)
+	addPoliticalPower("ROOT", 75)
+	setCountryFlag("AUS_annexed")
+	addWarSupport("ROOT", 10)
+	addStability("ROOT", 5)
+	USA = {
+		set_country_flag = { flag = USA_anschluss_window days = 60 value = 1 }
+	}
+	customEffectTooltip("Uses Austrian gold to reduce the cost of §YMEFO bills§!.\n")
+
+	hidden_effect = { # Having it appear twice might be confusing
+		GER_mefo_bills_level_down = yes
+		GER_mefo_bills_level_down = yes
+	}
+	customEffectTooltip("Modify §YMEFO Bills§! by §G+0.10§! Daily Political Power Gain\n")
+	add_to_variable = { var = GER_mefo_bill_counter value = -10 }
+
+	if hasDlc("Death or Dishonor") && countryExists("YUG") && hasWar("YUG") == false {
+		countryEvent(id = "DOD_yugoslavia.30", days = 4)
+	}
+	hidden_effect = {
+		newsEvent(hours = 6, id = "news.36")
+	}
+}
+
+event anschluss = newEvent(namespace = "germany", id = 0, title = "Anschluss", description = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest.", imagePath = "", isTriggeredOnly = true, immediate = anschlussScope)
+newEventOption(e = anschluss, title = "How can anyone say that Austria is not German?!", result = results)
