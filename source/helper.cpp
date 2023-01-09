@@ -49,11 +49,17 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 
 		for (int i = 0; i < charScope.size(); i += 2) {
 			if (charScope[i] != '\0' && x == charScope[i] && (x != charScope[i + 1] || (x == charScope[i + 1] && !find(lastScope, std::string(1, x))))) {
+				if (buf[buf.size() - 2] == '\\' && x == '\"')
+					break;
+
 				counter--;
 				found = true;
 				lastScope += charScope[i + 1];
 			}
 			else if (charScope[i + 1] != '\0' && x == charScope[i + 1] && !lastScope.empty() && find(lastScope, std::string(1, charScope[i + 1]))) {
+				if (buf[buf.size() - 2] == '\\' && x == '\"')
+					break;
+
 				std::string d(1, charScope[i + 1]);
 				counter++;
 				found = true;
@@ -414,7 +420,7 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		else if (value.front() == '{' && value.back() == '}') { // Oh god oh fuck it's a custom list.
 			// We don't split the string by the comma if the comma is inside double quotes
 			// Meaning "This, yes this, exact test string" won't be split. We also remove the curly brackets before splitting.
-			std::vector<std::string> valueList = split(unstringify(value, true), ",", "\"\"{}");
+			std::vector<std::string> valueList = split(unstringify(value, true), ",", "(){}\"\"");
 			std::vector<HPL::variable> result;
 
 			if (valueList.size() > s->value.size()) {
@@ -589,7 +595,7 @@ HPL::variable* getVarFromName(std::string varName) {
 			if (s == nullptr) // Was a false-positive after all, goddamn...
 				return nullptr;
 
-			auto listOfMembers = split(varName, ".", "()\"\"{}");
+			auto listOfMembers = split(varName, ".", "(){}\"\"");
 			auto pointer = &v.value;
 
 			std::string baseName;

@@ -126,13 +126,15 @@ string customEffectTooltip(string text) {
         HPL_throwError("Must initialize a mod via 'newMod' before using this function (path to the mod is requested to create files).")
     }
 
+    string res = f"custom_effect_tooltip = EFFECT_{HPL_locCount}"
+
     createFolder(f"{HPL_currentMod.path}/localisation")
     createFile(f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", "l_english:", true)
-    writeFile(path = f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", content = f"\n\tEFFECT_{HPL_locCount}:0 \"{text}\"", mode = "a")
+    writeFile(f"{HPL_currentMod.path}/localisation/hpl_effect_localisation_l_english.yml", f"\n\tEFFECT_{HPL_locCount}:0 \"{text}\"", "a")
 
     HPL_locCount++
 
-    return f"custom_effect_tooltip = EFFECT_{HPL_locCount}"
+    return res
 }
 
 
@@ -149,7 +151,7 @@ string setCountryFlag(string flag, int days = -1, int value = -1) {
             buffer += f"days = {days} "
         }
         if value > 0 {
-            bufer += f"value = {value} "
+            buffer += f"value = {value} "
         }
         buffer += "}"
     }

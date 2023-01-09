@@ -104,7 +104,7 @@ int executeFunction(std::string name, std::string info, HPL::function& function,
 
 			for (int i = 0; i < funcValues.size(); i++) {
 				// Since the param DOES have functions inside, we have to get that functions' output.
-				auto list = split(funcValues[i].str(2), ",", "()\"\"");
+				auto list = split(funcValues[i].str(2), ",", "(){}\"\"");
 				assignFuncReturnToVar(&var, funcValues[i].str(1), funcValues[i].str(2), true);
 
 				if ((i + 1) < funcValues.size()) { // If there are more functions inside the param.
