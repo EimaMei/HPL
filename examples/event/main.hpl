@@ -1,29 +1,15 @@
-#include <libpdx.hpl>
-// string desc = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest."
-//  Later on, multiple languages will be supported. An example of how it would look:
-//  string desc = {
-//      "english" : "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest.",
-//      "lithuanian" : "Pakartotiniai sukilimai Austrijoje aiškiai rodo, kad tenykščiai žmonės trokšta vienybės su mūsų Reichu. Dabar atėjo laikas imtis veiksmų ir leisti pasireikšti žmonių valiai.",
-//      "german" : "<smth in german, too lazy to use a translator>"
-//  }
-// removeFolder("build/output")
+// A reimplementaion of the Anschluss event in HPL.
+// Everything from the event code itself to the localisation is here.
+// The only parts that still are old Clausewitz code are those that
+// still need proper implementation into HPL.
 
+#include <libpdx.hpl>
 
 newMod("build/output", "Event Modding", "1.12.*", {true, false, true})
 
-//scope savedCode = { // We declared a scope variable, entering HSM mode.
-//    addWarSupport(tag = "ROOT", value = 10) // Scope only functions that only work in scopes.
-//    addStability(tag = "ROOT", value = -10)
-//    SOV = { add_war_support = 0.1 } // Allowed old HOI4 code.
-//}
-//
-//event alithronEvent = newEvent(namespace = "hpl_events", id = 56, title = "Alithron is back", description = "After 10 years of sufferage, the bri ish man himself Alithron has announced recently that he shall return in the coming weeks, no doubt to cause major tomfoolery and bring back Unser Kampf.", imagePath = "examples/event/res/literal_evil.png")
-//newEventOption(e = alithronEvent, title = "Fuck.", result = savedCode)
-//
-
-scope anschlussScope = {
+scope immediateEffect = {
     hidden_effect = {
-        addThreat(25, "Anschluss")
+        addThreat(12, "Anschluss")
     }
 }
 
@@ -51,15 +37,15 @@ scope results = {
 	addWarSupport("ROOT", 10)
 	addStability("ROOT", 5)
 	USA = {
-		set_country_flag = { flag = USA_anschluss_window days = 60 value = 1 }
+		setCountryFlag(flag = "USA_anschluss_window", days = 60, value = 1)
 	}
-	customEffectTooltip("Uses Austrian gold to reduce the cost of §YMEFO bills§!.\n")
+	customEffectTooltip("Uses Austrian gold to reduce the cost of §YMEFO bills§!.")
 
 	hidden_effect = { # Having it appear twice might be confusing
 		GER_mefo_bills_level_down = yes
 		GER_mefo_bills_level_down = yes
 	}
-	customEffectTooltip("Modify §YMEFO Bills§! by §G+0.10§! Daily Political Power Gain\n")
+	customEffectTooltip("Modify §YMEFO Bills§! by §G+0.10§! Daily Political Power Gain")
 	add_to_variable = { var = GER_mefo_bill_counter value = -10 }
 
 	if hasDlc("Death or Dishonor") && countryExists("YUG") && hasWar("YUG") == false {
@@ -70,5 +56,5 @@ scope results = {
 	}
 }
 
-event anschluss = newEvent(namespace = "germany", id = 0, title = "Anschluss", description = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest.", imagePath = "", isTriggeredOnly = true, immediate = anschlussScope)
+event anschluss = newEvent(namespace = "germany", id = 0, title = "Anschluss", description = "Repeated uprisings in Austria clearly show that the people there long to be united with our Reich. It is now time to take action and allow the will of the people to be made manifest.", imagePath = "GFX_report_event_german_speech", isTriggeredOnly = true, immediate = immediateEffect)
 newEventOption(e = anschluss, title = "How can anyone say that Austria is not German?!", result = results)

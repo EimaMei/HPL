@@ -21,10 +21,16 @@ event newEvent(string namespace, int id, string title, string description, strin
 
 	string locPath = f"{path}/localisation/hpl_events_l_english.yml"
 	string eventPath = f"{path}/events/{namespace}.txt"
-	string gfxName = replaceAll(replaceAll(getFilenameFromPath(imagePath), ".", "_"), "/", "_")
-	string ddsName = replaceAll(replaceAll(getFilenameFromPath(imagePath), ".jpg", ".dds"), ".png", ".dds")
+	string gfxName = imagePath
 
-	string eventContent = f"\n\n# \"{title}\" event\ncountry_event = {\n\tid = {namespace}.{id}\n\ttitle = {namespace}.{id}.t\n\tdesc = {namespace}.{id}.d\n\tpicture = GFX_{gfxName}"
+	if find(gfxName, "GFX_") == false {
+		gfxName = "GFX_" + replaceAll(replaceAll(getFilenameFromPath(imagePath), ".", "_"), "/", "_")
+
+		createFolder(f"{path}/gfx/event_pictures")
+		createFolder(f"{path}/interface")
+	}
+
+	string eventContent = f"\n\n# \"{title}\" event\ncountry_event = {\n\tid = {namespace}.{id}\n\ttitle = {namespace}.{id}.t\n\tdesc = {namespace}.{id}.d\n\tpicture = {gfxName}"
 	if isTriggeredOnly {
 		eventContent += "\n\n\tis_triggered_only = yes"
 	}
@@ -35,20 +41,23 @@ event newEvent(string namespace, int id, string title, string description, strin
 
 	createFolder(f"{path}/events")
 	createFolder(f"{path}/localisation")
-	createFolder(f"{path}/gfx/event_pictures")
-	createFolder(f"{path}/interface")
 
 	createFile(eventPath, f"add_namespace = {namespace}")
 	createFile(locPath, "l_english:", true)
-	createFile(f"{path}/interface/hpl_eventpictures.gfx", "spriteTypes = {")
 
 	writeFile(eventPath, f"{eventContent}\n\t\n\n}", "a")
 
 	writeLocalisation(locPath, f"{namespace}.{id}.t", title)
 	writeLocalisation(locPath, f"{namespace}.{id}.d", description)
 
-	convertToDds(imagePath, f"{path}/gfx/event_pictures/{ddsName}")
-	writeFile(f"{path}/interface/hpl_eventpictures.gfx", f"\n\nspriteType = {\n\tname = \"GFX_{gfxName}\"\n\ttexturefile = \"gfx/event_pictures/{ddsName}\"\n}", "a")
+	if find(imagePath, "GFX_") == false {
+		string ddsName = replaceAll(replaceAll(getFilenameFromPath(imagePath), ".jpg", ".dds"), ".png", ".dds")
+
+		createFile(f"{path}/interface/hpl_eventpictures.gfx", "spriteTypes = {")
+
+		convertToDds(imagePath, f"{path}/gfx/event_pictures/{ddsName}")
+		writeFile(f"{path}/interface/hpl_eventpictures.gfx", f"\n\nspriteType = {\n\tname = \"GFX_{gfxName}\"\n\ttexturefile = \"gfx/event_pictures/{ddsName}\"\n}", "a")
+	}
 
 	return {namespace, id, title, description, imagePath}
 }

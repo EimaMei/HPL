@@ -343,7 +343,7 @@ int HPL::checkConditions() {
 		oldValue = removeFrontAndBackSpaces(oldValue);
 
 
-		auto params = split(oldValue, " ", "\"\"{}()"); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
+		auto params = split(oldValue, " ", "(){}\"\""); // NOTE: Need to a fix a bug when there's no space between an operator and two values (eg. 33=="@34")
 
 		ifStatements.push_back({.startingLine = equalBrackets});
 
@@ -480,7 +480,7 @@ int HPL::checkFunctions() {
 	// Match <return type> <name>(<params>) {
 	if (useRegex(line, R"(^\s*([^\s]+)\s+([^\s]+)\s*\((.*)\)\s*\{?$)") && matches.size() >= 3) {
 		function func = {matches.str(1), matches.str(2)};
-		std::vector<std::string> params = split(matches.str(3), ",", "\"\"");
+		std::vector<std::string> params = split(matches.str(3), ",", "(){}\"\"");
 
 		for (const auto& v : params) {
 			if (useRegex(v, R"(\s*([^\s]+)\s+([^\s]+)?\s*=?\s*(f?\".*\"|\{.*\}|[^\s*]*)\s*)")) {
@@ -567,7 +567,7 @@ int HPL::checkVariables() {
 				HPL::throwError(true, "Cannot append a %s type to a string (Value '%s' is a %s-type).", var.type.c_str(), xToStr(var.value).c_str(), var.type.c_str());
 
 
-			existingVar->value = xToStr(existingVar->value) + xToStr(var.value); // for some reason we have to get the const char* to append the text, smh.
+			existingVar->value = xToStr(existingVar->value) + xToStr(var.value);
 
 			return FOUND_SOMETHING;
 		}
