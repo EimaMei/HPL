@@ -28,7 +28,3 @@ bool functionTest(string input) {
 }
 
 print("The function 'functionTest' has outputted a '" + functionTest(input = "if statement") + "', not something else.")
-
-// Broken test code (ig conversion from bool to int doesn't work)
-// int m = find(replaceAll(replaceAll("hey", "y", "qwe"), "qwe", "NYET"), "w")
-// print(m)

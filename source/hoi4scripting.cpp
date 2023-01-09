@@ -30,11 +30,11 @@
 
 
 std::string HSM::interpreteLine(std::string str) {
-    std::string buffer;
+	std::string buffer;
 	std::string tabs;
 	bool found = false;
 
-    if (find(str, "#")) // Ignore comments
+	if (find(str, "#")) // Ignore comments
 		str = split(str, "#", "\"\"")[0];
 
 	line = str;

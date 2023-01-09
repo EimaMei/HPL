@@ -5,10 +5,10 @@ $curPath = $PSScriptRoot # Get the current path
 
 
 if (-Not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { # If the user isn't running this in admin, reopen Powershell in admin and ask for admin permissions.
-    $arguments = "& '" +$myinvocation.mycommand.definition + "'"
-    Start-Process powershell -Verb runAs -ArgumentList $arguments
-    Set-Location $curPath
-    Break
+	$arguments = "& '" +$myinvocation.mycommand.definition + "'"
+	Start-Process powershell -Verb runAs -ArgumentList $arguments
+	Set-Location $curPath
+	Break
 }
 
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
@@ -18,16 +18,16 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] `
 
 
 If (-Not $isAdmin) { # Just in case we check if we DON'T have admin permissions.
-    Write-Host "Please run this installer with administrator permissions to set the environment variable for HPL."
-    Write-Host -NoNewLine "Press any key to continue..."
-    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-    Exit
+	Write-Host "Please run this installer with administrator permissions to set the environment variable for HPL."
+	Write-Host -NoNewLine "Press any key to continue..."
+	$null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+	Exit
 }
 
 
 if (Test-Path $path) { # If HPL is already installed, ask if the user wants to reinstall
-    $answer = Read-Host -Prompt "Do you wish to reinstall HPL (y/n)?"
-    if ($answer -eq "y") {
+	$answer = Read-Host -Prompt "Do you wish to reinstall HPL (y/n)?"
+	if ($answer -eq "y") {
 		Remove-Item $path -Recurse
 	}
 	else {
@@ -45,5 +45,5 @@ Copy-Item $curPath\examples $path
 
 $ENVPATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") # Get the environment variable path.
 if ($ENVPATH -notlike "*" + $path + "*") { # Check if HPL isn't already in the variable.
-    [Environment]::SetEnvironmentVariable("PATH", "$ENVPATH;$path", "Machine") # If not, add HPL to the environment variable.
+	[Environment]::SetEnvironmentVariable("PATH", "$ENVPATH;$path", "Machine") # If not, add HPL to the environment variable.
 }
