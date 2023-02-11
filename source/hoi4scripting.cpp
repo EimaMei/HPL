@@ -66,7 +66,7 @@ std::string HSM::interpreteLine(std::string str) {
 		HPL::mode = MODE_DEFAULT;
 		HPL::variables[0].value = false;
 
-		auto& value = getStr(HPL::variables[HPL::scopeIndex].value);
+		auto& value = getStr(HPL::variables[HPL::scopeIndex]);
 		value.pop_back();
 
 		return std::string{};

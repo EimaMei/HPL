@@ -48,7 +48,7 @@ scope results = {
 	customEffectTooltip("Modify §YMEFO Bills§! by §G+0.10§! Daily Political Power Gain")
 	add_to_variable = { var = GER_mefo_bill_counter value = -10 }
 
-	if hasDlc("Death or Dishonor") && countryExists("YUG") && hasWar("YUG") == false {
+	if hasDlc("Death or Dishonor") && countryExists("YUG") && !hasWar("YUG") {
 		countryEvent(id = "DOD_yugoslavia.30", days = 4)
 	}
 	hidden_effect = {

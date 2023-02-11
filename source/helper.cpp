@@ -81,10 +81,18 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 
 
 bool useRegex(std::string str, std::string regexText) {
+	std::cout << colorText("WARNING: ", HPL::OUTPUT_RED) << "Using outdated function 'useRegex' at line '" << colorText(std::to_string(HPL::lineCount), HPL::OUTPUT_YELLOW) << "' (regex_text = " << regexText << ")" << std::endl;
 	std::smatch matches;
 	bool res = std::regex_search(str, matches, std::regex(regexText));
 
-	// For some reason after 'useRegex' and 'HPL::matches' is out
+	// Note (as of 2023-01-16/HPL 0.2.7): It's very discouraged to use 'useRegex'
+	// and to instead create your own parser function. Mainly because the function
+	// is very performance heavy as not only does it use regex for the parsing,
+	// but also has to copy contents from std::matches to HPL::vector after each
+	// function usage. This function is only kept for backwards compatibility with
+	// older code.
+	//
+	// Old notes: For some reason after 'useRegex' and 'HPL::matches' is out
 	// of the function scope, the data gets corrupted and spews
 	// out random memory in place of actual strings. Why?
 	// No clue. This issue only appeared on the Windows version
@@ -100,21 +108,32 @@ bool useRegex(std::string str, std::string regexText) {
 	// which I don't particulary mind as std::vector seems to be
 	// much more reliable than std::smatch.
 	HPL::matches.clear();
-	for (int i = 1; i < matches.size(); i++)
-		HPL::matches.push_back(matches.str(i));
+	for (int i = 1; i < matches.size(); i++) {
+		if (!matches.str(i).empty())
+			HPL::matches.push_back(matches.str(i));
+	}
 
 	return res;
 }
 
 
 bool useIterativeRegex(std::string str, std::string regexText) {
+	std::cout << colorText("WARNING: ", HPL::OUTPUT_RED) << "Using outdated function 'useIterativeRegex' at line '" << colorText(std::to_string(HPL::lineCount), HPL::OUTPUT_YELLOW) << "' (regex_text = " << regexText << ")" << std::endl;
+
+	// Note (as of 2023-01-16/HPL 0.2.7): It's very discouraged to use 'useIterativeRegex'
+	// and to instead create your own parser function. Mainly because the function
+	// is very performance heavy as not only does it use regex for the parsing,
+	// but also has to copy contents from std::matches to HPL::vector after each
+	// function usage. This function is only kept for backwards compatibility with older
+	// code.
+
 	std::smatch match;
 	HPL::matches.clear();
 	bool res;
-    while ((res = std::regex_search(str, match, std::regex(regexText)))) {
+	while ((res = std::regex_search(str, match, std::regex(regexText)))) {
 		HPL::matches.push_back(match.str(1));
-        str = match.suffix();
-    }
+		str = match.suffix();
+	}
 
 	return res;
 }
@@ -139,7 +158,7 @@ std::string removeFrontAndBackSpaces(std::string str) {
 
 
 	for (i2 = str.size() - 1; 0 < i2; ) { // Find the back spaces.
-		if (str[i2] == ' ')
+		if (str[i2] == ' ' || str[i2] == ';')
 			i2--;
 		else
 			break;
@@ -163,6 +182,15 @@ std::string unstringify(std::string str, bool noChecks/* = false*/, char charact
 }
 
 
+std::string removeFrontAndBackLetters(std::string str) {
+	str.erase(0, 1);
+	str.pop_back();
+
+	return str;
+}
+
+
+
 std::string getPathFromFilename(std::string filename) {
 	return filename.substr(0, filename.find_last_of("/\\"));
 }
@@ -175,10 +203,10 @@ bool find(std::string line, std::string str) {
 
 bool isInt(std::string str) {
  	str = replaceAll(str, ".", ""); // For any possible floats.
-    if (str.empty()) // String was just dots for whatever reason, not a decimal eitherway.
+	if (str.empty()) // String was just dots for whatever reason, not a decimal eitherway.
 		return false;
 
-    return str.find_first_not_of("0123456789+-/*()") == std::string::npos;
+	return str.find_first_not_of("0123456789+-/*()") == std::string::npos;
 }
 
 
@@ -189,14 +217,14 @@ bool isStr(std::string str) {
 
 std::string replaceAll(std::string str, std::string oldString, std::string newString) {
 	for( size_t pos = 0; ; pos += newString.length() ) {
-        // Locate the substring to newString
-        pos = str.find( oldString, pos );
-        if( pos == std::string::npos ) break;
-        // Replace by erasing and inserting
-        str.erase( pos, oldString.length() );
-        str.insert( pos, newString );
+		// Locate the substring to newString
+		pos = str.find( oldString, pos );
+		if( pos == std::string::npos ) break;
+		// Replace by erasing and inserting
+		str.erase( pos, oldString.length() );
+		str.insert( pos, newString );
 
-    }
+	}
 
 	return str;
 }
@@ -232,7 +260,7 @@ std::string convertBackslashes(std::string str) {
 			case '6':
 			case '7':
 				int num;
-				sscanf(str.c_str(), "%o", &num);
+				sscanf_s(str.c_str(), "%o", &num);
 				str.replace(pos, 2, (&"\\"[num]));
 				break;
 		}
@@ -263,19 +291,6 @@ bool stringToBool(std::string str) {
 
 	return false;
 }
-
-
-float stringToFloat(std::string str) {
-	if (str == "true")
-		return 1;
-	else if (str == "false")
-		return 0;
-	else
-		return std::stof(str);
-
-	return 1991;
-}
-
 
 
 double eval(std::string expr, int& errorCode) {
@@ -320,17 +335,19 @@ std::string xToStr(allowedTypes val) {
 
 		return result;
 	}
+	else if (std::holds_alternative<HPL::variable*>(val))
+		return xToStr(getPVar(val)->value);
 
 	return std::string{};
 }
 
 
-bool typeIsValid(std::string type, HPL::structure*& info/* = NULL*/) {
+bool typeIsValid(std::string type, HPL::structure* info/* = nullptr*/) {
 	if (coreTyped(type))
 		return true;
 
 	// Didn't find a core type, maybe it'll find a struct instead.
-	for (auto s : HPL::structures) {
+	for (auto& s : HPL::structures) {
 		if (type == s.name) {
 			if (info != nullptr)
 				info = &s;
@@ -371,10 +388,22 @@ std::string getTypeFromValue(std::string value) {
 }
 
 
-bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue) {
-	HPL::variable* existingVar = getVarFromName(value);
+bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue, HPL::variable** pointerToOriginalVariable/* = nullptr*/) {
+	HPL::variable* existingVar;
 	HPL::structure* s = nullptr;
 	bool result = false;
+	bool changeValue = false;
+	char frontChar = value.front();
+
+	if (!isalpha(frontChar) && !isdigit(frontChar) && (frontChar != '\"' && frontChar != '{' && frontChar != '|') && (value.size() > 1 && value[1] != '=')) {
+		if (!((frontChar == '-' || frontChar == '+') && isInt(value))) {
+			changeValue = true;
+			value = value.substr(1, -1);
+		}
+	}
+
+	existingVar = getVarFromName(value);
+
 
 	/*
 	MAJOR NOTE: Fix the issue when the first word isn's a string, even though there's a plus behind it (eg. 343243 + "bfdjsgdfg")
@@ -403,12 +432,20 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 	if (value.empty() && existingVar == nullptr && var.type != "scope" && typeIsValid(var.type, s))
 		return false;
 
+	if (changeValue)
+		setUnaryOperator(var, existingVar, value, frontChar);
+
 	if (existingVar != nullptr) {
 		if (!onlyChangeValue)
 			var = *existingVar;
 		else
 			var.value = existingVar->value;
+
+		if (pointerToOriginalVariable != nullptr)
+			*pointerToOriginalVariable = existingVar;
 	}
+	else if (pointerToOriginalVariable != nullptr)
+		*pointerToOriginalVariable = nullptr;
 
 	if (s != nullptr) { // The returned type from `typeIsValid` returned a struct
 		if (value.empty()) { // Nothing is set, meaning it's just the struct's default arguments.
@@ -449,9 +486,10 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		}
 	}
 
-	if (s != nullptr || existingVar != nullptr) {
+
+	if (s != nullptr || existingVar != nullptr)
 		result = true;
-	}
+
 	else if (var.type == "scope") {
 		var.reset_value();
 
@@ -463,7 +501,10 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		result = true;
 	}
 
-	else if (var.type == "string" && isStr(value)) {
+	else if (var.type == "string") {
+		if (!isStr(value))
+			std::cout << "Hm: " << value << std::endl;
+
 		getValueFromFstring(value, value);
 
 		auto plusShenanigans = split(value, "+", "\"\"(){}"); // C's '+' strike again! We gotta organize everything ffs.
@@ -486,23 +527,21 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 		result = true;
 	}
 
-	else if (isInt(value)) {
-		if (var.type == "int") {
-			var.value = xToType<int>(value);
-			result = true;
-		}
+	else if (var.type == "int") {
+		var.value = xToType<int>(value);
+		result = true;
+	}
 
-		else if (var.type == "float") {
-			var.value = xToType<float>(value);
-			result = true;
-		}
+	else if (var.type == "float") {
+		var.value = xToType<float>(value);
+		result = true;
 	}
 
 	else if (var.type == "bool") {
 		var.value = stringToBool(value);
 		result = true;
 	}
-
+//
 	else if (var.type == "struct" || (value.front() == '{' && value.back() == '}')) {
 		useIterativeRegex(unstringify(value, true), R"(([^\,\s]+))"); // get the members.
 
@@ -526,7 +565,7 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 
 			else if (v.empty() && _struct != nullptr)
 				output.push_back(_struct->value[index]);
-			
+
 			else if (v.empty())
 				output.push_back({});
 
@@ -549,10 +588,13 @@ bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue
 
 		result = true;
 	}
-	else if (useRegex(value, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
-		assignFuncReturnToVar(&var, HPL::matches.str(1), HPL::matches.str(2));
-		result = true;
-	}
+	//else if (useRegex(value, R"(^\s*([^\s\(]+)\((.*)\)\s*$)")) {
+	//	assignFuncReturnToVar(&var, HPL::matches.str(1), HPL::matches.str(2));
+	//	result = true;
+//
+	//	if (changeValue)
+	//		setUnaryOperator(var, existingVar, value, frontChar);
+	//}
 	/*else if (!(result = extractMathFromValue(value, existingVar)).empty()) // A math expresultsion.
 		value = result;*/
 
@@ -589,7 +631,7 @@ HPL::variable* getVarFromName(std::string varName) {
 			return &v;
 		}
 
-		if (find(varName, v.name + ".")) { // A custom type
+		else if (find(varName, v.name + ".")) { // A custom type
 			HPL::structure* s = getStructFromName(v.type);
 
 			if (s == nullptr) // Was a false-positive after all, goddamn...
@@ -657,6 +699,43 @@ HPL::variable* getVarFromName(std::string varName) {
 	}
 
 	return nullptr;
+}
+
+
+void setUnaryOperator(HPL::variable& var, HPL::variable*& existingVar, std::string& value, char& frontChar) {
+	if (!var.type.empty() && !(var.type == "int" || var.type == "bool" || var.type == "float" || var.type == "scope"))
+		HPL::throwError(true, "Cannot use operator NOT(!) for %s values (Can only use the operator for bool/int/float types, not %s)", var.type.c_str(), var.type.c_str());
+	HPL::variable* initVar = &var;
+
+	if (existingVar != nullptr)
+		initVar = existingVar;
+
+	if (initVar->type == "bool") {
+		if (frontChar == '!')
+			initVar->value = !getBool((*initVar));
+		else if (frontChar == '-')
+			initVar->value = -getBool((*initVar));
+		else if (frontChar == '+')
+			initVar->value = +xToType<float>(initVar->value);
+		else
+			HPL::throwError(true, "Unary operator '%c' doesn't exist (You can use !/-/+, but not '%c')", &frontChar, &frontChar);
+	}
+	else if (initVar->type == "int" || initVar->type == "float") {
+		if (frontChar == '!')
+			initVar->value = !xToType<float>(initVar->value);
+		else if (frontChar == '-')
+			initVar->value = -xToType<float>(initVar->value);
+		else if (frontChar == '+')
+			initVar->value = +xToType<float>(initVar->value);
+		else
+			HPL::throwError(true, "Unary operator '%c' doesn't exist (You can use !/-/+, but not '%c')", &frontChar, &frontChar);
+
+		if (existingVar->type == "int")
+			initVar->value = (int)getFloat((*initVar));
+	}
+	else if (initVar->type == "scope")
+		initVar->value = "NOT = { " + getStr((*initVar)) + "}";
+
 }
 
 
@@ -747,4 +826,108 @@ std::string printVar(HPL::variable var) {
 	}
 
 	return str;
+}
+
+
+HPL::timer startTimer() {
+	auto start = std::chrono::system_clock::now();
+	return HPL::timer{.id = start};
+}
+
+
+void updateTimer(HPL::timer& t) {
+	int h = 0, m = 0, s = 0, ms = 0;
+
+	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now() - t.id;
+	double time =  elapsed_seconds.count();
+
+	std::string str = std::to_string(time);
+	str = str.substr(str.find(".") + 1, -1).substr(0, 2);
+	ms = std::stoi(str);
+
+	if (m >= 60)
+		h = m / 60;
+	if (time >= 60.0)
+		m = abs(time) / 60;
+
+	s = time - (m * 60);
+
+	t = {h, m, s, ms, t.past, t.id};
+}
+
+
+bool compareVars(HPL::variable& var1, HPL::variable& var2, std::string symbol) {
+	if (var1.type == "string") {
+		if (var2.type != "string")
+			HPL::throwError(true, "baded");
+
+		var2.value = xToStr(var2.value);
+
+		switch (operatorList[symbol]) {
+			case equal_equal:   return (getStr(var1) == getStr(var2));
+			case not_equal:     return (getStr(var1) != getStr(var2));
+			case greater_than:  return (getStr(var1) >  getStr(var2));
+			case lesser_than:   return (getStr(var1) <  getStr(var2));
+			case equal_greater: return (getStr(var1) >= getStr(var2));
+			case equal_lesser:  return (getStr(var1) <= getStr(var2));
+			default: break;
+		}
+	}
+	else if (var1.type == "int") {
+		if (var2.type == "string")
+			HPL::throwError(true, "baded");
+
+		var2.value = xToType<int>(var2.value);
+
+		switch (operatorList[symbol]) {
+			case equal_equal:   return (getInt(var1) == getInt(var2));
+			case not_equal:     return (getInt(var1) != getInt(var2));
+			case greater_than:  return (getInt(var1) >  getInt(var2));
+			case lesser_than:   return (getInt(var1) <  getInt(var2));
+			case equal_greater: return (getInt(var1) >= getInt(var2));
+			case equal_lesser:  return (getInt(var1) <= getInt(var2));
+			default: break;
+		}
+	}
+	else if (var1.type == "float") {
+		if (var2.type == "string")
+			HPL::throwError(true, "baded");
+
+		var2.value = xToType<float>(var2.value);
+
+		switch (operatorList[symbol]) {
+			case equal_equal:   return (getFloat(var1) == getFloat(var2));
+			case not_equal:     return (getFloat(var1) != getFloat(var2));
+			case greater_than:  return (getFloat(var1) >  getFloat(var2));
+			case lesser_than:   return (getFloat(var1) <  getFloat(var2));
+			case equal_greater: return (getFloat(var1) >= getFloat(var2));
+			case equal_lesser:  return (getFloat(var1) <= getFloat(var2));
+			default: break;
+		}
+	}
+	else if (var1.type == "bool") {
+		if (var2.type == "string")
+			HPL::throwError(true, "baded");
+
+		var2.value = xToType<bool>(var2.value);
+
+		switch (operatorList[symbol]) {
+			case equal_equal:   return (getBool(var1) == getBool(var2));
+			case not_equal:     return (getBool(var1) != getBool(var2));
+			case greater_than:  return (getBool(var1) >  getBool(var2));
+			case lesser_than:   return (getBool(var1) <  getBool(var2));
+			case equal_greater: return (getBool(var1) >= getBool(var2));
+			case equal_lesser:  return (getBool(var1) <= getBool(var2));
+			default: break;
+		}
+	}
+	else if (var1.type == "scope")
+		HPL::throwError(true, "very baded");
+
+	return false;
+}
+
+
+std::ostream& operator<<(std::ostream &os, const HPL::timer& t) {
+	return os << t.h << ":" << t.min << ":" << t.s << ":" << t.ms;
 }

@@ -63,10 +63,13 @@ event newEvent(string namespace, int id, string title, string description, strin
 }
 
 
-int newEventOption(event e, string title, scope result = {}) {
+int newEventOption(event e, string title, scope result = {}, auto aiChance = -1) {
 	string path = HPL_currentMod.path
 	string scopeResult
 
+	if len(aiChance) > 0 {
+		scopeResult += f"\n\t\tai_chance = {aiChance}"
+	}
 	if len(result) != 0 {
 		scopeResult += "\n\t\t"
 		scopeResult += replaceAll(str(result), "\n", "\n\t\t")

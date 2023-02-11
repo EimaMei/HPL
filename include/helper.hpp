@@ -32,30 +32,36 @@ std::vector<std::string> split(std::string str, std::string value, std::string c
 bool useRegex(std::string str, std::string regexText);
 // Checks if there are multiple matches from the regex.
 bool useIterativeRegex(std::string str, std::string regexText);
+
 // Removes any whitespace in a sentence.
 std::string removeSpaces(std::string str);
 // Removes any whitespace in the front or back of a string.
 std::string removeFrontAndBackSpaces(std::string str);
+
 // Removes the double quotes from strings. If 'noChecks' is enabled then it doesn't check if the string has double quotes in the front and back, which just essentially removes both the front and back char for any string.
 std::string unstringify(std::string str, bool noChecks = false, char character = '"');
+
 // Gets the path from the filename (eg. /usr/bin/somefile.img would turn to /usr/bin).
 std::string getPathFromFilename(std::string filename);
+// Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
+std::string convertBackslashes(std::string str);
+
 // Checks if something is in the line.
 bool find(std::string line, std::string str);
+
 // Checks if string is an int.
 bool isInt(std::string str);
 //Checks if a string is *actually* a string or f-string.
 bool isStr(std::string str);
+
 // Replaces all instances of 'oldString' with 'newString' in 'str'
 std::string replaceAll(std::string str, std::string oldString, std::string newString);
 // Replaces the FIRST instance of 'oldString' with 'newString' in 'str'
 std::string replaceOnce(std::string, std::string oldString, std::string newString);
+
 // Converts a string to a bool.
 bool stringToBool(std::string str);
-// Converts a string to a float.
-float stringToFloat(std::string str);
-// Fixes string where a backslash and letter are treated as different letters (eg. "\n" will now properly get converted to '\n').
-std::string convertBackslashes(std::string str);
+
 // Converts a math operation to a single double (UNFINISHED, NEEDS REFINING).
 double eval(std::string expr, int& errorCode);
 
@@ -70,7 +76,7 @@ T xToType(allowedTypes val) {
 		if (std::holds_alternative<std::string>(val))
 			return (T)std::stod(std::get<std::string>(val));
 
-		else if (std::holds_alternative<int>(val))
+		if (std::holds_alternative<int>(val))
 			return (T)std::get<int>(val);
 
 		else if (std::holds_alternative<float>(val))
@@ -83,11 +89,16 @@ T xToType(allowedTypes val) {
 	return T();
 }
 
+//
+HPL::timer startTimer();
+//
+void updateTimer(HPL::timer& t);
+
 /* HPL specific helper functions. */
 
 // If a type exists. If the type is a struct, then `info` becomes
 // the pointer to the struct.
-bool typeIsValid(std::string type, HPL::structure*& info);
+bool typeIsValid(std::string type, HPL::structure* info = nullptr);
 // If a type is a core type.
 bool coreTyped(std::string type);
 // Gets the core type from value. If it cannot determine the type,
@@ -97,11 +108,13 @@ std::string getTypeFromValue(std::string value);
 // `.type` being the value's original type, and the `.value` being
 // the inputed value in a correct type. (eg. "3" would output
 // {.type = "int", .value = 3}).
-bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue);
+bool setCorrectValue(HPL::variable& var, std::string value, bool onlyChangeValue, HPL::variable** pointerToOriginalVariable = nullptr);
 // Gets the variable's value by its name and returns a pointer of it.
 // If the `varName` is a struct member, then regardlessly it'll look
 // for said member's type and values.
 HPL::variable* getVarFromName(std::string varName);
+//
+void setUnaryOperator(HPL::variable& var, HPL::variable*& existingVar, std::string& value, char& frontChar);
 // Fixes the sentence from being f-string to a normal string.
 int getValueFromFstring(std::string ogValue, std::string& output);
 // Get the struct from name. If no struct is found, returns a nullptr.
@@ -112,3 +125,10 @@ std::string extractMathFromValue(std::string expr, HPL::variable* var);
 std::string printFunction(HPL::function func);
 // Returns a string "<type> <name> = [value]"
 std::string printVar(HPL::variable var);
+
+//
+bool compareVars(HPL::variable& var1, HPL::variable& var2, std::string symbol);
+//
+std::ostream& operator<<(std::ostream &os, const HPL::timer& t);
+//
+std::string removeFrontAndBackLetters(std::string str);

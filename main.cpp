@@ -39,6 +39,7 @@ int main(int argc, char** argv) {
 		checkArgs({"log", "l"}, arg, HPL::arg.debugLog, output);
 		checkArgs({"breakpoint", "b"}, arg, HPL::arg.breakpoint, output);
 		checkArgs({"dumpJson", "d"}, arg, HPL::arg.dumpJson, output);
+		checkArgs({"compile", "c"}, arg, HPL::arg.objectify, output);
 
 		if (HPL::arg.breakpoint && find(arg, ":") && HPL::arg.breakpointValues.first.empty()) {
 			std::vector<std::string> input = split(arg, ":"); // [0] - file, [1] - line.
@@ -58,8 +59,24 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-
+	HPL::timer t = startTimer();
 	HPL::interpreteFile(filename);
+	updateTimer(t);
+	std::cout << t << std::endl;
+
+    //FILE * file = fopen("output.hplo", "wb");
+//
+	//for (auto const& var : HPL::variables) {
+	//	HPL::object obj = {1, 1, var};
+	//	fwrite(&obj, sizeof(HPL::object), 1, file);
+	//}
+    //fclose(file);
+
+	//file = fopen("output.bin", "rb");
+    //if (file != NULL) {
+    //    fread(&obj, sizeof(HPL::object), 1, file);
+    //    fclose(file);
+    //}
 
 	if (HPL::arg.dumpJson) {
 		dumpJson();
