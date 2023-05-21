@@ -1,3 +1,8 @@
+# NOTE: As of May 21st 2023
+This project has been completely cancelled and won't receive any new updates as I am not really part of the HOI4 community anymore and the codebase has turned into a mess, making it impossible to make things better without rewriting the entire thing (thanks C++). The language is functional but is extremely slow, a big buggy, and shouldn't be really seriously used. I do plan on possibly making a language with its syntax similar to HPL but it won't be HOI4 focused, and the backend will be completely different.
+
+
+# Original README.md
 <p align="center">
     <img src="images/logo.png?raw=true" alt="HPL logo" style="width:60%">
     <br/>The modern, developer solution to HOI4 modding.<br/>
@@ -83,4 +88,4 @@ To download it you can just look up 'HPL' in the marketplace and download the fi
 # Credits
 [SOIL2 (forked version)](https://github.com/EimaMei/SIL2) - for the `convertToDds` core function (HPL uses a modified version of SOIL2 to remove unneeded OpenGL requirements).
 
-[Allyedge](https://github.com/Allyedge) - for creating the HPL VSC extension.
+[Allyedge](https://github.com/Allyedge) - for creating the HPL VSC extension. (this guy is actually cringe btw)
